@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
       and(
         eq(member.organizationId, org.id),
         eq(member.userId, session.user.id),
+        eq(member.tenantId, tenant.id),
       ),
     )
     .limit(1);

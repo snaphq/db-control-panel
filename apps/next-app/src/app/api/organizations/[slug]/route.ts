@@ -100,6 +100,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       and(
         eq(member.organizationId, org.id),
         eq(member.userId, session.user.id),
+        eq(member.tenantId, tenant.id),
       ),
     )
     .limit(1);
@@ -143,6 +144,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       and(
         eq(member.organizationId, org.id),
         eq(member.userId, session.user.id),
+        eq(member.tenantId, tenant.id),
       ),
     )
     .limit(1);
@@ -257,7 +259,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
   const [updated] = await db()
     .update(organization)
     .set(update)
-    .where(eq(organization.id, org.id))
+    .where(
+      and(eq(organization.id, org.id), eq(organization.tenantId, tenant.id)),
+    )
     .returning();
 
   // Best-effort Stripe customer sync for billing detail changes.

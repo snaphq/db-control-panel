@@ -49,6 +49,7 @@ export default async function MembersPage({ params }: PageProps) {
       and(
         eq(member.organizationId, org[0].id),
         eq(member.userId, session.user.id),
+        eq(member.tenantId, tenant.id),
       ),
     )
     .limit(1);
@@ -57,31 +58,39 @@ export default async function MembersPage({ params }: PageProps) {
     notFound();
   }
 
-  // Get all members with user details
-  const members = await db()
-    .select({
-      id: member.id,
-      role: member.role,
-      createdAt: member.createdAt,
-      userId: member.userId,
-      userName: user.name,
-      userEmail: user.publicEmail,
-      userImage: user.image,
-    })
-    .from(member)
-    .innerJoin(user, eq(member.userId, user.id))
-    .where(eq(member.organizationId, org[0].id));
-
-  // Get pending invitations
-  const pendingInvitations = await db()
-    .select()
-    .from(invitation)
-    .where(
-      and(
-        eq(invitation.organizationId, org[0].id),
-        eq(invitation.status, "pending"),
+  const [members, pendingInvitations] = await Promise.all([
+    // Get all members with user details
+    db()
+      .select({
+        id: member.id,
+        role: member.role,
+        createdAt: member.createdAt,
+        userId: member.userId,
+        userName: user.name,
+        userEmail: user.publicEmail,
+        userImage: user.image,
+      })
+      .from(member)
+      .innerJoin(user, eq(member.userId, user.id))
+      .where(
+        and(
+          eq(member.organizationId, org[0].id),
+          eq(member.tenantId, tenant.id),
+          eq(user.tenantId, tenant.id),
+        ),
       ),
-    );
+    // Get pending invitations
+    db()
+      .select()
+      .from(invitation)
+      .where(
+        and(
+          eq(invitation.organizationId, org[0].id),
+          eq(invitation.status, "pending"),
+          eq(invitation.tenantId, tenant.id),
+        ),
+      ),
+  ]);
 
   const currentUserRole = membership[0].role;
   const canManageMembers =

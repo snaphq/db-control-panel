@@ -3,7 +3,10 @@ import {
   type IntegrationInstallation,
   integration,
   integrationInstallation,
+  organization,
+  project,
 } from "@repo/database/schema";
+import { exists } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { decryptJson, encryptJson } from "./encryption";
 import { getProviderHandler } from "./provider-handlers";
@@ -11,6 +14,7 @@ import { type SafeInstallation, toSafeInstallation } from "./types";
 
 export type CreateInstallationParams = {
   integrationSlug: string;
+  tenantId: string;
   organizationId: string;
   projectId?: string | null;
   displayName?: string | null;
@@ -38,6 +42,36 @@ export async function createInstallation(
       status: 400,
       error: "Integration is deprecated and cannot be installed.",
     };
+  }
+
+  const [org] = await db()
+    .select({ id: organization.id })
+    .from(organization)
+    .where(
+      and(
+        eq(organization.id, params.organizationId),
+        eq(organization.tenantId, params.tenantId),
+      ),
+    )
+    .limit(1);
+  if (!org) {
+    return { ok: false, status: 404, error: "Organization not found." };
+  }
+  if (params.projectId) {
+    const [proj] = await db()
+      .select({ id: project.id })
+      .from(project)
+      .where(
+        and(
+          eq(project.id, params.projectId),
+          eq(project.organizationId, params.organizationId),
+          eq(project.tenantId, params.tenantId),
+        ),
+      )
+      .limit(1);
+    if (!proj) {
+      return { ok: false, status: 404, error: "Project not found." };
+    }
   }
 
   const handler = getProviderHandler(params.integrationSlug);
@@ -70,6 +104,17 @@ export async function createInstallation(
       and(
         eq(integrationInstallation.integrationId, intg.id),
         eq(integrationInstallation.organizationId, params.organizationId),
+        exists(
+          db()
+            .select({ id: organization.id })
+            .from(organization)
+            .where(
+              and(
+                eq(organization.id, integrationInstallation.organizationId),
+                eq(organization.tenantId, params.tenantId),
+              ),
+            ),
+        ),
         projectFilter,
       ),
     );
@@ -112,14 +157,69 @@ export async function createInstallation(
 export async function reverifyInstallation(
   installation: IntegrationInstallation,
   integrationSlug: string,
+  tenantId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const [org] = await db()
+    .select({ id: organization.id })
+    .from(organization)
+    .where(
+      and(
+        eq(organization.id, installation.organizationId),
+        eq(organization.tenantId, tenantId),
+      ),
+    )
+    .limit(1);
+  if (!org) {
+    return { ok: false, error: "Installation not found." };
+  }
+
   const handler = getProviderHandler(integrationSlug);
   if (!handler) {
     return { ok: false, error: "No handler available." };
   }
-  const secret = installation.configEncrypted
-    ? (decryptJson(installation.configEncrypted) as Record<string, unknown>)
-    : {};
+  let secret: Record<string, unknown>;
+  try {
+    const decoded = installation.configEncrypted
+      ? decryptJson<unknown>(installation.configEncrypted)
+      : {};
+    if (
+      decoded === null ||
+      typeof decoded !== "object" ||
+      Array.isArray(decoded)
+    ) {
+      throw new Error("Stored installation secrets are malformed.");
+    }
+    secret = decoded as Record<string, unknown>;
+  } catch {
+    await db()
+      .update(integrationInstallation)
+      .set({
+        status: "error",
+        lastVerifiedAt: new Date(),
+        lastError: "Stored installation secrets are unreadable.",
+      })
+      .where(
+        and(
+          eq(integrationInstallation.id, installation.id),
+          eq(
+            integrationInstallation.organizationId,
+            installation.organizationId,
+          ),
+          exists(
+            db()
+              .select({ id: organization.id })
+              .from(organization)
+              .where(
+                and(
+                  eq(organization.id, integrationInstallation.organizationId),
+                  eq(organization.tenantId, tenantId),
+                ),
+              ),
+          ),
+        ),
+      );
+    return { ok: false, error: "Stored installation secrets are unreadable." };
+  }
   const merged = {
     ...((installation.configPublic as Record<string, unknown>) ?? {}),
     ...secret,
@@ -132,6 +232,22 @@ export async function reverifyInstallation(
       lastVerifiedAt: new Date(),
       lastError: result.ok ? null : result.error,
     })
-    .where(eq(integrationInstallation.id, installation.id));
+    .where(
+      and(
+        eq(integrationInstallation.id, installation.id),
+        eq(integrationInstallation.organizationId, installation.organizationId),
+        exists(
+          db()
+            .select({ id: organization.id })
+            .from(organization)
+            .where(
+              and(
+                eq(organization.id, integrationInstallation.organizationId),
+                eq(organization.tenantId, tenantId),
+              ),
+            ),
+        ),
+      ),
+    );
   return result;
 }

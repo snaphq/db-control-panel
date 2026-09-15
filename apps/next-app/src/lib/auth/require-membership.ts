@@ -59,7 +59,13 @@ export async function requireOrganizationMembership(
   const [membership] = await db()
     .select()
     .from(member)
-    .where(and(eq(member.organizationId, org.id), eq(member.userId, user.id)))
+    .where(
+      and(
+        eq(member.organizationId, org.id),
+        eq(member.userId, user.id),
+        eq(member.tenantId, tenant.id),
+      ),
+    )
     .limit(1);
   if (!membership) notFound();
 
@@ -86,7 +92,11 @@ export async function requireProjectMembership(
     .select()
     .from(project)
     .where(
-      and(eq(project.organizationId, org.id), eq(project.slug, projectSlug)),
+      and(
+        eq(project.organizationId, org.id),
+        eq(project.tenantId, org.tenantId),
+        eq(project.slug, projectSlug),
+      ),
     )
     .limit(1);
   if (!proj) notFound();

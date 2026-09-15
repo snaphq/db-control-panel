@@ -1,7 +1,19 @@
 import { getOpenAIConfig } from "@/lib/ai-provider";
+import {
+  fetchSafeAiProvider,
+  limitResponseBody,
+  readLimitedResponseText,
+} from "@/lib/integrations/mcp-proxy";
 import { auth } from "@repo/auth/server";
-import { agent, agentInstallation, and, db, eq } from "@repo/database";
-import { member, project } from "@repo/database/schema";
+import {
+  agent,
+  agentInstallation,
+  and,
+  db,
+  eq,
+  resolveTenantFromHost,
+} from "@repo/database";
+import { member, organization, project } from "@repo/database/schema";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -20,9 +32,15 @@ interface RouteParams {
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+  if (!tenant) {
+    return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
 
   const { id: projectId, slug } = await params;
@@ -30,7 +48,14 @@ export async function POST(request: Request, { params }: RouteParams) {
   const [proj] = await db()
     .select()
     .from(project)
-    .where(eq(project.id, projectId))
+    .innerJoin(organization, eq(project.organizationId, organization.id))
+    .where(
+      and(
+        eq(project.id, projectId),
+        eq(project.tenantId, tenant.id),
+        eq(organization.tenantId, tenant.id),
+      ),
+    )
     .limit(1);
   if (!proj) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -39,10 +64,13 @@ export async function POST(request: Request, { params }: RouteParams) {
   const [m] = await db()
     .select()
     .from(member)
+    .innerJoin(organization, eq(member.organizationId, organization.id))
     .where(
       and(
         eq(member.userId, session.user.id),
-        eq(member.organizationId, proj.organizationId),
+        eq(member.organizationId, proj.project.organizationId),
+        eq(member.tenantId, tenant.id),
+        eq(organization.tenantId, tenant.id),
       ),
     )
     .limit(1);
@@ -72,6 +100,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       and(
         eq(agentInstallation.projectId, projectId),
         eq(agentInstallation.agentId, agentRow.id),
+        eq(agentInstallation.organizationId, proj.project.organizationId),
       ),
     )
     .limit(1);
@@ -122,7 +151,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   let config: Awaited<ReturnType<typeof getOpenAIConfig>>;
   try {
-    config = await getOpenAIConfig(proj.organizationId);
+    config = await getOpenAIConfig(proj.project.organizationId);
   } catch (err) {
     return NextResponse.json(
       {
@@ -152,22 +181,34 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
   messages.push(...userMessages);
 
-  const upstream = await fetch(`${base}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      stream,
-      ...(temperature !== undefined ? { temperature } : {}),
-    }),
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetchSafeAiProvider(`${base}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        stream,
+        ...(temperature !== undefined ? { temperature } : {}),
+      }),
+      signal: AbortSignal.timeout(stream ? 120_000 : 30_000),
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        error: "Unable to reach AI provider",
+        detail: err instanceof Error ? err.message : "Request failed",
+      },
+      { status: 502 },
+    );
+  }
 
   if (!upstream.ok) {
-    const errorText = await upstream.text().catch(() => "");
+    const errorText = await readLimitedResponseText(upstream).catch(() => "");
     return NextResponse.json(
       {
         error: "Upstream provider error",
@@ -179,11 +220,26 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   if (!stream) {
-    const payload = await upstream.json();
-    return NextResponse.json(payload);
+    try {
+      const payload = JSON.parse(await readLimitedResponseText(upstream));
+      return NextResponse.json(payload);
+    } catch {
+      return NextResponse.json(
+        { error: "AI provider returned an invalid response" },
+        { status: 502 },
+      );
+    }
   }
 
-  return new Response(upstream.body, {
+  const bounded = await limitResponseBody(upstream).catch(() => null);
+  if (!bounded) {
+    return NextResponse.json(
+      { error: "AI provider response is too large" },
+      { status: 502 },
+    );
+  }
+
+  return new Response(bounded.body, {
     status: 200,
     headers: {
       "Content-Type":

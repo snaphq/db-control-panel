@@ -1,15 +1,31 @@
 import "server-only";
 
 import { auth } from "@repo/auth/server";
-import { db } from "@repo/database";
-import { eq, inArray } from "@repo/database";
+import { db, resolveTenantFromHost } from "@repo/database";
+import { and, eq, inArray } from "@repo/database";
 import { member, organization } from "@repo/database/schema";
+import { headers as nextHeaders } from "next/headers";
 
 // Cookie name for caching workspace status
 export const HAS_WORKSPACE_COOKIE = "has_workspace";
 
 // Cookie TTL in seconds (5 minutes)
 export const WORKSPACE_COOKIE_TTL = 5 * 60;
+
+type HeaderSource = Pick<Headers, "get">;
+
+/**
+ * Resolve the request tenant for helpers that are called from server
+ * components without an explicit tenant argument. A missing or unknown host
+ * must fail closed instead of falling back to the default tenant.
+ */
+async function resolveWorkspaceTenantId(
+  requestHeaders?: HeaderSource,
+): Promise<string | null> {
+  const source = requestHeaders ?? (await nextHeaders());
+  const tenant = await resolveTenantFromHost(source.get("host"));
+  return tenant?.id ?? null;
+}
 
 /**
  * Check if the current user has any workspaces/organizations.
@@ -22,7 +38,12 @@ export async function hasWorkspaces(headers: Headers): Promise<boolean> {
       return false;
     }
 
-    const count = await getWorkspaceCount(session.user.id);
+    const tenantId = await resolveWorkspaceTenantId(headers);
+    if (!tenantId || session.user.tenantId !== tenantId) {
+      return false;
+    }
+
+    const count = await getWorkspaceCount(session.user.id, tenantId);
     return count > 0;
   } catch (error) {
     console.error("[workspace-utils] Error checking workspaces:", error);
@@ -33,12 +54,26 @@ export async function hasWorkspaces(headers: Headers): Promise<boolean> {
 /**
  * Get the count of workspaces/organizations for a user.
  */
-export async function getWorkspaceCount(userId: string): Promise<number> {
+export async function getWorkspaceCount(
+  userId: string,
+  tenantId?: string,
+): Promise<number> {
   try {
+    const scopedTenantId =
+      tenantId?.trim() || (await resolveWorkspaceTenantId());
+    if (!scopedTenantId) return 0;
+
     const userMembers = await db()
       .select({ organizationId: member.organizationId })
       .from(member)
-      .where(eq(member.userId, userId));
+      .innerJoin(organization, eq(member.organizationId, organization.id))
+      .where(
+        and(
+          eq(member.userId, userId),
+          eq(member.tenantId, scopedTenantId),
+          eq(organization.tenantId, scopedTenantId),
+        ),
+      );
 
     return userMembers.length;
   } catch (error) {
@@ -50,12 +85,23 @@ export async function getWorkspaceCount(userId: string): Promise<number> {
 /**
  * Get all workspaces/organizations for a user.
  */
-export async function getUserWorkspaces(userId: string) {
+export async function getUserWorkspaces(userId: string, tenantId?: string) {
   try {
+    const scopedTenantId =
+      tenantId?.trim() || (await resolveWorkspaceTenantId());
+    if (!scopedTenantId) return [];
+
     const userMembers = await db()
       .select({ organizationId: member.organizationId })
       .from(member)
-      .where(eq(member.userId, userId));
+      .innerJoin(organization, eq(member.organizationId, organization.id))
+      .where(
+        and(
+          eq(member.userId, userId),
+          eq(member.tenantId, scopedTenantId),
+          eq(organization.tenantId, scopedTenantId),
+        ),
+      );
 
     const organizationIds = userMembers.map((m) => m.organizationId);
 
@@ -66,7 +112,12 @@ export async function getUserWorkspaces(userId: string) {
     const organizations = await db()
       .select()
       .from(organization)
-      .where(inArray(organization.id, organizationIds));
+      .where(
+        and(
+          eq(organization.tenantId, scopedTenantId),
+          inArray(organization.id, organizationIds),
+        ),
+      );
 
     return organizations;
   } catch (error) {

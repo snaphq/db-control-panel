@@ -16,6 +16,13 @@ interface McpLogEntry {
   requestId: string;
   userId?: string;
   orgId?: string;
+  tenantId?: string;
+  projectId?: string;
+  actorId?: string;
+  actorType?: string;
+  isAdmin?: boolean;
+  credentialId?: string;
+  authMethod?: string;
   // Request
   method?: string;
   path?: string;
@@ -85,12 +92,25 @@ export function sanitizeHeaders(
     "cookie",
     "set-cookie",
     "x-api-key",
+    "api-key",
   ]);
   return Object.fromEntries(
     Object.entries(headers).map(([k, v]) => [
       k,
-      sensitive.has(k.toLowerCase()) ? "[REDACTED]" : v,
+      isSensitiveHeader(k, sensitive) ? "[REDACTED]" : v,
     ]),
+  );
+}
+
+function isSensitiveHeader(name: string, exact: Set<string>): boolean {
+  const normalized = name.trim().toLowerCase();
+  return (
+    exact.has(normalized) ||
+    normalized.includes("proxy-auth") ||
+    normalized.includes("token") ||
+    normalized.includes("secret") ||
+    normalized.includes("password") ||
+    normalized.includes("api-key")
   );
 }
 
@@ -130,7 +150,18 @@ function base(
   requestId?: string,
 ): Pick<
   McpLogEntry,
-  "timestamp" | "requestId" | "userId" | "orgId" | "environment"
+  | "timestamp"
+  | "requestId"
+  | "userId"
+  | "orgId"
+  | "tenantId"
+  | "projectId"
+  | "actorId"
+  | "actorType"
+  | "isAdmin"
+  | "credentialId"
+  | "authMethod"
+  | "environment"
 > {
   const ctx = getCurrentMcpContext();
   return {
@@ -138,6 +169,13 @@ function base(
     requestId: resolveRequestId(requestId, ctx),
     userId: ctx?.userId,
     orgId: ctx?.orgId,
+    tenantId: ctx?.tenantId,
+    projectId: ctx?.projectId,
+    actorId: ctx?.actorId,
+    actorType: ctx?.actorType,
+    isAdmin: ctx?.isAdmin,
+    credentialId: ctx?.credentialId,
+    authMethod: ctx?.authMethod,
     environment: NODE_ENV,
   };
 }

@@ -1,13 +1,12 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Session } from "@repo/database/schema";
+import type { SafeSession } from "@repo/database";
 import { useState } from "react";
 
 interface SessionTableProps {
-  sessions: Session[];
+  sessions: SafeSession[];
 }
 
 export function SessionTable({ sessions: initialSessions }: SessionTableProps) {

@@ -49,6 +49,7 @@ async function checkOrgMembership(
       and(
         eq(member.userId, session.user.id),
         eq(member.organizationId, org.id),
+        eq(member.tenantId, tenant.id),
       ),
     )
     .limit(1);
@@ -67,7 +68,7 @@ async function checkOrgMembership(
       ),
     };
   }
-  return { organization: org };
+  return { organization: org, tenantId: tenant.id };
 }
 
 /**
@@ -89,9 +90,14 @@ export async function GET(_req: Request, { params }: RouteParams) {
       integration,
       eq(integrationInstallation.integrationId, integration.id),
     )
+    .innerJoin(
+      organization,
+      eq(integrationInstallation.organizationId, organization.id),
+    )
     .where(
       and(
         eq(integrationInstallation.organizationId, check.organization.id),
+        eq(organization.tenantId, check.tenantId),
         // projectId IS NULL => workspace scope
       ),
     );
@@ -132,6 +138,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   const result = await createInstallation({
     integrationSlug,
+    tenantId: check.tenantId,
     organizationId: check.organization.id,
     projectId: null,
     displayName,

@@ -1,5 +1,5 @@
 import { auth } from "@repo/auth/server";
-import { db } from "@repo/database";
+import { db, resolveTenantFromHost } from "@repo/database";
 import { and, eq } from "@repo/database";
 import { member, organization, project } from "@repo/database/schema";
 import { nanoid } from "nanoid";
@@ -12,12 +12,18 @@ import { NextResponse } from "next/server";
  */
 export async function GET(request: Request) {
   try {
+    const requestHeaders = await headers();
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     });
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+    if (!tenant) {
+      return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -32,12 +38,15 @@ export async function GET(request: Request) {
 
     // Verify user is a member of the organization
     const memberRecord = await db()
-      .select()
+      .select({ id: member.id })
       .from(member)
+      .innerJoin(organization, eq(member.organizationId, organization.id))
       .where(
         and(
           eq(member.userId, session.user.id),
           eq(member.organizationId, organizationId),
+          eq(member.tenantId, tenant.id),
+          eq(organization.tenantId, tenant.id),
         ),
       )
       .limit(1);
@@ -51,7 +60,12 @@ export async function GET(request: Request) {
     const projects = await db()
       .select()
       .from(project)
-      .where(eq(project.organizationId, organizationId))
+      .where(
+        and(
+          eq(project.organizationId, organizationId),
+          eq(project.tenantId, tenant.id),
+        ),
+      )
       .orderBy(project.createdAt);
 
     return NextResponse.json(projects);
@@ -70,12 +84,18 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
+    const requestHeaders = await headers();
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     });
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+    if (!tenant) {
+      return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -90,12 +110,15 @@ export async function POST(request: Request) {
 
     // Verify user is a member of the organization
     const memberRecord = await db()
-      .select()
+      .select({ id: member.id })
       .from(member)
+      .innerJoin(organization, eq(member.organizationId, organization.id))
       .where(
         and(
           eq(member.userId, session.user.id),
           eq(member.organizationId, organizationId),
+          eq(member.tenantId, tenant.id),
+          eq(organization.tenantId, tenant.id),
         ),
       )
       .limit(1);
@@ -109,7 +132,12 @@ export async function POST(request: Request) {
     const [org] = await db()
       .select({ tenantId: organization.tenantId })
       .from(organization)
-      .where(eq(organization.id, organizationId))
+      .where(
+        and(
+          eq(organization.id, organizationId),
+          eq(organization.tenantId, tenant.id),
+        ),
+      )
       .limit(1);
     if (!org) {
       return NextResponse.json(
@@ -123,7 +151,11 @@ export async function POST(request: Request) {
       .select()
       .from(project)
       .where(
-        and(eq(project.organizationId, organizationId), eq(project.slug, slug)),
+        and(
+          eq(project.organizationId, organizationId),
+          eq(project.tenantId, tenant.id),
+          eq(project.slug, slug),
+        ),
       )
       .limit(1);
 
@@ -138,7 +170,7 @@ export async function POST(request: Request) {
       .insert(project)
       .values({
         id: nanoid(),
-        tenantId: org.tenantId,
+        tenantId: tenant.id,
         name,
         slug,
         description: description || null,

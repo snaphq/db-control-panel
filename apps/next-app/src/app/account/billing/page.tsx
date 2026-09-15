@@ -7,11 +7,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireSession } from "@/lib/auth/require-membership";
+import { getCurrentTenant } from "@/lib/tenant";
 import {
   getOrgBilling,
   getPlanTierDisplay,
 } from "@repo/billing/get-org-billing";
-import { db, eq } from "@repo/database";
+import { and, db, eq } from "@repo/database";
 import { member, organization } from "@repo/database/schema";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +21,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountBillingPage() {
   const { user } = await requireSession("/account/billing");
+  const tenant = await getCurrentTenant();
 
   const memberships = await db()
     .select({
@@ -29,7 +31,13 @@ export default async function AccountBillingPage() {
     })
     .from(member)
     .innerJoin(organization, eq(member.organizationId, organization.id))
-    .where(eq(member.userId, user.id));
+    .where(
+      and(
+        eq(member.userId, user.id),
+        eq(member.tenantId, tenant.id),
+        eq(organization.tenantId, tenant.id),
+      ),
+    );
 
   const rows = await Promise.all(
     memberships.map(async (m) => {

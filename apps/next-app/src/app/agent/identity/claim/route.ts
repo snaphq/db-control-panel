@@ -1,15 +1,25 @@
 import { recordAudit } from "@/lib/agent-auth/audit";
-import { mintClaimAttempt } from "@/lib/agent-auth/claims";
+import {
+  ClaimRegistrationUnavailableError,
+  mintClaimAttempt,
+} from "@/lib/agent-auth/claims";
+import type { MintedClaimAttempt } from "@/lib/agent-auth/claims";
+import {
+  requestOriginForRequest,
+  resourceUrlForRequest,
+} from "@/lib/agent-auth/discovery";
 import { sha256Hex } from "@/lib/agent-auth/keys";
 import {
   clientIp,
   expireStaleRegistrations,
+  isRegistrationUsable,
 } from "@/lib/agent-auth/registrations";
-import { absoluteUrl } from "@/lib/site-config";
-import { db } from "@repo/database";
+import { db, resolveTenantFromHost } from "@repo/database";
 import { agentRegistration } from "@repo/database/schema-agent-auth";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
 
 /**
  * POST /agent/identity/claim — claim ceremony entry + user_code re-mint.
@@ -18,7 +28,15 @@ import { NextResponse } from "next/server";
  * expired_token. Body: { claim_token, email }.
  */
 export async function POST(request: Request): Promise<Response> {
-  let body: { claim_token?: string; email?: string };
+  const tenant = await resolveTenantFromHost(request.headers.get("host"));
+  if (!tenant) {
+    return NextResponse.json(
+      { error: "tenant_not_found", message: "Unknown tenant host" },
+      { status: 404 },
+    );
+  }
+
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
@@ -28,8 +46,14 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const claimToken = body.claim_token;
-  const email = body.email?.trim().toLowerCase();
+  const input =
+    body && typeof body === "object" && !Array.isArray(body)
+      ? (body as { claim_token?: unknown; email?: unknown })
+      : {};
+  const claimToken =
+    typeof input.claim_token === "string" ? input.claim_token.trim() : "";
+  const email =
+    typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
   if (!claimToken || !email || !email.includes("@")) {
     return NextResponse.json(
       {
@@ -40,12 +64,17 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  await expireStaleRegistrations();
+  await expireStaleRegistrations(tenant.id);
 
   const [registration] = await db()
     .select()
     .from(agentRegistration)
-    .where(eq(agentRegistration.claimTokenHash, sha256Hex(claimToken)))
+    .where(
+      and(
+        eq(agentRegistration.claimTokenHash, sha256Hex(claimToken)),
+        eq(agentRegistration.tenantId, tenant.id),
+      ),
+    )
     .limit(1);
 
   if (!registration) {
@@ -63,12 +92,7 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  if (
-    registration.status === "expired" ||
-    registration.status === "revoked" ||
-    (registration.claimExpiresAt &&
-      registration.claimExpiresAt.getTime() < Date.now())
-  ) {
+  if (!isRegistrationUsable(registration)) {
     return NextResponse.json(
       {
         error: "claim_expired",
@@ -78,16 +102,67 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  if (
+    registration.claimEmail &&
+    registration.claimEmail.toLowerCase() !== email
+  ) {
+    return NextResponse.json(
+      {
+        error: "forbidden",
+        message: "This registration is already bound to another email.",
+      },
+      { status: 403 },
+    );
+  }
+
   // Bind the registration to the human the agent is acting for.
-  await db()
+  const [boundRegistration] = await db()
     .update(agentRegistration)
     .set({ claimEmail: email })
-    .where(eq(agentRegistration.id, registration.id));
+    .where(
+      and(
+        eq(agentRegistration.id, registration.id),
+        eq(agentRegistration.tenantId, tenant.id),
+        eq(agentRegistration.status, "unclaimed"),
+        // A concurrent request must not be able to rebind an unclaimed
+        // registration to a different human after the first email wins.
+        or(
+          isNull(agentRegistration.claimEmail),
+          eq(agentRegistration.claimEmail, email),
+        ),
+      ),
+    )
+    .returning({ id: agentRegistration.id });
 
-  const attempt = await mintClaimAttempt({
-    registration: { id: registration.id, tenantId: registration.tenantId },
-    ip: clientIp(request),
-  });
+  if (!boundRegistration) {
+    return NextResponse.json(
+      {
+        error: "claimed_or_in_flight",
+        message: "This registration has already been claimed.",
+      },
+      { status: 409 },
+    );
+  }
+
+  let attempt: MintedClaimAttempt;
+  try {
+    attempt = await mintClaimAttempt({
+      registration: { id: registration.id, tenantId: tenant.id },
+      origin: requestOriginForRequest(request),
+      ip: clientIp(request),
+    });
+  } catch (error) {
+    if (error instanceof ClaimRegistrationUnavailableError) {
+      return NextResponse.json(
+        {
+          error: "claimed_or_in_flight",
+          message: "This registration has already been claimed.",
+        },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
 
   await recordAudit({
     tenantId: registration.tenantId,
@@ -102,7 +177,10 @@ export async function POST(request: Request): Promise<Response> {
     claim_attempt_id: attempt.claimAttemptId,
     status: "initiated",
     expires_at: registration.claimExpiresAt?.toISOString() ?? null,
-    claim_url: absoluteUrl("/agent/identity/claim"),
+    claim_url: new URL(
+      "/agent/identity/claim",
+      requestOriginForRequest(request),
+    ).toString(),
     claim_attempt: {
       user_code: attempt.userCode,
       expires_in: Math.max(

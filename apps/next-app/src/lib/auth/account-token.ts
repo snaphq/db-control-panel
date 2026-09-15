@@ -1,8 +1,8 @@
 import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
-import { and, db, eq, isNull } from "@repo/database";
-import { accountApiToken } from "@repo/database/schema";
+import { and, db, eq, isNull, resolveTenantFromHost } from "@repo/database";
+import { accountApiToken, user } from "@repo/database/schema";
 
 export const ACCOUNT_TOKEN_PREFIX = "cet_";
 export const ACCOUNT_TOKEN_DISPLAY_PREFIX_LEN = 12;
@@ -62,13 +62,16 @@ export function tokenDisplayPrefix(plaintext: string): string {
 }
 
 /**
- * Verify an incoming request's bearer token. Returns the token row + userId
- * on success. Updates `lastUsedAt`. Does NOT validate expiration on a separate
- * call site; expired/revoked tokens return null.
+ * Verify an incoming request's bearer token. Returns the token identity,
+ * tenant, and immutable scope on success. Updates `lastUsedAt`; expired,
+ * revoked, archived, or cross-tenant tokens return null.
  */
-export async function verifyAccountToken(
-  req: Request,
-): Promise<{ tokenId: string; userId: string } | null> {
+export async function verifyAccountToken(req: Request): Promise<{
+  tokenId: string;
+  userId: string;
+  tenantId: string;
+  scope: string;
+} | null> {
   const authz = req.headers.get("authorization") ?? "";
   const match = authz.match(/^Bearer\s+(.+)$/i);
   if (!match) return null;
@@ -90,6 +93,23 @@ export async function verifyAccountToken(
   if (!row) return null;
   if (row.expiresAt && row.expiresAt.getTime() < Date.now()) return null;
 
+  const tenant = await resolveTenantFromHost(req.headers.get("host"));
+  if (!tenant) return null;
+
+  const [userRow] = await db()
+    .select({ tenantId: user.tenantId, archivedAt: user.archivedAt })
+    .from(user)
+    .where(eq(user.id, row.userId))
+    .limit(1);
+  if (
+    !userRow ||
+    userRow.archivedAt !== null ||
+    userRow.tenantId !== tenant.id ||
+    row.tenantId !== tenant.id
+  ) {
+    return null;
+  }
+
   // Best-effort lastUsedAt update; ignore failures.
   void db()
     .update(accountApiToken)
@@ -97,5 +117,19 @@ export async function verifyAccountToken(
     .where(eq(accountApiToken.id, row.id))
     .catch(() => {});
 
-  return { tokenId: row.id, userId: row.userId };
+  return {
+    tokenId: row.id,
+    userId: row.userId,
+    tenantId: userRow.tenantId,
+    scope: normalizeAccountScope(row.scope),
+  };
+}
+
+/** Convert the legacy `full` label to the protocol scopes it represents. */
+export function normalizeAccountScope(scope: string): string {
+  if (scope.trim() === "full") return "api.read api.write";
+  return scope
+    .split(/\s+/)
+    .filter((value) => value === "api.read" || value === "api.write")
+    .join(" ");
 }

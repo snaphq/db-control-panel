@@ -67,7 +67,11 @@ export default async function BillingSettingsPage({ params }: PageProps) {
     .select()
     .from(member)
     .where(
-      and(eq(member.organizationId, orgId), eq(member.userId, session.user.id)),
+      and(
+        eq(member.organizationId, orgId),
+        eq(member.userId, session.user.id),
+        eq(member.tenantId, tenant.id),
+      ),
     )
     .limit(1);
 

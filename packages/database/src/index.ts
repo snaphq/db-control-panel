@@ -4,20 +4,26 @@ export * from "./schema-agent-auth";
 export * from "./schema-agents";
 export * from "./schema-analytics";
 export * from "./schema-seo";
-export { db } from "./client";
+export {
+  db,
+  withDbTransaction,
+  type DatabaseTransaction,
+} from "./client";
 export {
   DEFAULT_TENANT_ID,
   buildTenantAuthEmail,
   ensureDefaultTenant,
   isLocalTenantHost,
+  normalizeTenantHost,
   normalizeTenantDomain,
   readDefaultTenantSeedFromEnv,
   resolveTenantFromHost,
 } from "./tenant";
 
 // DAL helpers
-export { getAdminStats } from "./dal/admin";
-export type { AdminStats } from "./dal/admin";
+export { getAdminStats, getTenantAdminStats } from "./dal/admin";
+export { getSafeSessions } from "./dal/admin";
+export type { AdminStats, SafeSession, TenantAdminStats } from "./dal/admin";
 
 // Re-export drizzle-orm operators for convenience
 export {

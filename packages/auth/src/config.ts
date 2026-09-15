@@ -16,8 +16,16 @@ export function getAuthConfig(provider?: string) {
     (typeof window !== "undefined"
       ? window.location.origin
       : "http://localhost:3000");
-  const secret =
-    process.env.BETTER_AUTH_SECRET || "development-secret-change-me";
+  const configuredSecret = process.env.BETTER_AUTH_SECRET?.trim();
+  const production =
+    process.env.NODE_ENV === "production" ||
+    process.env.VERCEL_ENV === "production";
+  if (production && !configuredSecret) {
+    throw new Error(
+      "BETTER_AUTH_SECRET is required in production; refusing to use a development secret",
+    );
+  }
+  const secret = configuredSecret ?? "development-secret-change-me";
 
   return { baseURL, secret };
 }

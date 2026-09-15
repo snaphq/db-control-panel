@@ -1,5 +1,10 @@
 import { getOpenAIConfig } from "@/lib/ai-provider";
 import { getSiteAdminStatus } from "@/lib/auth-utils";
+import {
+  assertSafeAiProviderEndpoint,
+  fetchSafeAiProvider,
+  readLimitedResponseText,
+} from "@/lib/integrations/mcp-proxy";
 import { auth } from "@repo/auth/server";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -32,19 +37,24 @@ export async function POST() {
   const url = `${base}/models`;
 
   try {
-    const res = await fetch(url, {
+    // Validate before sending the server-held key. Only the origin is returned
+    // to the admin UI; persisted provider paths must never be echoed as a
+    // diagnostic URL.
+    const endpoint = await assertSafeAiProviderEndpoint(url);
+    const res = await fetchSafeAiProvider(endpoint.toString(), {
       method: "GET",
       headers: { Authorization: `Bearer ${config.apiKey}` },
       signal: AbortSignal.timeout(10_000),
     });
-    const text = await res.text();
+    const text = await readLimitedResponseText(res);
+    const displayUrl = endpoint.origin;
     if (!res.ok) {
       return NextResponse.json(
         {
           ok: false,
           status: res.status,
           error: text.slice(0, 500) || res.statusText,
-          url,
+          url: displayUrl,
         },
         { status: 200 },
       );
@@ -56,13 +66,12 @@ export async function POST() {
     } catch {
       // Non-JSON OK response — still a successful reachability check.
     }
-    return NextResponse.json({ ok: true, url, modelCount });
+    return NextResponse.json({ ok: true, url: displayUrl, modelCount });
   } catch (err) {
     return NextResponse.json(
       {
         ok: false,
         error: err instanceof Error ? err.message : "Request failed",
-        url,
       },
       { status: 200 },
     );

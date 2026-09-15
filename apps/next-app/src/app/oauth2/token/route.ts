@@ -1,27 +1,37 @@
 import { recordAudit } from "@/lib/agent-auth/audit";
 import { POLL_INTERVAL_SECONDS } from "@/lib/agent-auth/claims";
-import { GRANT_CLAIM, GRANT_JWT_BEARER } from "@/lib/agent-auth/discovery";
 import {
+  GRANT_CLAIM,
+  GRANT_JWT_BEARER,
+  requestOriginForRequest,
+  resourceUrlForRequest,
+} from "@/lib/agent-auth/discovery";
+import {
+  AgentAuthConfigurationError,
   getSigningKey,
   recordIssuedToken,
   sha256Hex,
   signAccessToken,
   signIdentityAssertion,
 } from "@/lib/agent-auth/keys";
+import { boundResourceFromMetadata } from "@/lib/agent-auth/oauth-policy";
 import {
   expireStaleRegistrations,
   getRegistration,
+  isRegistrationUsable,
   resolveScopes,
 } from "@/lib/agent-auth/registrations";
-import { getSiteUrl } from "@/lib/site-config";
-import { db } from "@repo/database";
+import { db, resolveTenantFromHost, withDbTransaction } from "@repo/database";
 import {
   agentClaimAttempt,
   agentRegistration,
+  agentToken,
 } from "@repo/database/schema-agent-auth";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { type JWTPayload, jwtVerify } from "jose";
 import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
 
 function oauthError(
   error: string,
@@ -40,6 +50,11 @@ function oauthError(
  * from Phase 2, urn:workos:agent-auth:grant-type:claim (ceremony polling).
  */
 export async function POST(request: Request): Promise<Response> {
+  const tenant = await resolveTenantFromHost(request.headers.get("host"));
+  if (!tenant) {
+    return oauthError("invalid_request", "Unknown tenant host", 404);
+  }
+
   let form: URLSearchParams;
   try {
     form = new URLSearchParams(await request.text());
@@ -48,8 +63,20 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const grantType = form.get("grant_type");
+  const expectedResource = resourceUrlForRequest(request);
+  if (form.get("resource") !== expectedResource) {
+    return oauthError(
+      "invalid_target",
+      `resource must exactly match ${expectedResource}`,
+    );
+  }
   if (grantType === GRANT_CLAIM) {
-    return handleClaimGrant(form);
+    return handleClaimGrant(
+      form,
+      tenant.id,
+      expectedResource,
+      requestOriginForRequest(request),
+    );
   }
   if (grantType !== GRANT_JWT_BEARER) {
     return oauthError(
@@ -63,16 +90,28 @@ export async function POST(request: Request): Promise<Response> {
     return oauthError("invalid_request", "assertion parameter is required");
   }
 
-  await expireStaleRegistrations();
+  await expireStaleRegistrations(tenant.id);
 
   // Verify the service-signed identity_assertion (typ oauth-id-jag+jwt).
-  const { privateKey } = await getSigningKey();
-  const issuer = getSiteUrl();
+  let publicKey: CryptoKey;
+  try {
+    ({ publicKey } = await getSigningKey());
+  } catch (error) {
+    if (error instanceof AgentAuthConfigurationError) {
+      return oauthError(
+        "temporarily_unavailable",
+        "Agent authentication is not configured",
+        503,
+      );
+    }
+    throw error;
+  }
+  const issuer = requestOriginForRequest(request);
   let payload: JWTPayload;
   try {
-    const verified = await jwtVerify(assertion, privateKey, {
+    const verified = await jwtVerify(assertion, publicKey, {
       issuer,
-      audience: issuer,
+      audience: expectedResource,
     });
     if (
       (verified.protectedHeader.typ ?? "").toLowerCase() !== "oauth-id-jag+jwt"
@@ -87,15 +126,30 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const registration = await getRegistration(String(payload.sub ?? ""));
+  const registration = await getRegistration(
+    String(payload.sub ?? ""),
+    tenant.id,
+  );
   if (!registration) {
     return oauthError("invalid_grant", "registration not found");
   }
-  if (registration.status === "revoked") {
-    return oauthError("invalid_grant", "registration has been revoked");
+  if (!isRegistrationUsable(registration)) {
+    return oauthError(
+      "invalid_grant",
+      registration.status === "revoked"
+        ? "registration has been revoked"
+        : registration.status === "expired"
+          ? "registration has expired"
+          : registration.status === "claimed"
+            ? "registration is not linked to an active user"
+            : "registration has expired",
+    );
   }
-  if (registration.status === "expired") {
-    return oauthError("invalid_grant", "registration has expired");
+  if (boundResourceFromMetadata(registration.metadata) !== expectedResource) {
+    return oauthError(
+      "invalid_target",
+      "registration is bound to a different MCP resource",
+    );
   }
 
   const scope = resolveScopes(registration);
@@ -103,19 +157,27 @@ export async function POST(request: Request): Promise<Response> {
     registrationId: registration.id,
     scope,
     tenantId: registration.tenantId,
+    resource: expectedResource,
+    issuer,
   });
   await recordIssuedToken({
     tenantId: registration.tenantId,
     registrationId: registration.id,
     jti: token.jti,
     scope,
+    resource: expectedResource,
     expiresAt: token.expiresAt,
   });
 
   await db()
     .update(agentRegistration)
     .set({ lastTokenIssuedAt: new Date() })
-    .where(eq(agentRegistration.id, registration.id));
+    .where(
+      and(
+        eq(agentRegistration.id, registration.id),
+        eq(agentRegistration.tenantId, tenant.id),
+      ),
+    );
 
   await recordAudit({
     tenantId: registration.tenantId,
@@ -129,6 +191,7 @@ export async function POST(request: Request): Promise<Response> {
     token_type: "Bearer",
     expires_in: token.expiresIn,
     scope,
+    resource: expectedResource,
   });
 }
 
@@ -137,49 +200,94 @@ export async function POST(request: Request): Promise<Response> {
  * while the user has not confirmed, expired_token once windows close, and the
  * standard token response (plus identity_assertion) on success.
  */
-async function handleClaimGrant(form: URLSearchParams): Promise<NextResponse> {
+async function handleClaimGrant(
+  form: URLSearchParams,
+  tenantId: string,
+  resource: string,
+  issuer: string,
+): Promise<NextResponse> {
   const claimToken = form.get("claim_token");
   if (!claimToken) {
     return oauthError("invalid_request", "claim_token parameter is required");
   }
 
-  await expireStaleRegistrations();
+  await expireStaleRegistrations(tenantId);
 
   const [registration] = await db()
     .select()
     .from(agentRegistration)
-    .where(eq(agentRegistration.claimTokenHash, sha256Hex(claimToken)))
+    .where(
+      and(
+        eq(agentRegistration.claimTokenHash, sha256Hex(claimToken)),
+        eq(agentRegistration.tenantId, tenantId),
+      ),
+    )
     .limit(1);
 
+  if (!registration) {
+    return oauthError("expired_token", "The claim ceremony window has closed.");
+  }
   if (
-    !registration ||
-    registration.status === "expired" ||
-    registration.status === "revoked"
+    registration.type === "identity_assertion" ||
+    !registration.claimTokenExpiresAt ||
+    registration.claimTokenExpiresAt.getTime() <= Date.now()
   ) {
     return oauthError("expired_token", "The claim ceremony window has closed.");
   }
-
-  // RFC 8628 slow_down: honor the advertised interval.
-  if (registration.lastPollAt) {
-    const sinceMs = Date.now() - registration.lastPollAt.getTime();
-    if (sinceMs < POLL_INTERVAL_SECONDS * 1000 * 0.8) {
-      return oauthError(
-        "slow_down",
-        "Polling too fast; add at least 5s to your interval.",
-      );
-    }
+  if (!isRegistrationUsable(registration)) {
+    return oauthError(
+      "expired_token",
+      registration.status === "revoked"
+        ? "The claim ceremony has been revoked."
+        : "The claim ceremony window has closed.",
+    );
   }
-  await db()
+  if (boundResourceFromMetadata(registration.metadata) !== resource) {
+    return oauthError(
+      "invalid_target",
+      "registration is bound to a different MCP resource",
+    );
+  }
+
+  // RFC 8628 slow_down: honor the advertised interval. The conditional
+  // update makes the check atomic so concurrent pollers cannot both pass
+  // after observing the same previous timestamp.
+  const pollNow = new Date();
+  const pollCutoff = new Date(
+    pollNow.getTime() - POLL_INTERVAL_SECONDS * 1000 * 0.8,
+  );
+  const [polled] = await db()
     .update(agentRegistration)
-    .set({ lastPollAt: new Date() })
-    .where(eq(agentRegistration.id, registration.id));
+    .set({ lastPollAt: pollNow })
+    .where(
+      and(
+        eq(agentRegistration.id, registration.id),
+        eq(agentRegistration.tenantId, tenantId),
+        or(
+          isNull(agentRegistration.lastPollAt),
+          lt(agentRegistration.lastPollAt, pollCutoff),
+        ),
+      ),
+    )
+    .returning({ id: agentRegistration.id });
+  if (!polled) {
+    return oauthError(
+      "slow_down",
+      "Polling too fast; add at least 5s to your interval.",
+    );
+  }
 
   if (registration.status === "unclaimed") {
     // Pending unless the latest code window lapsed while the outer window is open.
     const [latestAttempt] = await db()
       .select({ expiresAt: agentClaimAttempt.expiresAt })
       .from(agentClaimAttempt)
-      .where(eq(agentClaimAttempt.registrationId, registration.id))
+      .where(
+        and(
+          eq(agentClaimAttempt.registrationId, registration.id),
+          eq(agentClaimAttempt.tenantId, tenantId),
+        ),
+      )
       .orderBy(desc(agentClaimAttempt.createdAt))
       .limit(1);
 
@@ -204,51 +312,132 @@ async function handleClaimGrant(form: URLSearchParams): Promise<NextResponse> {
     );
   }
 
-  // status === "claimed": issue the post-claim credential.
-  const scope = resolveScopes(registration);
-  const token = await signAccessToken({
-    registrationId: registration.id,
-    scope,
-    tenantId: registration.tenantId,
-  });
-  await recordIssuedToken({
-    tenantId: registration.tenantId,
-    registrationId: registration.id,
-    jti: token.jti,
-    scope,
-    expiresAt: token.expiresAt,
+  // status === "claimed": issue the post-claim credential. The outer
+  // claim_token is a one-shot grant: lock the registration, mint the token
+  // and assertion, persist their ledger row, and clear the hash in one
+  // transaction. Without this consume step a caller could poll the same
+  // claim token repeatedly and receive an unbounded stream of credentials.
+  try {
+    await getSigningKey();
+  } catch (error) {
+    if (error instanceof AgentAuthConfigurationError) {
+      return oauthError(
+        "temporarily_unavailable",
+        "Agent authentication is not configured",
+        503,
+      );
+    }
+    throw error;
+  }
+  const consumed = await withDbTransaction(async (tx) => {
+    // Keep the lock explicit instead of relying on a non-portable Drizzle
+    // `for` shape. The conditional hash check below is the replay guard.
+    await tx.execute(sql`
+      SELECT ${agentRegistration.id}
+      FROM ${agentRegistration}
+      WHERE ${agentRegistration.id} = ${registration.id}
+        AND ${agentRegistration.tenantId} = ${tenantId}
+      FOR UPDATE
+    `);
+
+    const [current] = await tx
+      .select()
+      .from(agentRegistration)
+      .where(
+        and(
+          eq(agentRegistration.id, registration.id),
+          eq(agentRegistration.tenantId, tenantId),
+          eq(agentRegistration.claimTokenHash, sha256Hex(claimToken)),
+          eq(agentRegistration.status, "claimed"),
+        ),
+      )
+      .limit(1);
+
+    if (
+      !current ||
+      current.type === "identity_assertion" ||
+      !current.claimTokenExpiresAt ||
+      current.claimTokenExpiresAt.getTime() <= Date.now() ||
+      !isRegistrationUsable(current)
+    ) {
+      return null;
+    }
+
+    const scope = resolveScopes(current);
+    const [token, assertion] = await Promise.all([
+      signAccessToken({
+        registrationId: current.id,
+        scope,
+        tenantId: current.tenantId,
+        resource,
+        issuer,
+      }),
+      // Anonymous: v2 assertion carries the user's email; service_auth: first assertion.
+      signIdentityAssertion({
+        registrationId: current.id,
+        scopes: scope,
+        registrationType: current.type,
+        resource,
+        issuer,
+        email: current.claimEmail,
+        emailVerified: true,
+      }),
+    ]);
+
+    const [cleared] = await tx
+      .update(agentRegistration)
+      .set({
+        claimTokenHash: null,
+        claimTokenExpiresAt: null,
+        claimExpiresAt: null,
+        lastTokenIssuedAt: new Date(),
+        assertionExpiresAt: assertion.expiresAt,
+      })
+      .where(
+        and(
+          eq(agentRegistration.id, current.id),
+          eq(agentRegistration.tenantId, tenantId),
+          eq(agentRegistration.status, "claimed"),
+          eq(agentRegistration.claimTokenHash, sha256Hex(claimToken)),
+        ),
+      )
+      .returning({ id: agentRegistration.id });
+    if (!cleared) return null;
+
+    await tx.insert(agentToken).values({
+      id: `agt_${crypto.randomUUID()}`,
+      tenantId: current.tenantId,
+      registrationId: current.id,
+      jti: token.jti,
+      scope,
+      resource,
+      expiresAt: token.expiresAt,
+    });
+
+    return { scope, token, assertion, registrationId: current.id };
   });
 
-  // Anonymous: v2 assertion carries the user's email; service_auth: first assertion.
-  const assertion = await signIdentityAssertion({
-    registrationId: registration.id,
-    scopes: scope,
-    registrationType: registration.type,
-    email: registration.claimEmail,
-    emailVerified: true,
-  });
-
-  await db()
-    .update(agentRegistration)
-    .set({
-      lastTokenIssuedAt: new Date(),
-      assertionExpiresAt: assertion.expiresAt,
-    })
-    .where(eq(agentRegistration.id, registration.id));
+  if (!consumed) {
+    return oauthError(
+      "expired_token",
+      "The claim token has already been used or the claim ceremony window has closed.",
+    );
+  }
 
   await recordAudit({
-    tenantId: registration.tenantId,
+    tenantId,
     event: "token.issued",
-    registrationId: registration.id,
-    metadata: { scope, grant: GRANT_CLAIM },
+    registrationId: consumed.registrationId,
+    metadata: { scope: consumed.scope, grant: GRANT_CLAIM },
   });
 
   return NextResponse.json({
-    access_token: token.jwt,
+    access_token: consumed.token.jwt,
     token_type: "Bearer",
-    expires_in: token.expiresIn,
-    scope,
-    identity_assertion: assertion.jwt,
-    assertion_expires: assertion.expiresAt.toISOString(),
+    expires_in: consumed.token.expiresIn,
+    scope: consumed.scope,
+    resource,
+    identity_assertion: consumed.assertion.jwt,
+    assertion_expires: consumed.assertion.expiresAt.toISOString(),
   });
 }

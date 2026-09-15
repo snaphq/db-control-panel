@@ -74,15 +74,25 @@ function mapBetterAuthSession(
 }
 
 // Get auth config from environment
-function getAuthConfig() {
-  const baseURL =
+export function resolveAuthClientBaseUrl(
+  browserOrigin = typeof window !== "undefined"
+    ? window.location.origin
+    : undefined,
+): string {
+  // Browser requests must stay on the tenant origin. A globally configured
+  // BETTER_AUTH_URL is useful for server-side jobs, but using it in the
+  // browser would send a tenant's cookies and organization operations to the
+  // platform host instead of the custom domain that established the session.
+  return (
+    browserOrigin ||
     process.env.BETTER_AUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    (typeof window !== "undefined"
-      ? window.location.origin
-      : "http://localhost:3000");
+    "http://localhost:3000"
+  );
+}
 
-  return { baseURL };
+function getAuthConfig() {
+  return { baseURL: resolveAuthClientBaseUrl() };
 }
 
 class BetterAuthClient {

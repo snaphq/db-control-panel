@@ -1,13 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { sha256Hex } from "@/lib/agent-auth/keys";
 import { auth } from "@repo/auth/server";
-import { db } from "@repo/database";
+import { db, resolveTenantFromHost } from "@repo/database";
+import { user } from "@repo/database/schema";
 import {
   agentClaimAttempt,
   agentProvider,
   agentRegistration,
 } from "@repo/database/schema-agent-auth";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ClaimForm } from "./_components/claim-form";
@@ -35,16 +36,55 @@ export default async function ClaimPage({ searchParams }: ClaimPageProps) {
     );
   }
 
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+  if (!tenant) {
+    return (
+      <ClaimShell title="Invalid link">
+        <p className="text-sm text-muted-foreground">
+          This link does not belong to a known tenant.
+        </p>
+      </ClaimShell>
+    );
+  }
+
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session?.user?.id) {
     const returnTo = `/claim?claim_attempt_token=${encodeURIComponent(attemptToken)}`;
     redirect(`/auth/sign-in?redirect=${encodeURIComponent(returnTo)}`);
   }
 
+  const [claimingUser] = await db()
+    .select({ tenantId: user.tenantId, archivedAt: user.archivedAt })
+    .from(user)
+    .where(
+      and(
+        eq(user.id, session.user.id),
+        eq(user.tenantId, tenant.id),
+        isNull(user.archivedAt),
+      ),
+    )
+    .limit(1);
+  if (!claimingUser) {
+    return (
+      <ClaimShell title="Account unavailable">
+        <p className="text-sm text-muted-foreground">
+          Sign in with an active account in this workspace to authorize the
+          agent.
+        </p>
+      </ClaimShell>
+    );
+  }
+
   const [attempt] = await db()
     .select()
     .from(agentClaimAttempt)
-    .where(eq(agentClaimAttempt.attemptTokenHash, sha256Hex(attemptToken)))
+    .where(
+      and(
+        eq(agentClaimAttempt.attemptTokenHash, sha256Hex(attemptToken)),
+        eq(agentClaimAttempt.tenantId, tenant.id),
+      ),
+    )
     .limit(1);
 
   if (!attempt) {
@@ -61,15 +101,37 @@ export default async function ClaimPage({ searchParams }: ClaimPageProps) {
   const [registration] = await db()
     .select()
     .from(agentRegistration)
-    .where(eq(agentRegistration.id, attempt.registrationId))
+    .where(
+      and(
+        eq(agentRegistration.id, attempt.registrationId),
+        eq(agentRegistration.tenantId, tenant.id),
+      ),
+    )
     .limit(1);
+
+  if (!registration) {
+    return (
+      <ClaimShell title="Invalid link">
+        <p className="text-sm text-muted-foreground">
+          This claim attempt is no longer available. Ask your agent for a new
+          code.
+        </p>
+      </ClaimShell>
+    );
+  }
 
   let providerName: string | null = null;
   if (registration?.providerId) {
     const [provider] = await db()
       .select({ displayName: agentProvider.displayName })
       .from(agentProvider)
-      .where(eq(agentProvider.id, registration.providerId))
+      .where(
+        and(
+          eq(agentProvider.id, registration.providerId),
+          eq(agentProvider.tenantId, tenant.id),
+          eq(agentProvider.status, "active"),
+        ),
+      )
       .limit(1);
     providerName = provider?.displayName ?? null;
   }

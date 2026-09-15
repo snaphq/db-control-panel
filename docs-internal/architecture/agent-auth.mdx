@@ -5,9 +5,9 @@ description: Internal implementation and security invariants for agentic registr
 
 # Agent-auth architecture
 
-The current implementation (introduced on local `main` at `d6fc034`) exposes a
-public, machine-readable agent registration protocol while keeping its security
-and persistence rules internal.
+The current implementation exposes a public, machine-readable agent
+registration protocol while keeping its security and persistence rules
+internal.
 
 ## Route ownership
 
@@ -51,12 +51,18 @@ JWKS resolution, key signing, token checks, rate limiting, and audit writes.
   never from request input.
 - Claim tokens and user codes are hashed at rest. User codes have a short
   window; the outer claim window and registration lifetime are separate.
+- Claim completion, remint, OAuth binding, refresh rotation, and password
+  reset use `withDbTransaction`, which opens and closes a Node-only Neon
+  WebSocket pool per request. Ordinary database work stays on the reusable
+  Neon HTTP client; do not call Drizzle's callback transaction API on it.
 - Polling honors the advertised interval and returns RFC-shaped pending,
-  slow-down, or expired states. Rate limiting is per IP and currently fails
-  open when Redis is absent or reports an error; production must configure and
-  monitor the limiter.
-- SET notifications verify provider trust, audience, type, signature, and
-  replay `jti` before revoking matching registrations and derived tokens.
+  slow-down, or expired states. Rate limiting is per IP. Production fails
+  closed when Redis or the trusted client address is unavailable; local and
+  preview runtimes use a bounded per-process fallback and must not be treated
+  as fleet-wide abuse protection.
+- SET notifications verify provider trust, the exact advertised
+  `/agent/event/notify` audience, type, signature, and replay `jti` before
+  revoking matching registrations and derived tokens.
 - Revocation responses avoid token enumeration by returning success for unknown
   or already-revoked access tokens.
 
@@ -65,7 +71,8 @@ JWKS resolution, key signing, token checks, rate limiting, and audit writes.
 - `id-jag.ts` uses the unverified issuer only to select a tenant trust-list row;
   it then verifies the signature with the provider JWKS and enforces issuer,
   audience, `jti`, verified-email, `iat`, and `auth_time` checks. A successful
-  `jti` is inserted into `agent_jti_seen` before the registration continues.
+  assertion is inserted into `agent_jti_seen` only after those checks pass,
+  before the registration continues.
 - `providers.ts` accepts only active `agent_provider` rows for the tenant. The
   remote JWKS resolver caches keys, refreshes no more often than every ten
   minutes, caps the cache at 24 hours, and retries once after a key-rotation
@@ -79,8 +86,10 @@ JWKS resolution, key signing, token checks, rate limiting, and audit writes.
 - `rate-limit.ts` uses `UPSTASH_REDIS_REST_URL` and
   `UPSTASH_REDIS_REST_TOKEN` when configured (5 requests/hour for anonymous
   registration and 60 requests/hour for other identity registration types).
-  It currently fails open when Redis is absent or errors, so production must
-  configure and monitor the limiter rather than treating it as a hard WAF.
+  The Redis key includes the registration type. If Redis is unavailable,
+  production denies the request; non-production uses a bounded per-process
+  sliding-window fallback. Configure and monitor Redis rather than treating
+  the fallback as a fleet-wide WAF.
 - `claims.ts` stores hashes of the claim token, attempt token, and six-digit
   user code. The outer claim window is 24 hours, each code is valid for 10
   minutes, five failed codes exhaust an attempt, and polling is advertised at
@@ -97,13 +106,13 @@ poll.
 
 ## Tenant and threat-model assumptions
 
-The current route handlers use the `default` tenant while the trust-list and
-schema APIs already carry tenant IDs. Do not infer a tenant from an untrusted
-host, email, or assertion claim; introduce an explicit resolver before adding
-multi-tenant agent registration. Existing-account ID-JAG matches require a
-user confirmation ceremony, while an unmatched verified email may create a
-minimal user through the documented JIT path. Treat anonymous credentials as
-unclaimed and low-scope until a signed-in human completes the ceremony.
+Every agent route resolves an active tenant from the request host before it
+reads or writes trust-list, registration, claim, delegation, or token state.
+Do not infer a tenant from an email or assertion claim. Existing-account ID-JAG
+matches require a user confirmation ceremony, while an unmatched verified
+email may create a minimal user through the documented JIT path. Treat
+anonymous credentials as unclaimed and low-scope until a signed-in human
+completes the ceremony.
 
 The public contract is documented in the separately published
 `docs-public/integrate/agent-auth` page. Update both pages when a protocol

@@ -1,6 +1,16 @@
-import { db, eq, getAdminStats, gt, sql } from "@repo/database";
-import { organization, payments, session, user } from "@repo/database/schema";
-import { registerMcpTool, wrapToolHandler } from "@repo/mcp-chatgpt";
+import {
+  and,
+  db,
+  eq,
+  getSafeSessions,
+  getTenantAdminStats,
+} from "@repo/database";
+import { organization, user } from "@repo/database/schema";
+import {
+  getCurrentMcpContext,
+  registerMcpTool,
+  wrapToolHandler,
+} from "@repo/mcp-chatgpt";
 import { z } from "zod";
 import type { McpServer, RequireAdmin } from "./types";
 
@@ -13,14 +23,28 @@ function mcpText(data: unknown) {
 }
 
 function mcpError(err: unknown) {
+  const rawMessage = err instanceof Error ? err.message : "";
+  const message = rawMessage.startsWith("Unauthorized")
+    ? "Authentication required"
+    : rawMessage.startsWith("Forbidden")
+      ? "Admin access required"
+      : "The admin operation failed";
+
   return {
+    isError: true as const,
     content: [
       {
         type: "text" as const,
-        text: `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
+        text: `Error: ${message}`,
       },
     ],
   };
+}
+
+function currentTenantId(): string {
+  const tenantId = getCurrentMcpContext()?.tenantId;
+  if (!tenantId) throw new Error("Forbidden: tenant context required");
+  return tenantId;
 }
 
 // ─── Tool registration ─────────────────────────────────────────────────────
@@ -44,13 +68,13 @@ export function registerAdminTools(
     "get_admin_stats",
     {
       description:
-        "Get comprehensive statistics about users, organizations, payments, and active sessions",
+        "Get tenant-scoped statistics about users, organizations, and active sessions",
       inputSchema: {},
     },
     wrapToolHandler("get_admin_stats", async () => {
       try {
         await requireAdmin();
-        return mcpText(await getAdminStats());
+        return mcpText(await getTenantAdminStats(currentTenantId()));
       } catch (err) {
         return mcpError(err);
       }
@@ -69,10 +93,22 @@ export function registerAdminTools(
       async ({ email }: { email: string }) => {
         try {
           await requireAdmin();
+          const tenantId = currentTenantId();
           const [found] = await db()
-            .select()
+            .select({
+              id: user.id,
+              tenantId: user.tenantId,
+              name: user.name,
+              publicEmail: user.publicEmail,
+              emailVerified: user.emailVerified,
+              role: user.role,
+              archivedAt: user.archivedAt,
+              createdAt: user.createdAt,
+            })
             .from(user)
-            .where(eq(user.publicEmail, email))
+            .where(
+              and(eq(user.publicEmail, email), eq(user.tenantId, tenantId)),
+            )
             .limit(1);
           return found
             ? mcpText(found)
@@ -96,10 +132,20 @@ export function registerAdminTools(
       async ({ userId }: { userId: string }) => {
         try {
           await requireAdmin();
+          const tenantId = currentTenantId();
           const [found] = await db()
-            .select()
+            .select({
+              id: user.id,
+              tenantId: user.tenantId,
+              name: user.name,
+              publicEmail: user.publicEmail,
+              emailVerified: user.emailVerified,
+              role: user.role,
+              archivedAt: user.archivedAt,
+              createdAt: user.createdAt,
+            })
             .from(user)
-            .where(eq(user.id, userId))
+            .where(and(eq(user.id, userId), eq(user.tenantId, tenantId)))
             .limit(1);
           return found
             ? mcpText(found)
@@ -123,9 +169,20 @@ export function registerAdminTools(
       async ({ limit = 50 }: { limit?: number }) => {
         try {
           await requireAdmin();
+          const tenantId = currentTenantId();
           const rows = await db()
-            .select()
+            .select({
+              id: user.id,
+              tenantId: user.tenantId,
+              name: user.name,
+              publicEmail: user.publicEmail,
+              emailVerified: user.emailVerified,
+              role: user.role,
+              archivedAt: user.archivedAt,
+              createdAt: user.createdAt,
+            })
             .from(user)
+            .where(eq(user.tenantId, tenantId))
             .orderBy(user.createdAt)
             .limit(limit);
           return mcpText(rows);
@@ -148,64 +205,12 @@ export function registerAdminTools(
       async ({ limit = 50 }: { limit?: number }) => {
         try {
           await requireAdmin();
+          const tenantId = currentTenantId();
           const rows = await db()
             .select()
             .from(organization)
+            .where(eq(organization.tenantId, tenantId))
             .orderBy(organization.createdAt)
-            .limit(limit);
-          return mcpText(rows);
-        } catch (err) {
-          return mcpError(err);
-        }
-      },
-    ),
-  );
-
-  registerMcpTool(
-    server,
-    "get_payment_records",
-    {
-      description: "Get payment records with optional limit",
-      inputSchema: { limit: z.number().int().min(1).max(100).optional() },
-    },
-    wrapToolHandler(
-      "get_payment_records",
-      async ({ limit = 50 }: { limit?: number }) => {
-        try {
-          await requireAdmin();
-          const rows = await db()
-            .select()
-            .from(payments)
-            .orderBy(payments.created_time)
-            .limit(limit);
-          return mcpText(rows);
-        } catch (err) {
-          return mcpError(err);
-        }
-      },
-    ),
-  );
-
-  registerMcpTool(
-    server,
-    "get_payments_by_email",
-    {
-      description: "Get payment records for a specific email address",
-      inputSchema: {
-        email: z.string().email(),
-        limit: z.number().int().min(1).max(100).optional(),
-      },
-    },
-    wrapToolHandler(
-      "get_payments_by_email",
-      async ({ email, limit = 50 }: { email: string; limit?: number }) => {
-        try {
-          await requireAdmin();
-          const rows = await db()
-            .select()
-            .from(payments)
-            .where(eq(payments.email, email))
-            .orderBy(payments.created_time)
             .limit(limit);
           return mcpText(rows);
         } catch (err) {
@@ -227,12 +232,11 @@ export function registerAdminTools(
       async ({ limit = 50 }: { limit?: number }) => {
         try {
           await requireAdmin();
-          const rows = await db()
-            .select()
-            .from(session)
-            .where(gt(session.expiresAt, new Date()))
-            .orderBy(session.createdAt)
-            .limit(limit);
+          const rows = await getSafeSessions({
+            activeOnly: true,
+            limit,
+            tenantId: currentTenantId(),
+          });
           return mcpText(rows);
         } catch (err) {
           return mcpError(err);
@@ -253,10 +257,16 @@ export function registerAdminTools(
       async ({ organizationId }: { organizationId: string }) => {
         try {
           await requireAdmin();
+          const tenantId = currentTenantId();
           const [found] = await db()
             .select()
             .from(organization)
-            .where(eq(organization.id, organizationId))
+            .where(
+              and(
+                eq(organization.id, organizationId),
+                eq(organization.tenantId, tenantId),
+              ),
+            )
             .limit(1);
           return found
             ? mcpText(found)

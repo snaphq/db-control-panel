@@ -25,8 +25,12 @@ export const oauthApplication = pgTable("oauth_application", {
   metadata: text("metadata"),
   clientId: text("client_id").unique(),
   clientSecret: text("client_secret"),
-  redirectURLs: text("redirect_u_r_ls"),
+  // Better Auth calls this field `redirectUrls`; retain the existing column
+  // name so the adapter and the deployed database agree.
+  redirectUrls: text("redirect_u_r_ls"),
   type: text("type"),
+  /** Better Auth OIDC token endpoint authentication method. */
+  authenticationScheme: text("authentication_scheme"),
   disabled: boolean("disabled"),
   userId: text("user_id"),
   createdAt: timestamp("created_at"),
@@ -46,6 +50,10 @@ export const oauthAccessToken = pgTable("oauth_access_token", {
   clientId: text("client_id"),
   userId: text("user_id"),
   scopes: text("scopes"),
+  /** Canonical protected resource this token was minted for. */
+  resource: text("resource"),
+  /** RFC 7009 revocation marker; null means the token is active. */
+  revokedAt: timestamp("revoked_at"),
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
 });
@@ -59,6 +67,8 @@ export const oauthConsent = pgTable("oauth_consent", {
   clientId: text("client_id"),
   userId: text("user_id"),
   scopes: text("scopes"),
+  /** Exact MCP resource for which consent was recorded. */
+  resource: text("resource"),
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
   consentGiven: boolean("consent_given"),

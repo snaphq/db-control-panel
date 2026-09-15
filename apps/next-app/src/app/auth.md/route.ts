@@ -1,23 +1,27 @@
 import {
   AGENT_SCOPES_SUPPORTED,
   buildAgentAuthBlock,
+  requestOriginForRequest,
 } from "@/lib/agent-auth/discovery";
-import { absoluteUrl, getSiteUrl } from "@/lib/site-config";
+import { resolveTenantFromHost } from "@repo/database";
 
 /**
- * auth.md — LLM-readable skill manifest for agentic registration.
+ * auth.md — LLM-readable protocol document for agentic registration.
  * Served per the auth.md open protocol (github.com/workos/auth.md).
  */
-export async function GET(): Promise<Response> {
-  const site = getSiteUrl();
-  const agentAuth = buildAgentAuthBlock();
+export async function GET(request: Request): Promise<Response> {
+  const tenant = await resolveTenantFromHost(request.headers.get("host"));
+  if (!tenant) return new Response("Unknown tenant host", { status: 404 });
+  const site = requestOriginForRequest(request);
+  const url = (pathname: string) => new URL(pathname, site).toString();
+  const agentAuth = buildAgentAuthBlock(site);
 
   const lines = [
     "# auth.md",
     "",
     "You are an agent. This service supports **agentic registration**: discover → register → (claim if needed) → exchange for an access_token → call API → handle revocation. Follow the steps in order; do not skip ahead.",
     "",
-    `This service is a single-domain deployment: the API resource is \`${absoluteUrl("/mcp")}\` and the authorization server is \`${site}\`.`,
+    `This service is tenant-bound: the API resource is \`${url("/mcp")}\` and the authorization server is \`${site}\`.`,
     "",
     "## Step 1 — Discover",
     "",
@@ -110,6 +114,7 @@ export async function GET(): Promise<Response> {
     "",
     "grant_type=urn:workos:agent-auth:grant-type:claim",
     "&claim_token=<clm_...>",
+    `&resource=${url("/mcp")}`,
     "```",
     "",
     '- Pending: `{ "error": "authorization_pending" }` — honor `interval`, back off on `slow_down`.',
@@ -124,16 +129,41 @@ export async function GET(): Promise<Response> {
     "",
     "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer",
     "&assertion=<identity_assertion>",
-    `&resource=${absoluteUrl("/mcp")}`,
+    `&resource=${url("/mcp")}`,
     "```",
     "",
     'Response: `{ access_token, token_type: "Bearer", expires_in, scope }`. There is no refresh_token — re-exchange the same identity_assertion until it expires, then restart at Step 3.',
     "",
     "## Step 6 — Use the access_token",
     "",
+    "Send MCP JSON-RPC messages to the resource with the bearer token. The",
+    "normal transport is Streamable HTTP; initialize and subsequent",
+    "`tools/list` or `tools/call` requests are POSTs.",
+    "",
     "```http",
-    `GET ${absoluteUrl("/mcp")}`,
+    `POST ${url("/mcp")}`,
     "Authorization: Bearer <access_token>",
+    "Content-Type: application/json",
+    "Accept: application/json, text/event-stream",
+    "MCP-Protocol-Version: 2025-11-25",
+    "",
+    '{"jsonrpc":"2.0","id":"1","method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"agent","version":"1"}}}',
+    "",
+    `POST ${url("/mcp")}`,
+    "Authorization: Bearer <access_token>",
+    "Content-Type: application/json",
+    "Accept: application/json, text/event-stream",
+    "MCP-Protocol-Version: 2025-11-25",
+    "",
+    '{"jsonrpc":"2.0","id":"2","method":"tools/list","params":{}}',
+    "",
+    `POST ${url("/mcp")}`,
+    "Authorization: Bearer <access_token>",
+    "Content-Type: application/json",
+    "Accept: application/json, text/event-stream",
+    "MCP-Protocol-Version: 2025-11-25",
+    "",
+    '{"jsonrpc":"2.0","id":"3","method":"tools/call","params":{"name":"<tool_name>","arguments":{}}}',
     "```",
     "",
     "## Revocation",

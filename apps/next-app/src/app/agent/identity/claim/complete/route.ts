@@ -1,8 +1,15 @@
 import { completeClaim } from "@/lib/agent-auth/claims";
+import {
+  requestOriginForRequest,
+  resourceUrlForRequest,
+} from "@/lib/agent-auth/discovery";
 import { clientIp } from "@/lib/agent-auth/registrations";
 import { auth } from "@repo/auth/server";
+import { resolveTenantFromHost } from "@repo/database";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
 
 /**
  * POST /agent/identity/claim/complete — service-owned form action.
@@ -10,12 +17,20 @@ import { NextResponse } from "next/server";
  * Body: { claim_attempt_token, user_code }.
  */
 export async function POST(request: Request): Promise<Response> {
+  const tenant = await resolveTenantFromHost(request.headers.get("host"));
+  if (!tenant) {
+    return NextResponse.json(
+      { error: "tenant_not_found", message: "Unknown tenant host" },
+      { status: 404 },
+    );
+  }
+
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id || !session.user.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { claim_attempt_token?: string; user_code?: string };
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
@@ -25,8 +40,16 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const attemptToken = body.claim_attempt_token?.trim();
-  const userCode = body.user_code?.trim();
+  const input =
+    body && typeof body === "object" && !Array.isArray(body)
+      ? (body as { claim_attempt_token?: unknown; user_code?: unknown })
+      : {};
+  const attemptToken =
+    typeof input.claim_attempt_token === "string"
+      ? input.claim_attempt_token.trim()
+      : "";
+  const userCode =
+    typeof input.user_code === "string" ? input.user_code.trim() : "";
   if (!attemptToken || !userCode) {
     return NextResponse.json(
       {
@@ -42,6 +65,9 @@ export async function POST(request: Request): Promise<Response> {
     userCode,
     userId: session.user.id,
     userEmail: session.user.email,
+    tenantId: tenant.id,
+    resource: resourceUrlForRequest(request),
+    issuer: requestOriginForRequest(request),
     ip: clientIp(request),
   });
 
@@ -51,7 +77,11 @@ export async function POST(request: Request): Promise<Response> {
         ? 403
         : result.error === "invalid_code"
           ? 400
-          : 410;
+          : result.error === "invalid_request"
+            ? 400
+            : result.error === "organization_required"
+              ? 409
+              : 410;
     return NextResponse.json(
       { error: result.error, message: result.message },
       { status },

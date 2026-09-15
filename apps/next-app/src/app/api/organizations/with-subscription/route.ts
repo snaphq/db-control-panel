@@ -1,7 +1,12 @@
-import { auth, getBetterAuthServer } from "@repo/auth/server";
+import { resourceUrlForRequest } from "@/lib/agent-auth/discovery";
+import {
+  auth,
+  getBetterAuthServer,
+  runWithAuthTenantContext,
+} from "@repo/auth/server";
 import { ORG_STATUS, TRIAL_DURATION_DAYS } from "@repo/billing/constants";
 import { stripe } from "@repo/billing/stripe/client";
-import { db, eq } from "@repo/database";
+import { and, db, eq, resolveTenantFromHost } from "@repo/database";
 import { orgBilling, organization } from "@repo/database/schema";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -16,7 +21,12 @@ interface Body {
 }
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+  if (!tenant) {
+    return NextResponse.json({ error: "Unknown tenant host" }, { status: 404 });
+  }
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session?.user?.id || !session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -62,10 +72,17 @@ export async function POST(request: Request) {
     });
 
     const server = getBetterAuthServer();
-    const createdOrg = await server.getAuthInstance().api.createOrganization({
-      body: { name: name.trim(), slug: slug.trim() },
-      headers: await headers(),
-    });
+    const createdOrg = await runWithAuthTenantContext(
+      {
+        tenantId: tenant.id,
+        resource: resourceUrlForRequest(request),
+      },
+      () =>
+        server.getAuthInstance().api.createOrganization({
+          body: { name: name.trim(), slug: slug.trim() },
+          headers: requestHeaders,
+        }),
+    );
 
     if (!createdOrg?.id) {
       throw new Error("Failed to create organization");
@@ -76,7 +93,9 @@ export async function POST(request: Request) {
     await db()
       .update(organization)
       .set({ stripeCustomerId: customerId, status: ORG_STATUS.ACTIVE })
-      .where(eq(organization.id, orgId));
+      .where(
+        and(eq(organization.id, orgId), eq(organization.tenantId, tenant.id)),
+      );
 
     await stripe.customers.update(customerId, {
       metadata: {

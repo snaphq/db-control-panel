@@ -1,4 +1,5 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { requestOriginForRequest } from "@/lib/agent-auth/discovery";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { checkPasswordResetRateLimit } from "@/lib/rate-limit";
 import {
@@ -6,13 +7,17 @@ import {
   db,
   resolveTenantFromHost,
 } from "@repo/database";
-import { eq } from "@repo/database";
+import { and, eq, isNull } from "@repo/database";
 import * as schema from "@repo/database/schema";
 import { nanoid } from "nanoid";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 const TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
+function hashResetToken(token: string): string {
+  return `legacy-password-reset:${createHash("sha256").update(token).digest("hex")}`;
+}
 
 export async function POST(request: Request) {
   try {
@@ -33,7 +38,9 @@ export async function POST(request: Request) {
     const authEmail = buildTenantAuthEmail(tenant.id, normalizedEmail);
 
     // Check rate limit
-    const rateLimit = await checkPasswordResetRateLimit(normalizedEmail);
+    const rateLimit = await checkPasswordResetRateLimit(
+      `${tenant.id}:${normalizedEmail}`,
+    );
     if (!rateLimit.success) {
       // Still return success to prevent enumeration
       console.log(`[Auth] Password reset rate limited for ${normalizedEmail}`);
@@ -42,9 +49,15 @@ export async function POST(request: Request) {
 
     // Find user by email
     const users = await db()
-      .select()
+      .select({ id: schema.user.id, email: schema.user.email })
       .from(schema.user)
-      .where(eq(schema.user.email, authEmail))
+      .where(
+        and(
+          eq(schema.user.email, authEmail),
+          eq(schema.user.tenantId, tenant.id),
+          isNull(schema.user.archivedAt),
+        ),
+      )
       .limit(1);
 
     if (users.length === 0) {
@@ -52,24 +65,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
 
-    const user = users[0];
-
     // Generate secure token
     const token = randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MS);
 
-    // Store verification token
-    await db().insert(schema.verification).values({
-      id: nanoid(),
-      tenantId: tenant.id,
-      identifier: authEmail,
-      value: token,
-      expiresAt,
-    });
+    // Store only a hash. The plaintext is delivered through the mailer and is
+    // never recoverable from the database if it is exposed.
+    await db()
+      .insert(schema.verification)
+      .values({
+        id: nanoid(),
+        tenantId: tenant.id,
+        identifier: authEmail,
+        value: hashResetToken(token),
+        expiresAt,
+      });
 
     // Build reset URL
-    const baseUrl = `${requestHeaders.get("x-forwarded-proto") ?? "http"}://${requestHeaders.get("host") ?? "localhost:8801"}`;
-    const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
+    const resetUrl = `${requestOriginForRequest(request)}/auth/reset-password?token=${encodeURIComponent(token)}`;
 
     // Send email (or log to console if not configured)
     void sendPasswordResetEmail({

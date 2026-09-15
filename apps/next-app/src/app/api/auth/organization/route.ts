@@ -1,7 +1,11 @@
-import { getBetterAuthServer } from "@repo/auth/server";
-import { auth } from "@repo/auth/server";
-import { db, eq, resolveTenantFromHost } from "@repo/database";
-import { member, organization, referrals } from "@repo/database/schema";
+import { resourceUrlForRequest } from "@/lib/agent-auth/discovery";
+import { filterOrganizationsForTenant } from "@/lib/auth/organizations";
+import {
+  getBetterAuthServer,
+  runWithAuthTenantContext,
+} from "@repo/auth/server";
+import { and, db, eq, resolveTenantFromHost } from "@repo/database";
+import { organization, referrals } from "@repo/database/schema";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -21,21 +25,35 @@ function createSuccessResponse(data: unknown): NextResponse {
   return response;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const server = getBetterAuthServer();
-    const session = await server.getSession(await headers());
+    const requestHeaders = await headers();
+    const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+    if (!tenant) {
+      return NextResponse.json(
+        { error: "Unknown tenant host" },
+        { status: 404 },
+      );
+    }
+    const session = await server.getSession(requestHeaders);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const instance = server.getAuthInstance();
-    const orgs = await instance.api.listOrganizations({
-      headers: await headers(),
-    });
+    const orgs = await runWithAuthTenantContext(
+      {
+        tenantId: tenant.id,
+        resource: resourceUrlForRequest(request),
+      },
+      () => instance.api.listOrganizations({ headers: requestHeaders }),
+    );
 
-    return NextResponse.json(orgs || []);
+    return NextResponse.json(
+      await filterOrganizationsForTenant(orgs, tenant.id, session.user.id),
+    );
   } catch (error) {
     console.error("Error listing organizations:", error);
     return NextResponse.json(
@@ -48,7 +66,15 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const server = getBetterAuthServer();
-    const session = await server.getSession(await headers());
+    const requestHeaders = await headers();
+    const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+    if (!tenant) {
+      return NextResponse.json(
+        { error: "Unknown tenant host" },
+        { status: 404 },
+      );
+    }
+    const session = await server.getSession(requestHeaders);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -65,11 +91,17 @@ export async function POST(request: Request) {
     }
 
     const instance = server.getAuthInstance();
-    const result = await instance.api.createOrganization({
-      body: { name, slug },
-      headers: await headers(),
-    });
-    const tenant = await resolveTenantFromHost((await headers()).get("host"));
+    const result = await runWithAuthTenantContext(
+      {
+        tenantId: tenant.id,
+        resource: resourceUrlForRequest(request),
+      },
+      () =>
+        instance.api.createOrganization({
+          body: { name, slug },
+          headers: requestHeaders,
+        }),
+    );
 
     // F3: Link referral record to the newly created organization (non-fatal)
     const newOrgId: string | undefined =
@@ -78,16 +110,17 @@ export async function POST(request: Request) {
         : undefined;
     if (newOrgId && session.user?.id) {
       try {
-        if (tenant) {
-          await db()
-            .update(organization)
-            .set({ tenantId: tenant.id })
-            .where(eq(organization.id, newOrgId));
-          await db()
-            .update(member)
-            .set({ tenantId: tenant.id })
-            .where(eq(member.organizationId, newOrgId));
-        }
+        const [createdOrg] = await db()
+          .select({ id: organization.id })
+          .from(organization)
+          .where(
+            and(
+              eq(organization.id, newOrgId),
+              eq(organization.tenantId, tenant.id),
+            ),
+          )
+          .limit(1);
+        if (!createdOrg) throw new Error("Organization tenant binding missing");
         await db()
           .update(referrals)
           .set({ refereeOrganizationId: newOrgId })

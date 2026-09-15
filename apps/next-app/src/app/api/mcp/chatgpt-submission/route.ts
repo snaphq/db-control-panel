@@ -27,8 +27,6 @@ const ADMIN_TOOL_NAMES: McpToolName[] = [
   "get_user_by_id",
   "list_users",
   "list_organizations",
-  "get_payment_records",
-  "get_payments_by_email",
   "get_active_sessions",
   "get_organization_by_id",
 ];

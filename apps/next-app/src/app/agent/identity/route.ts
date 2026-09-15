@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { recordAudit } from "@/lib/agent-auth/audit";
 import { mintClaimAttempt } from "@/lib/agent-auth/claims";
+import {
+  requestOriginForRequest,
+  resourceUrlForRequest,
+} from "@/lib/agent-auth/discovery";
 import { registerIdentityAssertion } from "@/lib/agent-auth/identity-assertion";
 import { signIdentityAssertion } from "@/lib/agent-auth/keys";
 import { checkAgentIdentityRateLimit } from "@/lib/agent-auth/rate-limit";
@@ -13,18 +17,27 @@ import {
   newClaimToken,
   newRegistrationId,
 } from "@/lib/agent-auth/registrations";
-import { absoluteUrl } from "@/lib/site-config";
-import { db } from "@repo/database";
+import { db, resolveTenantFromHost } from "@repo/database";
 import { agentRegistration } from "@repo/database/schema-agent-auth";
 import { NextResponse } from "next/server";
 
-const DEFAULT_TENANT_ID = "default";
+export const runtime = "nodejs";
 
 /**
  * POST /agent/identity — agentic registration (auth.md protocol).
  * Dispatches on `type`: anonymous | service_auth | identity_assertion.
  */
 export async function POST(request: Request): Promise<Response> {
+  const tenant = await resolveTenantFromHost(request.headers.get("host"));
+  if (!tenant) {
+    return NextResponse.json(
+      { error: "tenant_not_found", message: "Unknown tenant host" },
+      { status: 404 },
+    );
+  }
+  const resource = resourceUrlForRequest(request);
+  const issuer = requestOriginForRequest(request);
+
   let body: unknown;
   try {
     body = await request.json();
@@ -46,7 +59,8 @@ export async function POST(request: Request): Promise<Response> {
     type === "service_auth" ||
     type === "identity_assertion"
   ) {
-    // Two-tier rate limiting (per-IP); fail open without Redis.
+    // Two-tier rate limiting (per-IP); production fails closed if its
+    // distributed limiter or trusted client address is unavailable.
     const allowed = await checkAgentIdentityRateLimit(clientIp(request), type);
     if (!allowed) {
       return NextResponse.json(
@@ -57,10 +71,15 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (type === "identity_assertion") {
-    return registerIdentityAssertion(request, {
-      assertion: (body as { assertion?: string }).assertion,
-      assertion_type: (body as { assertion_type?: string }).assertion_type,
-    });
+    return registerIdentityAssertion(
+      request,
+      {
+        assertion: (body as { assertion?: string }).assertion,
+        assertion_type: (body as { assertion_type?: string }).assertion_type,
+      },
+      tenant.id,
+      resource,
+    );
   }
   if (type !== "anonymous" && type !== "service_auth") {
     return NextResponse.json(
@@ -73,15 +92,26 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  await expireStaleRegistrations();
+  await expireStaleRegistrations(tenant.id);
 
   if (type === "service_auth") {
-    return registerServiceAuth(request, body as { login_hint?: string });
+    return registerServiceAuth(
+      request,
+      body as { login_hint?: string },
+      tenant.id,
+      resource,
+      issuer,
+    );
   }
-  return registerAnonymous(request);
+  return registerAnonymous(request, tenant.id, resource, issuer);
 }
 
-async function registerAnonymous(request: Request): Promise<Response> {
+async function registerAnonymous(
+  request: Request,
+  tenantId: string,
+  resource: string,
+  issuer: string,
+): Promise<Response> {
   const id = newRegistrationId();
   const claimToken = newClaimToken();
   const registrationExpiresAt = new Date(
@@ -92,7 +122,7 @@ async function registerAnonymous(request: Request): Promise<Response> {
     .insert(agentRegistration)
     .values({
       id,
-      tenantId: DEFAULT_TENANT_ID,
+      tenantId,
       type: "anonymous",
       status: "unclaimed",
       claimTokenHash: claimToken.hash,
@@ -103,24 +133,26 @@ async function registerAnonymous(request: Request): Promise<Response> {
       scopes: PRE_CLAIM_SCOPES,
       registrationIp: clientIp(request),
       userAgent: request.headers.get("user-agent"),
-      metadata: { request_id: randomUUID() },
+      metadata: { request_id: randomUUID(), resource },
     });
 
   const assertion = await signIdentityAssertion({
     registrationId: id,
     scopes: PRE_CLAIM_SCOPES,
     registrationType: "anonymous",
+    resource,
+    issuer,
   });
 
   await recordAudit({
-    tenantId: DEFAULT_TENANT_ID,
+    tenantId,
     event: "registration.created",
     registrationId: id,
     metadata: { registration_type: "anonymous" },
     ip: clientIp(request),
   });
   await recordAudit({
-    tenantId: DEFAULT_TENANT_ID,
+    tenantId,
     event: "assertion.issued",
     registrationId: id,
     metadata: { assertion_expires: assertion.expiresAt.toISOString() },
@@ -132,7 +164,7 @@ async function registerAnonymous(request: Request): Promise<Response> {
     identity_assertion: assertion.jwt,
     assertion_expires: assertion.expiresAt.toISOString(),
     pre_claim_scopes: PRE_CLAIM_SCOPES.split(" "),
-    claim_url: absoluteUrl("/agent/identity/claim"),
+    claim_url: new URL("/agent/identity/claim", issuer).toString(),
     claim_token: claimToken.plaintext,
     claim_token_expires: new Date(
       Date.now() + CLAIM_TOKEN_TTL_MS,
@@ -144,9 +176,14 @@ async function registerAnonymous(request: Request): Promise<Response> {
 async function registerServiceAuth(
   request: Request,
   body: { login_hint?: string },
+  tenantId: string,
+  resource: string,
+  issuer: string,
 ): Promise<Response> {
   const loginHint =
-    typeof body.login_hint === "string" ? body.login_hint.trim() : "";
+    typeof body.login_hint === "string"
+      ? body.login_hint.trim().toLowerCase()
+      : "";
   if (!loginHint || !loginHint.includes("@")) {
     return NextResponse.json(
       {
@@ -167,7 +204,7 @@ async function registerServiceAuth(
     .insert(agentRegistration)
     .values({
       id,
-      tenantId: DEFAULT_TENANT_ID,
+      tenantId,
       type: "service_auth",
       status: "unclaimed",
       claimEmail: loginHint,
@@ -178,16 +215,17 @@ async function registerServiceAuth(
       scopes: PRE_CLAIM_SCOPES,
       registrationIp: clientIp(request),
       userAgent: request.headers.get("user-agent"),
-      metadata: { request_id: randomUUID() },
+      metadata: { request_id: randomUUID(), resource },
     });
 
   const attempt = await mintClaimAttempt({
-    registration: { id, tenantId: DEFAULT_TENANT_ID },
+    registration: { id, tenantId },
+    origin: issuer,
     ip: clientIp(request),
   });
 
   await recordAudit({
-    tenantId: DEFAULT_TENANT_ID,
+    tenantId,
     event: "registration.created",
     registrationId: id,
     email: loginHint,
@@ -195,7 +233,7 @@ async function registerServiceAuth(
     ip: clientIp(request),
   });
   await recordAudit({
-    tenantId: DEFAULT_TENANT_ID,
+    tenantId,
     event: "claim.requested",
     registrationId: id,
     email: loginHint,
@@ -205,7 +243,7 @@ async function registerServiceAuth(
   return NextResponse.json({
     registration_id: id,
     registration_type: "service_auth",
-    claim_url: absoluteUrl("/agent/identity/claim"),
+    claim_url: new URL("/agent/identity/claim", issuer).toString(),
     claim_token: claimToken.plaintext,
     claim_token_expires: new Date(
       Date.now() + CLAIM_TOKEN_TTL_MS,

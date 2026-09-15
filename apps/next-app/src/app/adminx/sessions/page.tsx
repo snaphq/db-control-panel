@@ -1,14 +1,13 @@
 import { SessionTable } from "@/components/admin/SessionTable";
-import { db } from "@repo/database";
-import { session } from "@repo/database/schema";
+import { getSiteAdminStatus } from "@/lib/auth-utils";
+import { auth } from "@repo/auth/server";
+import { getSafeSessions, resolveTenantFromHost } from "@repo/database";
+import { headers } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 
-async function getSessions() {
+async function getSessions(tenantId: string) {
   try {
-    const sessions = await db()
-      .select()
-      .from(session)
-      .orderBy(session.createdAt);
-    return sessions;
+    return await getSafeSessions({ tenantId });
   } catch (error) {
     console.error("Error fetching sessions:", error);
     return [];
@@ -16,7 +15,16 @@ async function getSessions() {
 }
 
 export default async function SessionsPage() {
-  const sessions = await getSessions();
+  const requestHeaders = await headers();
+  const session = await auth.api.getSession({ headers: requestHeaders });
+  if (!session?.user?.id) {
+    redirect("/auth/sign-in?redirect=/adminx/sessions");
+  }
+  const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+  if (!tenant) notFound();
+  if (!(await getSiteAdminStatus(session.user.id, tenant.id))) notFound();
+
+  const sessions = await getSessions(tenant.id);
 
   return (
     <div className="flex flex-col gap-4">

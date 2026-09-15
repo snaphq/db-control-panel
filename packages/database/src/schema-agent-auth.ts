@@ -155,6 +155,8 @@ export const agentToken = pgTable(
       .references(() => agentRegistration.id, { onDelete: "cascade" }),
     jti: text("jti").notNull(),
     scope: text("scope").notNull(),
+    /** Exact MCP resource audience bound at issuance. */
+    resource: text("resource").notNull().default(""),
     expiresAt: timestamp("expires_at").notNull(),
     revokedAt: timestamp("revoked_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

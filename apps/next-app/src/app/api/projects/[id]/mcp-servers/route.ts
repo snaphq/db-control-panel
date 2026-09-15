@@ -2,7 +2,8 @@ import { listTools } from "@/lib/integrations/mcp-proxy";
 import { loadMCPServers } from "@/lib/integrations/mcp-runtime";
 import { auth } from "@repo/auth/server";
 import { and, db, eq } from "@repo/database";
-import { member, project } from "@repo/database/schema";
+import { resolveTenantFromHost } from "@repo/database";
+import { member, organization, project } from "@repo/database/schema";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -21,16 +22,30 @@ interface RouteParams {
  * Never returns credentials.
  */
 export async function GET(request: Request, { params }: RouteParams) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const [session, tenant] = await Promise.all([
+    auth.api.getSession({ headers: requestHeaders }),
+    resolveTenantFromHost(requestHeaders.get("host")),
+  ]);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
+  if (!tenant) {
+    return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+  }
 
   const [proj] = await db()
     .select()
     .from(project)
-    .where(eq(project.id, id))
+    .innerJoin(organization, eq(project.organizationId, organization.id))
+    .where(
+      and(
+        eq(project.id, id),
+        eq(project.tenantId, tenant.id),
+        eq(organization.tenantId, tenant.id),
+      ),
+    )
     .limit(1);
   if (!proj) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -39,10 +54,13 @@ export async function GET(request: Request, { params }: RouteParams) {
   const [membership] = await db()
     .select()
     .from(member)
+    .innerJoin(organization, eq(member.organizationId, organization.id))
     .where(
       and(
-        eq(member.organizationId, proj.organizationId),
+        eq(member.organizationId, proj.project.organizationId),
         eq(member.userId, session.user.id),
+        eq(member.tenantId, tenant.id),
+        eq(organization.tenantId, tenant.id),
       ),
     )
     .limit(1);
@@ -51,8 +69,9 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 
   const servers = await loadMCPServers({
-    organizationId: proj.organizationId,
-    projectId: proj.id,
+    tenantId: tenant.id,
+    organizationId: proj.project.organizationId,
+    projectId: proj.project.id,
   });
 
   const url = new URL(request.url);

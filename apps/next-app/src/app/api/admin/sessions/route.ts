@@ -1,8 +1,6 @@
 import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
-import { db } from "@repo/database";
-import { sql } from "@repo/database";
-import { session } from "@repo/database/schema";
+import { getSafeSessions, resolveTenantFromHost } from "@repo/database";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -16,15 +14,18 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const isAdmin = await getSiteAdminStatus(authSession.user.id);
+    const requestHeaders = await headers();
+    const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+    if (!tenant) {
+      return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    }
+
+    const isAdmin = await getSiteAdminStatus(authSession.user.id, tenant.id);
     if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const sessions = await db()
-      .select()
-      .from(session)
-      .orderBy(session.createdAt);
+    const sessions = await getSafeSessions({ tenantId: tenant.id });
 
     return NextResponse.json(sessions);
   } catch (error) {

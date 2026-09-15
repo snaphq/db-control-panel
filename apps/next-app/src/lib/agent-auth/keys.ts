@@ -9,6 +9,7 @@ import {
   exportJWK,
   exportPKCS8,
   generateKeyPair,
+  importJWK,
   importPKCS8,
 } from "jose";
 
@@ -21,28 +22,61 @@ export const ACCESS_TOKEN_TTL_SECONDS = Number(
 
 let cachedKeyPair: Promise<{
   privateKey: CryptoKey;
+  publicKey: CryptoKey;
   kid: string;
 }> | null = null;
 
+/** A deterministic configuration failure that callers can map to HTTP 503. */
+export class AgentAuthConfigurationError extends Error {
+  readonly code = "AGENT_AUTH_KEY_UNAVAILABLE";
+
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "AgentAuthConfigurationError";
+  }
+}
+
 async function loadPrivateKeyPem(): Promise<string | null> {
-  return process.env.AGENT_AUTH_PRIVATE_KEY ?? null;
+  const value = process.env.AGENT_AUTH_PRIVATE_KEY;
+  // Deployment secret stores often expose multiline PEM values with literal
+  // `\\n` escapes. Normalize that representation before jose parses it while
+  // leaving ordinary PEM newlines unchanged.
+  return value ? value.replace(/\\n/g, "\n") : null;
 }
 
 async function createKeyPair(): Promise<{
   privateKey: CryptoKey;
+  publicKey: CryptoKey;
   kid: string;
 }> {
   const pem = await loadPrivateKeyPem();
   if (pem) {
-    const privateKey = await importPKCS8(pem, "ES256", { extractable: true });
-    return { privateKey, kid: process.env.AGENT_AUTH_KEY_ID ?? "agent-auth-1" };
+    let privateKey: CryptoKey;
+    try {
+      privateKey = await importPKCS8(pem, "ES256", { extractable: true });
+    } catch (error) {
+      throw new AgentAuthConfigurationError(
+        "AGENT_AUTH_PRIVATE_KEY is not a valid ES256 private key",
+        { cause: error },
+      );
+    }
+    // jose deliberately rejects a private CryptoKey for verification. Derive
+    // an extractable public key once at startup so signing and verification
+    // always use the appropriate half of the pair.
+    const { d: _privateScalar, ...publicJwk } = await exportJWK(privateKey);
+    const publicKey = (await importJWK(publicJwk, "ES256")) as CryptoKey;
+    return {
+      privateKey,
+      publicKey,
+      kid: process.env.AGENT_AUTH_KEY_ID ?? "agent-auth-1",
+    };
   }
 
   if (
     process.env.NODE_ENV === "production" &&
     process.env.AGENT_AUTH_ENABLED !== "false"
   ) {
-    throw new Error(
+    throw new AgentAuthConfigurationError(
       "AGENT_AUTH_PRIVATE_KEY is required in production (generate with: openssl ecparam -name prime256v1 -genkey -noout -out private.pem)",
     );
   }
@@ -53,12 +87,15 @@ async function createKeyPair(): Promise<{
       "[agent-auth] AGENT_AUTH_PRIVATE_KEY not set — using an ephemeral dev key. Tokens will not survive restarts.",
     );
   }
-  const { privateKey } = await generateKeyPair("ES256", { extractable: true });
-  return { privateKey, kid: "agent-auth-dev" };
+  const { privateKey, publicKey } = await generateKeyPair("ES256", {
+    extractable: true,
+  });
+  return { privateKey, publicKey, kid: "agent-auth-dev" };
 }
 
 export function getSigningKey(): Promise<{
   privateKey: CryptoKey;
+  publicKey: CryptoKey;
   kid: string;
 }> {
   if (!cachedKeyPair) {
@@ -73,12 +110,8 @@ export function getSigningKey(): Promise<{
 export async function exportPublicKeyJwks(): Promise<{
   keys: Array<Record<string, unknown>>;
 }> {
-  const { privateKey, kid } = await getSigningKey();
-  const jwk = await exportJWK(privateKey);
-  // Strip private scalar d before publishing.
-  const { d: _d, ...publicJwk } = jwk as Record<string, unknown> & {
-    d?: string;
-  };
+  const { publicKey, kid } = await getSigningKey();
+  const publicJwk = await exportJWK(publicKey);
   return {
     keys: [{ ...publicJwk, kid, use: "sig", alg: "ES256" }],
   };
@@ -98,11 +131,13 @@ export async function signIdentityAssertion(params: {
   registrationId: string;
   scopes: string;
   registrationType: string;
+  resource: string;
+  issuer?: string;
   email?: string | null;
   emailVerified?: boolean;
 }): Promise<{ jwt: string; expiresAt: Date; jti: string }> {
   const { privateKey, kid } = await getSigningKey();
-  const issuer = getSiteUrl();
+  const issuer = params.issuer ?? getSiteUrl();
   const exp = new Date(
     Date.now() + IDENTITY_ASSERTION_TTL_DAYS * 24 * 60 * 60 * 1000,
   );
@@ -117,7 +152,7 @@ export async function signIdentityAssertion(params: {
   })
     .setProtectedHeader({ alg: "ES256", typ: "oauth-id-jag+jwt", kid })
     .setIssuer(issuer)
-    .setAudience(issuer)
+    .setAudience(params.resource)
     .setSubject(params.registrationId)
     .setJti(jti)
     .setIssuedAt()
@@ -132,9 +167,11 @@ export async function signAccessToken(params: {
   registrationId: string;
   scope: string;
   tenantId: string;
+  resource: string;
+  issuer?: string;
 }): Promise<{ jwt: string; expiresIn: number; jti: string; expiresAt: Date }> {
   const { privateKey, kid } = await getSigningKey();
-  const issuer = getSiteUrl();
+  const issuer = params.issuer ?? getSiteUrl();
   const expiresIn = ACCESS_TOKEN_TTL_SECONDS;
   const expiresAt = new Date(Date.now() + expiresIn * 1000);
   const jti = randomUUID();
@@ -145,7 +182,7 @@ export async function signAccessToken(params: {
   })
     .setProtectedHeader({ alg: "ES256", typ: "at+jwt", kid })
     .setIssuer(issuer)
-    .setAudience(issuer)
+    .setAudience(params.resource)
     .setSubject(params.registrationId)
     .setJti(jti)
     .setIssuedAt()
@@ -160,6 +197,7 @@ export async function recordIssuedToken(params: {
   registrationId: string;
   jti: string;
   scope: string;
+  resource: string;
   expiresAt: Date;
 }): Promise<void> {
   await db()
@@ -170,6 +208,7 @@ export async function recordIssuedToken(params: {
       registrationId: params.registrationId,
       jti: params.jti,
       scope: params.scope,
+      resource: params.resource,
       expiresAt: params.expiresAt,
     });
 }

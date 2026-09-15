@@ -10,6 +10,7 @@ import {
   db,
   eq,
   isNull,
+  resolveTenantFromHost,
 } from "@repo/database";
 import { NextResponse } from "next/server";
 
@@ -20,6 +21,10 @@ interface RouteParams {
 export async function POST(request: Request, { params }: RouteParams) {
   const deny = await requireSiteAdmin();
   if (deny) return deny;
+  const tenant = await resolveTenantFromHost(request.headers.get("host"));
+  if (!tenant) {
+    return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+  }
   const { id } = await params;
   const bodyOrError = await parseBody(request);
   if (bodyOrError instanceof NextResponse) return bodyOrError;
@@ -32,7 +37,12 @@ export async function POST(request: Request, { params }: RouteParams) {
   const [registration] = await db()
     .select({ tenantId: agentRegistration.tenantId })
     .from(agentRegistration)
-    .where(eq(agentRegistration.id, id))
+    .where(
+      and(
+        eq(agentRegistration.id, id),
+        eq(agentRegistration.tenantId, tenant.id),
+      ),
+    )
     .limit(1);
   if (!registration) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -44,14 +54,23 @@ export async function POST(request: Request, { params }: RouteParams) {
   await db()
     .update(agentRegistration)
     .set({ status })
-    .where(eq(agentRegistration.id, id));
+    .where(
+      and(
+        eq(agentRegistration.id, id),
+        eq(agentRegistration.tenantId, tenant.id),
+      ),
+    );
 
   if (action === "revoke") {
     await db()
       .update(agentToken)
       .set({ revokedAt: now })
       .where(
-        and(eq(agentToken.registrationId, id), isNull(agentToken.revokedAt)),
+        and(
+          eq(agentToken.registrationId, id),
+          eq(agentToken.tenantId, tenant.id),
+          isNull(agentToken.revokedAt),
+        ),
       );
   }
 

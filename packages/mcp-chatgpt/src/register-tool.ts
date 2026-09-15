@@ -2,6 +2,10 @@ import type {
   McpServer,
   ToolCallback,
 } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type {
+  AnySchema,
+  ZodRawShapeCompat,
+} from "@modelcontextprotocol/sdk/server/zod-compat.js";
 import type { ZodRawShape } from "zod";
 import { type McpToolName, getMcpToolAnnotations } from "./tool-metadata";
 
@@ -18,8 +22,10 @@ export function registerMcpTool<Args extends ZodRawShape>(
   server: McpServer,
   name: McpToolName,
   config: {
+    title?: string;
     description?: string;
     inputSchema?: Args;
+    outputSchema?: ZodRawShapeCompat | AnySchema;
     _meta?: Record<string, unknown>;
   },
   handler: ToolCallback<Args>,
@@ -29,8 +35,10 @@ export function registerMcpTool<Args extends ZodRawShape>(
   server.registerTool(
     name,
     {
+      title: config.title,
       description: config.description,
       inputSchema: config.inputSchema,
+      outputSchema: config.outputSchema,
       annotations,
       ...(config._meta ? { _meta: config._meta } : {}),
     },

@@ -1,7 +1,7 @@
 import { auth } from "@repo/auth/server";
-import { db } from "@repo/database";
+import { db, resolveTenantFromHost } from "@repo/database";
 import { and, eq } from "@repo/database";
-import { member, project } from "@repo/database/schema";
+import { member, organization, project } from "@repo/database/schema";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -15,12 +15,18 @@ interface RouteParams {
  */
 export async function GET(request: Request, { params }: RouteParams) {
   try {
+    const requestHeaders = await headers();
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     });
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+    if (!tenant) {
+      return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
     }
 
     const { id } = await params;
@@ -28,7 +34,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const [projectRecord] = await db()
       .select()
       .from(project)
-      .where(eq(project.id, id))
+      .where(and(eq(project.id, id), eq(project.tenantId, tenant.id)))
       .limit(1);
 
     if (!projectRecord) {
@@ -37,12 +43,15 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     // Verify user is a member of the organization
     const memberRecord = await db()
-      .select()
+      .select({ id: member.id })
       .from(member)
+      .innerJoin(organization, eq(member.organizationId, organization.id))
       .where(
         and(
           eq(member.userId, session.user.id),
           eq(member.organizationId, projectRecord.organizationId),
+          eq(member.tenantId, tenant.id),
+          eq(organization.tenantId, tenant.id),
         ),
       )
       .limit(1);
@@ -70,12 +79,18 @@ export async function GET(request: Request, { params }: RouteParams) {
  */
 export async function PUT(request: Request, { params }: RouteParams) {
   try {
+    const requestHeaders = await headers();
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     });
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+    if (!tenant) {
+      return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
     }
 
     const { id } = await params;
@@ -85,7 +100,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const [existingProject] = await db()
       .select()
       .from(project)
-      .where(eq(project.id, id))
+      .where(and(eq(project.id, id), eq(project.tenantId, tenant.id)))
       .limit(1);
 
     if (!existingProject) {
@@ -94,12 +109,15 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     // Verify user is a member of the organization
     const memberRecord = await db()
-      .select()
+      .select({ id: member.id })
       .from(member)
+      .innerJoin(organization, eq(member.organizationId, organization.id))
       .where(
         and(
           eq(member.userId, session.user.id),
           eq(member.organizationId, existingProject.organizationId),
+          eq(member.tenantId, tenant.id),
+          eq(organization.tenantId, tenant.id),
         ),
       )
       .limit(1);
@@ -119,6 +137,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         .where(
           and(
             eq(project.organizationId, existingProject.organizationId),
+            eq(project.tenantId, tenant.id),
             eq(project.slug, slug),
           ),
         )
@@ -142,7 +161,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const [updatedProject] = await db()
       .update(project)
       .set(updateData)
-      .where(eq(project.id, id))
+      .where(and(eq(project.id, id), eq(project.tenantId, tenant.id)))
       .returning();
 
     return NextResponse.json(updatedProject);
@@ -161,12 +180,18 @@ export async function PUT(request: Request, { params }: RouteParams) {
  */
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
+    const requestHeaders = await headers();
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     });
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+    if (!tenant) {
+      return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
     }
 
     const { id } = await params;
@@ -174,7 +199,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const [existingProject] = await db()
       .select()
       .from(project)
-      .where(eq(project.id, id))
+      .where(and(eq(project.id, id), eq(project.tenantId, tenant.id)))
       .limit(1);
 
     if (!existingProject) {
@@ -183,12 +208,15 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
     // Verify user is a member of the organization
     const memberRecord = await db()
-      .select()
+      .select({ id: member.id })
       .from(member)
+      .innerJoin(organization, eq(member.organizationId, organization.id))
       .where(
         and(
           eq(member.userId, session.user.id),
           eq(member.organizationId, existingProject.organizationId),
+          eq(member.tenantId, tenant.id),
+          eq(organization.tenantId, tenant.id),
         ),
       )
       .limit(1);
@@ -212,7 +240,12 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const projectCount = await db()
       .select()
       .from(project)
-      .where(eq(project.organizationId, existingProject.organizationId));
+      .where(
+        and(
+          eq(project.organizationId, existingProject.organizationId),
+          eq(project.tenantId, tenant.id),
+        ),
+      );
 
     if (projectCount.length <= 1) {
       return NextResponse.json(
@@ -221,7 +254,9 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       );
     }
 
-    await db().delete(project).where(eq(project.id, id));
+    await db()
+      .delete(project)
+      .where(and(eq(project.id, id), eq(project.tenantId, tenant.id)));
 
     return NextResponse.json({ success: true });
   } catch (error) {

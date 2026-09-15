@@ -1,5 +1,5 @@
 import { auth } from "@repo/auth/server";
-import { and, db, eq } from "@repo/database";
+import { and, db, eq, resolveTenantFromHost } from "@repo/database";
 import { account } from "@repo/database/schema";
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
@@ -12,7 +12,13 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ provider: string }> },
 ) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+  if (!tenant) {
+    return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
+  }
+
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
@@ -28,7 +34,9 @@ export async function DELETE(
   const rows = await db()
     .select({ providerId: account.providerId })
     .from(account)
-    .where(eq(account.userId, session.user.id));
+    .where(
+      and(eq(account.userId, session.user.id), eq(account.tenantId, tenant.id)),
+    );
 
   const hasMatching = rows.some((r) => r.providerId === provider);
   if (!hasMatching) {
@@ -46,6 +54,7 @@ export async function DELETE(
       and(
         eq(account.userId, session.user.id),
         eq(account.providerId, provider),
+        eq(account.tenantId, tenant.id),
       ),
     );
 

@@ -8,6 +8,7 @@ import {
   logAdminAiProviderChange,
 } from "@/lib/ai-provider-audit";
 import { getSiteAdminStatus } from "@/lib/auth-utils";
+import { assertSafeAiProviderEndpoint } from "@/lib/integrations/mcp-proxy";
 import { auth } from "@repo/auth/server";
 import { db, eq } from "@repo/database";
 import { appSettings } from "@repo/database/schema";
@@ -75,6 +76,19 @@ export async function POST(request: Request) {
 
   if (baseUrl !== undefined) {
     if (baseUrl?.trim()) {
+      try {
+        await assertSafeAiProviderEndpoint(baseUrl.trim());
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error:
+              error instanceof Error
+                ? error.message
+                : "Invalid AI provider base URL",
+          },
+          { status: 400 },
+        );
+      }
       await upsert(
         OPENAI_SETTING_KEYS.BASE_URL,
         baseUrl.trim(),

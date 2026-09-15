@@ -1,6 +1,6 @@
 import "server-only";
 
-import { absoluteUrl, getSiteUrl } from "@/lib/site-config";
+import { getSiteUrl } from "@/lib/site-config";
 import { db } from "@repo/database";
 import { agentJtiSeen } from "@repo/database/schema-agent-auth";
 import { eq } from "drizzle-orm";
@@ -31,6 +31,7 @@ export async function verifyIdJag(
   tenantId: string,
   assertion: string,
   assertionType?: string,
+  expectedResource?: string,
 ): Promise<IdJagResult> {
   if (assertionType && assertionType !== ASSERTION_TYPE_ID_JAG) {
     return {
@@ -94,6 +95,7 @@ export async function verifyIdJag(
     const getKey = getProviderKeyResolver(provider);
     const verified = await jwtVerify(assertion, getKey, {
       issuer: provider.issuer,
+      ...(expectedResource ? { audience: expectedResource } : {}),
       clockTolerance: CLOCK_SKEW_SECONDS,
     });
     payload = verified.payload;
@@ -120,10 +122,43 @@ export async function verifyIdJag(
     };
   }
 
-  // aud: accept the AS issuer or the resource URL (single-domain deployment).
-  const siteUrl = getSiteUrl();
+  if (typeof payload.sub !== "string" || payload.sub.length === 0) {
+    return {
+      ok: false,
+      error: "invalid_request",
+      message: "Assertion sub is required",
+    };
+  }
+  if (typeof payload.exp !== "number" || typeof payload.iat !== "number") {
+    return {
+      ok: false,
+      error: "invalid_request",
+      message: "Assertion must include numeric iat and exp claims",
+    };
+  }
+  if (payload.iat > Math.floor(Date.now() / 1000) + CLOCK_SKEW_SECONDS) {
+    return {
+      ok: false,
+      error: "invalid_request",
+      message: "Assertion iat is too far in the future",
+    };
+  }
+
+  // aud must be the exact protected-resource URL. An origin-only audience is
+  // deliberately not accepted because it would allow an assertion minted for
+  // another endpoint on the same host to cross the MCP resource boundary.
+  const acceptedAudiences = new Set(
+    [expectedResource ?? new URL("/mcp", getSiteUrl()).toString()].filter(
+      (value): value is string => Boolean(value),
+    ),
+  );
   const auds = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-  if (!auds.includes(siteUrl) && !auds.includes(absoluteUrl("/mcp"))) {
+  if (
+    !auds.some(
+      (audience) =>
+        typeof audience === "string" && acceptedAudiences.has(audience),
+    )
+  ) {
     return {
       ok: false,
       error: "invalid_audience",
@@ -134,20 +169,6 @@ export async function verifyIdJag(
   if (typeof payload.jti !== "string" || !payload.jti) {
     return { ok: false, error: "invalid_request", message: "Missing jti" };
   }
-  const replayed = await recordJtiSeen(
-    payload.jti,
-    typeof payload.exp === "number"
-      ? payload.exp
-      : Math.floor(Date.now() / 1000) + 300,
-  );
-  if (replayed) {
-    return {
-      ok: false,
-      error: "replay_detected",
-      message: "Assertion jti was already used",
-    };
-  }
-
   if (payload.email_verified !== true) {
     return {
       ok: false,
@@ -172,7 +193,15 @@ export async function verifyIdJag(
         "auth_time is missing; re-authenticate at the provider and mint a fresh ID-JAG",
     };
   }
-  const ageSeconds = Math.floor(Date.now() / 1000) - payload.auth_time;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (payload.auth_time > nowSeconds + CLOCK_SKEW_SECONDS) {
+    return {
+      ok: false,
+      error: "invalid_request",
+      message: "auth_time is too far in the future",
+    };
+  }
+  const ageSeconds = nowSeconds - payload.auth_time;
   if (ageSeconds > ID_JAG_MAX_AUTH_AGE_SECONDS) {
     return {
       ok: false,
@@ -182,18 +211,37 @@ export async function verifyIdJag(
     };
   }
 
+  // Consume the one-time jti only after all claim validation has passed. A
+  // signed but malformed or stale assertion must not burn a valid provider
+  // assertion identifier before the caller can retry with a fresh request.
+  const replayed = await recordJtiSeen(
+    tenantId,
+    payload.jti,
+    typeof payload.exp === "number"
+      ? payload.exp
+      : Math.floor(Date.now() / 1000) + 300,
+  );
+  if (replayed) {
+    return {
+      ok: false,
+      error: "replay_detected",
+      message: "Assertion jti was already used",
+    };
+  }
+
   return { ok: true, payload, provider };
 }
 
 /** Insert jti into the replay cache; returns true when it was already seen. */
 async function recordJtiSeen(
+  tenantId: string,
   jti: string,
   expSeconds: number,
 ): Promise<boolean> {
   const expiresAt = new Date((expSeconds + CLOCK_SKEW_SECONDS) * 1000);
   const inserted = await db()
     .insert(agentJtiSeen)
-    .values({ jti, expiresAt })
+    .values({ jti: `id-jag:${tenantId}:${jti}`, expiresAt })
     .onConflictDoNothing()
     .returning({ jti: agentJtiSeen.jti });
   return inserted.length === 0;

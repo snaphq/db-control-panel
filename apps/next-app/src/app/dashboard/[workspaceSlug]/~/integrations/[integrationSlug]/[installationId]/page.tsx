@@ -24,7 +24,11 @@ export default async function WorkspaceManagePage({ params }: PageProps) {
 
   const [intg, install] = await Promise.all([
     findIntegrationBySlug(integrationSlug),
-    findInstallationById(installationId),
+    findInstallationById(installationId, {
+      tenantId: organization.tenantId,
+      organizationId: organization.id,
+      projectId: null,
+    }),
   ]);
   if (!intg || !install) notFound();
   if (install.organizationId !== organization.id) notFound();

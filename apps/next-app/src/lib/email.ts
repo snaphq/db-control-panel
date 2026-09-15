@@ -112,6 +112,22 @@ export async function sendPasswordResetEmail(params: {
   resetUrl: string;
   token?: string;
 }): Promise<SendEmailResult> {
+  const production =
+    process.env.NODE_ENV === "production" ||
+    process.env.VERCEL_ENV === "production";
+  // The development fallback prints the reset URL to make local setup easy,
+  // but doing that in production would put a live credential in platform
+  // logs. Fail closed for delivery while keeping the caller's anti-enumeration
+  // response unchanged.
+  if (production && !process.env.RESEND_API_KEY) {
+    console.error(
+      "[Email] Password reset email provider is not configured; refusing to log reset credentials",
+    );
+    return {
+      success: false,
+      error: "Password reset email provider is not configured",
+    };
+  }
   const text = `You requested to reset your password.
 
 Click the link below to reset your password:

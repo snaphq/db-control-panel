@@ -20,6 +20,7 @@ export default async function ProjectIntegrationsPage({ params }: PageProps) {
 
   const [installs, available] = await Promise.all([
     listScopedInstallations({
+      tenantId: organization.tenantId,
       organizationId: organization.id,
       projectId: project.id,
     }),

@@ -17,6 +17,25 @@ Keep the tool registry explicit. Tool names, annotations, widget metadata, and
 admin authorization should be reviewed as an API contract; do not expose admin
 tools through the public widget registration path.
 
+## Administrative surfaces and tenant scope
+
+`/adminx` is the global site-admin web console. Its pages are intentionally
+site-admin-only and may present cross-tenant operational views where the page
+explicitly requires that global role. The console's URL prefix is not an MCP
+authorization boundary.
+
+`/api/adminx/mcp` is a separate, session-authenticated MCP transport. It
+resolves the request host to one active tenant, verifies the signed-in user is
+an active `site-admin` in that tenant, and scopes every admin tool query to
+that tenant. A session or role from another tenant must not authorize this
+transport. Keep the two surfaces separate when adding routes, tools, or
+documentation.
+
+The legacy `payments` table is global and has no tenant foreign key. It is
+therefore intentionally excluded from tenant-bound MCP tools and statistics;
+payment views remain available only to the explicitly global site-admin web/API
+surface until a tenant-keyed billing migration is reviewed and applied.
+
 ## Discovery surfaces
 
 The app publishes:
@@ -24,13 +43,24 @@ The app publishes:
 - protected-resource and authorization-server metadata;
 - OIDC wrapper metadata and the agent-auth JWKS;
 - MCP server card and curated API catalog;
-- agent-skills index and per-skill documents;
+- agent-documentation index and per-document Markdown files. This is an
+  application documentation feed, not MCP-importable skills: the server does
+  not advertise `io.modelcontextprotocol/skills`, `skills/list`, `skills/get`,
+  or `skill://` resources;
 - `/auth.md`, `/llms.txt`, `/llms-full.txt`, robots, sitemap, and markdown
   negotiation for public content.
 
-Each URL must use the shared `site-config` base URL helper. A catalog is
-intentionally curated: admin, billing, and workspace-internal REST routes are
-not automatically advertised to agents.
+The product is MCP-only. A2A is intentionally not applicable to this
+repository: there is no A2A Agent Card, task/message lifecycle, or A2A
+endpoint. Do not describe the MCP server card or the application agent
+registry as A2A support unless that protocol is separately designed and
+implemented.
+
+Tenant-bound discovery routes first resolve the request host and then derive
+URLs from the validated request origin; static app-wide content may use the
+shared `site-config` base URL helper. A catalog is intentionally curated:
+admin, billing, and workspace-internal REST routes are not automatically
+advertised to agents.
 
 ## Public markdown
 

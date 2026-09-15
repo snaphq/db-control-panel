@@ -6,7 +6,14 @@
  */
 
 export * from "./types";
-export { auth, getSession, getBetterAuthServer } from "./server";
+export {
+  auth,
+  currentAuthTenantContext,
+  getSession,
+  getBetterAuthServer,
+  runWithAuthTenantContext,
+  withTenantBoundAuthAdapter,
+} from "./server";
 export {
   signIn,
   signUp,

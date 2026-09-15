@@ -40,6 +40,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       and(
         eq(member.organizationId, org.id),
         eq(member.userId, session.user.id),
+        eq(member.tenantId, tenant.id),
       ),
     )
     .limit(1);

@@ -50,6 +50,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       and(
         eq(member.organizationId, org.id),
         eq(member.userId, session.user.id),
+        eq(member.tenantId, tenant.id),
       ),
     )
     .limit(1);
@@ -57,7 +58,10 @@ export async function GET(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const servers = await loadMCPServers({ organizationId: org.id });
+  const servers = await loadMCPServers({
+    tenantId: tenant.id,
+    organizationId: org.id,
+  });
 
   const url = new URL(request.url);
   const probe = url.searchParams.get("probe") === "1";

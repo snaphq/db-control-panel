@@ -19,7 +19,7 @@ interface PageProps {
 export default async function ManageInstallationPage({ params }: PageProps) {
   const { workspaceSlug, projectSlug, integrationSlug, installationId } =
     await params;
-  const { organization } = await requireProjectMembership(
+  const { organization, project } = await requireProjectMembership(
     workspaceSlug,
     projectSlug,
     `/dashboard/${workspaceSlug}/${projectSlug}/integrations/${integrationSlug}/${installationId}`,
@@ -27,7 +27,11 @@ export default async function ManageInstallationPage({ params }: PageProps) {
 
   const [intg, install] = await Promise.all([
     findIntegrationBySlug(integrationSlug),
-    findInstallationById(installationId),
+    findInstallationById(installationId, {
+      tenantId: organization.tenantId,
+      organizationId: organization.id,
+      projectId: project.id,
+    }),
   ]);
 
   if (!intg || !install) notFound();

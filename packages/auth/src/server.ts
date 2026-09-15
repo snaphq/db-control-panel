@@ -5,313 +5,94 @@
  */
 import "server-only";
 
-import { passkey } from "@better-auth/passkey";
 import {
   buildTenantAuthEmail,
   db,
   resolveTenantFromHost,
 } from "@repo/database";
-import { eq } from "@repo/database";
+import { and, eq } from "@repo/database";
 import * as schema from "@repo/database/schema";
-import bcrypt from "bcryptjs";
-import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { APIError } from "better-auth/api";
-import { nextCookies } from "better-auth/next-js";
 import { toNextJsHandler } from "better-auth/next-js";
-import { oidcProvider, organization, twoFactor } from "better-auth/plugins";
 
-import type { UnifiedSession, UnifiedUser } from "./types";
+import {
+  type BetterAuthServerOptions,
+  createAuthInstance,
+  getAuthConfig,
+  resourceForAuthHeaders,
+} from "./auth-instance";
+import { mapBetterAuthSession } from "./session-mapper";
+import {
+  currentAuthTenantContext,
+  runWithAuthTenantContext,
+} from "./tenant-binding";
+import type { UnifiedSession } from "./types";
 
-// Session mapper
-function normalizeUser(user: {
-  id: string;
-  email: string;
-  publicEmail?: string | null;
-  tenantId?: string | null;
-  name?: string | null;
-  image?: string | null;
-  role?: string | null;
-}): UnifiedUser {
-  return {
-    id: user.id,
-    email: user.publicEmail ?? user.email,
-    tenantId: user.tenantId ?? null,
-    name: user.name ?? null,
-    image: user.image ?? null,
-    role: user.role ?? null,
-  };
-}
+export type { BetterAuthServerOptions } from "./auth-instance";
+export {
+  currentAuthTenantContext,
+  runWithAuthTenantContext,
+  withTenantBoundAuthAdapter,
+} from "./tenant-binding";
 
-function mapBetterAuthSession(
-  session:
-    | {
-        user?: {
-          id: string;
-          email: string;
-          name?: string | null;
-          image?: string | null;
-          role?: string | null;
-        } | null;
-        expiresAt?: Date;
-      }
-    | null
-    | undefined,
-): UnifiedSession | null {
-  if (!session || !session.user) {
-    return null;
-  }
-
-  return {
-    user: normalizeUser(session.user),
-    expiresAt:
-      session.expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-  };
-}
-
-// Read admin domains from environment variable
 function getSiteAdminDomains(): Set<string> {
   const domainsEnv = process.env.ADMIN_EMAIL_DOMAINS;
   if (!domainsEnv) return new Set();
-
   return new Set(
     domainsEnv
       .split(",")
-      .map((d) => d.trim().toLowerCase())
+      .map((domain) => domain.trim().toLowerCase())
       .filter(Boolean),
   );
 }
 
 const SITE_ADMIN_DOMAINS = getSiteAdminDomains();
 
-export interface BetterAuthServerOptions {
-  sendPasswordResetEmail?: (params: {
-    user: { email: string };
-    url: string;
-    token: string;
-  }) => Promise<void>;
-  checkPasswordResetRateLimit?: (
-    email: string,
-  ) => Promise<{ success: boolean }>;
-}
-
-// Get auth config from environment
-function getAuthConfig() {
-  const baseURL =
-    process.env.BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_ENV === "production"
-      ? process.env.VERCEL_PROJECT_PRODUCTION_URL
-      : process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL);
-  const secret =
-    process.env.BETTER_AUTH_SECRET || "development-secret-change-me";
-
-  return {
-    baseURL: baseURL
-      ? baseURL.startsWith("http")
-        ? baseURL
-        : `https://${baseURL}`
-      : "http://localhost:3000",
-    secret,
-  };
-}
-
 class BetterAuthServer {
   private authInstance;
 
   constructor(options?: BetterAuthServerOptions) {
-    const config = getAuthConfig();
-
-    this.authInstance = betterAuth({
-      appName: "Cold Email Platform",
-      database: drizzleAdapter(db(), {
-        provider: "pg",
-        schema,
-      }),
-      secret: config.secret,
-      baseURL: config.baseURL,
-      databaseHooks: {
-        session: {
-          create: {
-            before: async (sessionData) => {
-              const userId = (sessionData as { userId?: string })?.userId;
-              if (!userId) return;
-              const [row] = await db()
-                .select({
-                  archivedAt: schema.user.archivedAt,
-                  tenantId: schema.user.tenantId,
-                })
-                .from(schema.user)
-                .where(eq(schema.user.id, userId))
-                .limit(1);
-              if (row?.archivedAt) {
-                throw new APIError("UNAUTHORIZED", {
-                  code: "ACCOUNT_ARCHIVED",
-                  message:
-                    "This account has been suspended. Reach out to support if you think this is an error.",
-                });
-              }
-              return {
-                data: {
-                  ...sessionData,
-                  tenantId: row?.tenantId ?? "default",
-                },
-              };
-            },
-          },
-        },
-        user: {
-          create: {
-            before: async (userData) => {
-              const email = (userData as { email?: string }).email ?? "";
-              const separator = email.indexOf(":");
-              const tenantId =
-                separator > 0 ? email.slice(0, separator) : "default";
-              const publicEmail =
-                separator > 0 ? email.slice(separator + 1) : email;
-              return {
-                data: {
-                  ...userData,
-                  tenantId,
-                  publicEmail,
-                },
-              };
-            },
-          },
-        },
-        account: {
-          create: {
-            before: async (accountData) => {
-              const userId = (accountData as { userId?: string }).userId;
-              if (!userId) return;
-              const [row] = await db()
-                .select({ tenantId: schema.user.tenantId })
-                .from(schema.user)
-                .where(eq(schema.user.id, userId))
-                .limit(1);
-              return {
-                data: {
-                  ...accountData,
-                  tenantId: row?.tenantId ?? "default",
-                },
-              };
-            },
-          },
-        },
-      },
-      emailAndPassword: {
-        enabled: true,
-        requireEmailVerification: false,
-        minPasswordLength: 8,
-        autoSignIn: true,
-        resetPasswordTokenExpiresIn: 3600,
-        sendResetPassword: async ({ user, url, token }) => {
-          if (options?.checkPasswordResetRateLimit) {
-            const rateLimit = await options.checkPasswordResetRateLimit(
-              user.email,
-            );
-            if (!rateLimit.success) {
-              console.log(
-                `[Auth] Password reset rate limited for ${user.email}`,
-              );
-              return;
-            }
-          }
-
-          if (options?.sendPasswordResetEmail) {
-            void options.sendPasswordResetEmail({
-              user: { email: user.email },
-              url,
-              token,
-            });
-          } else {
-            console.log(
-              `[Auth] Password reset requested for ${user.email}: ${url}`,
-            );
-          }
-        },
-        password: {
-          hash: async (password) => {
-            return await bcrypt.hash(password, 10);
-          },
-          verify: async ({ hash, password }) => {
-            return await bcrypt.compare(password, hash);
-          },
-        },
-      },
-      ...((process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
-        process.env.GOOGLE_CLIENT_SECRET) ||
-      (process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID &&
-        process.env.GITHUB_CLIENT_SECRET)
-        ? {
-            socialProviders: {
-              ...(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
-              process.env.GOOGLE_CLIENT_SECRET
-                ? {
-                    google: {
-                      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-                      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-                    },
-                  }
-                : {}),
-              ...(process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID &&
-              process.env.GITHUB_CLIENT_SECRET
-                ? {
-                    github: {
-                      clientId: process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID,
-                      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-                    },
-                  }
-                : {}),
-            },
-          }
-        : {}),
-      session: {
-        cookieCache: {
-          enabled: true,
-          maxAge: 5 * 60,
-        },
-      },
-      plugins: [
-        nextCookies(),
-        organization(),
-        twoFactor(),
-        passkey({
-          rpName: "Cold Email Platform",
-          rpID: process.env.PASSKEY_RP_ID,
-          origin:
-            process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL,
-        }),
-        oidcProvider({
-          loginPage: "/auth/sign-in",
-          consentPage: "/consent",
-          allowDynamicClientRegistration: true,
-        }),
-      ],
-    });
+    this.authInstance = createAuthInstance(options);
   }
 
   async getSession(headers: Headers): Promise<UnifiedSession | null> {
-    const session = await this.authInstance.api.getSession({ headers });
-    if (!session) return null;
-    const userId = session.user?.id;
-    if (userId) {
-      const [row] = await db()
-        .select({
-          archivedAt: schema.user.archivedAt,
-          publicEmail: schema.user.publicEmail,
-          tenantId: schema.user.tenantId,
-        })
-        .from(schema.user)
-        .where(eq(schema.user.id, userId))
-        .limit(1);
-      if (row?.archivedAt) return null;
-      if (row && session.user) {
-        session.user.email = row.publicEmail;
-        (session.user as { tenantId?: string }).tenantId = row.tenantId;
-      }
-    }
-    return mapBetterAuthSession(session);
+    const tenant = await resolveTenantFromHost(headers.get("host"));
+    if (!tenant) return null;
+    return runWithAuthTenantContext(
+      {
+        tenantId: tenant.id,
+        resource: resourceForAuthHeaders(headers),
+      },
+      async () => {
+        const session = await this.authInstance.api.getSession({ headers });
+        if (!session) return null;
+        const sessionTenantId = (
+          session as { session?: { tenantId?: string | null } }
+        ).session?.tenantId;
+        if (sessionTenantId && sessionTenantId !== tenant.id) return null;
+        const userId = session.user?.id;
+        if (userId) {
+          const [row] = await db()
+            .select({
+              archivedAt: schema.user.archivedAt,
+              publicEmail: schema.user.publicEmail,
+              tenantId: schema.user.tenantId,
+            })
+            .from(schema.user)
+            .where(
+              and(
+                eq(schema.user.id, userId),
+                eq(schema.user.tenantId, tenant.id),
+              ),
+            )
+            .limit(1);
+          if (row?.archivedAt) return null;
+          if (!row || row.tenantId !== tenant.id || !session.user) return null;
+          session.user.email = row.publicEmail;
+          (session.user as { tenantId?: string }).tenantId = row.tenantId;
+        }
+        return mapBetterAuthSession(session);
+      },
+    );
   }
 
   getApiHandler() {
@@ -328,15 +109,23 @@ class BetterAuthServer {
     tenantId?: string;
   }) {
     try {
-      const ctx = await this.authInstance.api.signInEmail({
-        body: {
-          email: buildTenantAuthEmail(
-            params.tenantId ?? "default",
-            params.email,
-          ),
-          password: params.password,
+      const tenantId = params.tenantId?.trim();
+      if (!tenantId) {
+        throw new Error("An explicit tenantId is required for sign in");
+      }
+      const ctx = await runWithAuthTenantContext(
+        {
+          tenantId,
+          resource: new URL("/mcp", getAuthConfig().baseURL).toString(),
         },
-      });
+        () =>
+          this.authInstance.api.signInEmail({
+            body: {
+              email: buildTenantAuthEmail(tenantId, params.email),
+              password: params.password,
+            },
+          }),
+      );
       return { data: ctx, error: null };
     } catch (error) {
       return {
@@ -358,13 +147,27 @@ class BetterAuthServer {
     const tenant = params.tenantId
       ? { id: params.tenantId }
       : await resolveTenantFromHost(params.headers?.get("host"));
-    return this.authInstance.api.signInEmail({
-      body: {
-        email: buildTenantAuthEmail(tenant?.id ?? "default", params.email),
-        password: params.password,
+    if (!tenant) {
+      return new Response(JSON.stringify({ error: "tenant_not_found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return runWithAuthTenantContext(
+      {
+        tenantId: tenant.id,
+        resource: new URL("/mcp", getAuthConfig().baseURL).toString(),
       },
-      asResponse: true,
-    });
+      () =>
+        this.authInstance.api.signInEmail({
+          body: {
+            email: buildTenantAuthEmail(tenant.id, params.email),
+            password: params.password,
+          },
+          headers: params.headers,
+          asResponse: true,
+        }),
+    );
   }
 
   async signUpEmail(params: {
@@ -374,16 +177,24 @@ class BetterAuthServer {
     tenantId?: string;
   }) {
     try {
-      const ctx = await this.authInstance.api.signUpEmail({
-        body: {
-          email: buildTenantAuthEmail(
-            params.tenantId ?? "default",
-            params.email,
-          ),
-          password: params.password,
-          name: params.name,
+      const tenantId = params.tenantId?.trim();
+      if (!tenantId) {
+        throw new Error("An explicit tenantId is required for sign up");
+      }
+      const ctx = await runWithAuthTenantContext(
+        {
+          tenantId,
+          resource: new URL("/mcp", getAuthConfig().baseURL).toString(),
         },
-      });
+        () =>
+          this.authInstance.api.signUpEmail({
+            body: {
+              email: buildTenantAuthEmail(tenantId, params.email),
+              password: params.password,
+              name: params.name,
+            },
+          }),
+      );
       return { data: ctx, error: null };
     } catch (error) {
       return {
@@ -406,14 +217,28 @@ class BetterAuthServer {
     const tenant = params.tenantId
       ? { id: params.tenantId }
       : await resolveTenantFromHost(params.headers?.get("host"));
-    return this.authInstance.api.signUpEmail({
-      body: {
-        email: buildTenantAuthEmail(tenant?.id ?? "default", params.email),
-        password: params.password,
-        name: params.name,
+    if (!tenant) {
+      return new Response(JSON.stringify({ error: "tenant_not_found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return runWithAuthTenantContext(
+      {
+        tenantId: tenant.id,
+        resource: new URL("/mcp", getAuthConfig().baseURL).toString(),
       },
-      asResponse: true,
-    });
+      () =>
+        this.authInstance.api.signUpEmail({
+          body: {
+            email: buildTenantAuthEmail(tenant.id, params.email),
+            password: params.password,
+            name: params.name,
+          },
+          headers: params.headers,
+          asResponse: true,
+        }),
+    );
   }
 
   async signOut() {
@@ -433,6 +258,7 @@ class BetterAuthServer {
   async assignSiteAdminRoleIfEligible(params: {
     email: string;
     userId?: string;
+    tenantId?: string;
     mappedSession?: UnifiedSession | null;
   }) {
     const domain = params.email.split("@")[1]?.toLowerCase() ?? "";
@@ -440,10 +266,16 @@ class BetterAuthServer {
       return;
     }
 
-    await db()
-      .update(schema.user)
-      .set({ role: "site-admin" })
-      .where(eq(schema.user.id, params.userId));
+    const tenantId = params.tenantId ?? currentAuthTenantContext()?.tenantId;
+    // Role assignment is a privileged mutation. If no tenant was carried by
+    // the caller, do not fall back to a global user-id update that could
+    // promote an account in an unrelated tenant.
+    if (!tenantId) return;
+    const where = and(
+      eq(schema.user.id, params.userId),
+      eq(schema.user.tenantId, tenantId),
+    );
+    await db().update(schema.user).set({ role: "site-admin" }).where(where);
 
     if (params.mappedSession?.user) {
       params.mappedSession.user.role = "site-admin";

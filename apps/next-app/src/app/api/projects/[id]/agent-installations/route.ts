@@ -1,6 +1,13 @@
 import { auth } from "@repo/auth/server";
-import { agent, agentInstallation, and, db, eq } from "@repo/database";
-import { member, project } from "@repo/database/schema";
+import {
+  agent,
+  agentInstallation,
+  and,
+  db,
+  eq,
+  resolveTenantFromHost,
+} from "@repo/database";
+import { member, organization, project } from "@repo/database/schema";
 import { nanoid } from "nanoid";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -13,16 +20,30 @@ async function checkProjectMembership(
   projectId: string,
   options: { requireWriteRole?: boolean } = {},
 ) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session?.user?.id) {
     return {
       error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     };
   }
+  const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+  if (!tenant) {
+    return {
+      error: NextResponse.json({ error: "Tenant not found" }, { status: 404 }),
+    };
+  }
   const [proj] = await db()
     .select()
     .from(project)
-    .where(eq(project.id, projectId))
+    .innerJoin(organization, eq(project.organizationId, organization.id))
+    .where(
+      and(
+        eq(project.id, projectId),
+        eq(project.tenantId, tenant.id),
+        eq(organization.tenantId, tenant.id),
+      ),
+    )
     .limit(1);
   if (!proj) {
     return {
@@ -32,10 +53,13 @@ async function checkProjectMembership(
   const [m] = await db()
     .select()
     .from(member)
+    .innerJoin(organization, eq(member.organizationId, organization.id))
     .where(
       and(
         eq(member.userId, session.user.id),
-        eq(member.organizationId, proj.organizationId),
+        eq(member.organizationId, proj.project.organizationId),
+        eq(member.tenantId, tenant.id),
+        eq(organization.tenantId, tenant.id),
       ),
     )
     .limit(1);
@@ -47,7 +71,11 @@ async function checkProjectMembership(
       ),
     };
   }
-  if (options.requireWriteRole && m.role !== "owner" && m.role !== "admin") {
+  if (
+    options.requireWriteRole &&
+    m.member.role !== "owner" &&
+    m.member.role !== "admin"
+  ) {
     return {
       error: NextResponse.json(
         { error: "Only workspace owners and admins can install agents." },
@@ -55,7 +83,7 @@ async function checkProjectMembership(
       ),
     };
   }
-  return { project: proj };
+  return { project: proj.project, tenantId: tenant.id };
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
@@ -67,7 +95,12 @@ export async function GET(_request: Request, { params }: RouteParams) {
     .select({ installation: agentInstallation, agent })
     .from(agentInstallation)
     .innerJoin(agent, eq(agentInstallation.agentId, agent.id))
-    .where(eq(agentInstallation.projectId, id));
+    .where(
+      and(
+        eq(agentInstallation.projectId, id),
+        eq(agentInstallation.organizationId, check.project.organizationId),
+      ),
+    );
 
   return NextResponse.json(
     rows.map((r) => ({ ...r.installation, agent: r.agent })),

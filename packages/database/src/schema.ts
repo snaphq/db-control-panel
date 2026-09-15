@@ -370,10 +370,14 @@ export const orgBilling = pgTable("org_billing", {
     .notNull(),
 });
 
-// Personal API tokens for the user account (account-scoped, not org-scoped).
-// Used for hitting the public API and the MCP server.
+// Personal API tokens for the user account. These are explicitly tenant-bound
+// so a credential cannot be replayed against another tenant host.
 export const accountApiToken = pgTable("account_api_token", {
   id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .default("default")
+    .references(() => tenant.id, { onDelete: "cascade" }),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
@@ -419,10 +423,6 @@ export type NewOrgBilling = typeof orgBilling.$inferInsert;
 export type AccountApiToken = typeof accountApiToken.$inferSelect;
 export type NewAccountApiToken = typeof accountApiToken.$inferInsert;
 
-// ============================================================================
-// Referral System
-// ============================================================================
-
 // Referral program configuration (single row for app-wide settings)
 export const referralConfig = pgTable("referral_config", {
   id: text("id").primaryKey(),
@@ -440,7 +440,6 @@ export const referralConfig = pgTable("referral_config", {
     .notNull(),
 });
 
-// Referral codes - one per eligible user
 export const referralCodes = pgTable("referral_codes", {
   id: text("id").primaryKey(),
   userId: text("user_id")
@@ -564,7 +563,6 @@ export const referralCreditGrants = pgTable(
   ],
 );
 
-// Type exports for referral tables
 export type ReferralConfig = typeof referralConfig.$inferSelect;
 export type NewReferralConfig = typeof referralConfig.$inferInsert;
 export type ReferralCode = typeof referralCodes.$inferSelect;

@@ -36,8 +36,6 @@ export type McpToolName =
   | "get_user_by_id"
   | "list_users"
   | "list_organizations"
-  | "get_payment_records"
-  | "get_payments_by_email"
   | "get_active_sessions"
   | "get_organization_by_id";
 
@@ -74,7 +72,7 @@ export const MCP_TOOL_METADATA: Record<McpToolName, McpToolMetadata> = {
     },
     justifications: {
       read_only_justification:
-        "Only reads aggregate counts of users, organizations, payments, and active sessions from the database.",
+        "Only reads tenant-scoped aggregate counts of users, organizations, and active sessions from the database.",
       open_world_justification:
         "Does not transmit data to external systems or modify any public-facing state.",
       destructive_justification:
@@ -151,42 +149,6 @@ export const MCP_TOOL_METADATA: Record<McpToolName, McpToolMetadata> = {
         "Does not transmit data to external systems or modify any public-facing state.",
       destructive_justification:
         "Does not delete, overwrite, revoke access, or perform any irreversible actions.",
-    },
-  },
-
-  get_payment_records: {
-    annotations: {
-      title: "Get Payment Records",
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: false,
-    },
-    justifications: {
-      read_only_justification:
-        "Only reads payment records from the database ordered by creation time. No writes occur.",
-      open_world_justification:
-        "Does not transmit data to payment processors or external systems.",
-      destructive_justification:
-        "Does not delete, overwrite, issue refunds, or perform any irreversible actions.",
-    },
-  },
-
-  get_payments_by_email: {
-    annotations: {
-      title: "Get Payments by Email",
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
-      openWorldHint: false,
-    },
-    justifications: {
-      read_only_justification:
-        "Only retrieves payment records filtered by a specific email address. No writes occur.",
-      open_world_justification:
-        "Does not transmit data to payment processors or external systems.",
-      destructive_justification:
-        "Does not delete, overwrite, issue refunds, or perform any irreversible actions.",
     },
   },
 

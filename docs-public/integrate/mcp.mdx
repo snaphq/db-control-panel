@@ -5,9 +5,9 @@ description: Discover and call the starter's authenticated Model Context Protoco
 
 # Connect to MCP
 
-The app exposes an HTTP MCP endpoint at `/mcp`. A bearer access token is
-required by default; local setups may explicitly disable that requirement with
-`MCP_REQUIRE_AUTH=false`.
+The app exposes an authenticated HTTP MCP endpoint at `/mcp`. A bearer access
+token is required. Production deployments never allow unauthenticated MCP
+requests; local development should use a test credential as well.
 
 ## Discover the server
 
@@ -18,17 +18,37 @@ GET /.well-known/mcp/server-card.json
 GET /.well-known/oauth-protected-resource
 ```
 
-The server currently advertises tools and no resources or prompts. Tool names,
-input schemas, and widget metadata are registered by the application and the
-`@repo/mcp-server` package.
+The server advertises tools and the versioned MCP Apps content resource; it
+does not advertise prompts. Tool names, input schemas, and widget metadata are
+registered by the application and the `@repo/mcp-server` package.
 
 ## Call the endpoint
 
-Send MCP requests to the endpoint from the server card with:
+Send Streamable HTTP JSON-RPC requests to the endpoint from the server card
+with:
 
 ```http
+POST /mcp
 Authorization: Bearer <access_token>
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: 2025-11-25
+
+{"jsonrpc":"2.0","id":"1","method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"client","version":"1"}}}
 ```
+
+After initialization, use POST requests with `tools/list` and `tools/call`
+JSON-RPC messages, for example:
+
+```jsonl
+{"jsonrpc":"2.0","id":"2","method":"tools/list","params":{}}
+{"jsonrpc":"2.0","id":"3","method":"tools/call","params":{"name":"show_content","arguments":{"name":"Ada"}}}
+```
+
+The exact tenant origin and current protocol version come
+from discovery/runtime negotiation; the version above is the current SDK
+default and clients should fall back to a version they advertise as
+supported.
 
 Use [Agent authentication](/integrate/agent-auth) to obtain a token. Treat
 `401` responses and the `WWW-Authenticate` challenge as a signal to restart

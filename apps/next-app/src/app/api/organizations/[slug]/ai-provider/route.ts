@@ -8,9 +8,14 @@ import {
   type AiProviderChangeFields,
   logOrgAiProviderChange,
 } from "@/lib/ai-provider-audit";
+import {
+  assertSafeAiProviderEndpoint,
+  fetchSafeAiProvider,
+  readLimitedResponseText,
+} from "@/lib/integrations/mcp-proxy";
 import { auth } from "@repo/auth/server";
-import { and, db, eq } from "@repo/database";
-import { member } from "@repo/database/schema";
+import { and, db, eq, resolveTenantFromHost } from "@repo/database";
+import { member, organization } from "@repo/database/schema";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -23,19 +28,29 @@ interface RouteParams {
 const DEFAULT_BASE = "https://api.openai.com/v1";
 
 async function requireOrgWriter(organizationId: string) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session?.user?.id) {
     return {
       error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     } as const;
   }
+  const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+  if (!tenant) {
+    return {
+      error: NextResponse.json({ error: "Tenant not found" }, { status: 404 }),
+    } as const;
+  }
   const [m] = await db()
-    .select()
+    .select({ member })
     .from(member)
+    .innerJoin(organization, eq(member.organizationId, organization.id))
     .where(
       and(
         eq(member.userId, session.user.id),
         eq(member.organizationId, organizationId),
+        eq(member.tenantId, tenant.id),
+        eq(organization.tenantId, tenant.id),
       ),
     )
     .limit(1);
@@ -44,7 +59,7 @@ async function requireOrgWriter(organizationId: string) {
       error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
     } as const;
   }
-  if (m.role !== "owner" && m.role !== "admin") {
+  if (m.member.role !== "owner" && m.member.role !== "admin") {
     return {
       error: NextResponse.json(
         { error: "Only owners and admins can change AI provider settings." },
@@ -52,7 +67,7 @@ async function requireOrgWriter(organizationId: string) {
       ),
     } as const;
   }
-  return { session } as const;
+  return { session, tenant } as const;
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
@@ -88,6 +103,22 @@ export async function POST(request: Request, { params }: RouteParams) {
     : typeof apiKey === "string" && apiKey.trim()
       ? apiKey
       : undefined;
+
+  if (trimmedBase) {
+    try {
+      await assertSafeAiProviderEndpoint(trimmedBase);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Invalid AI provider base URL",
+        },
+        { status: 400 },
+      );
+    }
+  }
 
   await upsertOrgOpenAIConfig({
     organizationId: id,
@@ -144,16 +175,18 @@ export async function PUT(_request: Request, { params }: RouteParams) {
   const base = (config.baseUrl ?? DEFAULT_BASE).replace(/\/+$/, "");
   const url = `${base}/models`;
   try {
-    const res = await fetch(url, {
+    const endpoint = await assertSafeAiProviderEndpoint(url);
+    const res = await fetchSafeAiProvider(endpoint.toString(), {
       method: "GET",
       headers: { Authorization: `Bearer ${config.apiKey}` },
       signal: AbortSignal.timeout(10_000),
     });
-    const text = await res.text();
+    const text = await readLimitedResponseText(res);
+    const displayUrl = endpoint.origin;
     if (!res.ok) {
       return NextResponse.json({
         ok: false,
-        url,
+        url: displayUrl,
         status: res.status,
         error: text.slice(0, 500) || res.statusText,
         source: config.source,
@@ -168,14 +201,13 @@ export async function PUT(_request: Request, { params }: RouteParams) {
     }
     return NextResponse.json({
       ok: true,
-      url,
+      url: displayUrl,
       modelCount,
       source: config.source,
     });
   } catch (err) {
     return NextResponse.json({
       ok: false,
-      url,
       error: err instanceof Error ? err.message : "Request failed",
     });
   }

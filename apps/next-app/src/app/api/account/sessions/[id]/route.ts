@@ -1,6 +1,7 @@
 import { recordUserAudit } from "@/lib/audit/user-audit";
+import { sessionTokenFromCookieHeader } from "@/lib/auth/session-cookie";
 import { auth } from "@repo/auth/server";
-import { and, db, eq, inArray } from "@repo/database";
+import { and, db, eq, inArray, resolveTenantFromHost } from "@repo/database";
 import { session } from "@repo/database/schema";
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
@@ -16,27 +17,50 @@ export async function DELETE(
   if (!result?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const tenant = await resolveTenantFromHost(reqHeaders.get("host"));
+  if (!tenant) {
+    return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
+  }
 
   const userId = result.user.id;
   const { id } = await params;
-  const cookieHeader = reqHeaders.get("cookie") ?? "";
+  const currentSessionToken = sessionTokenFromCookieHeader(
+    reqHeaders.get("cookie"),
+  );
+  const [current] = currentSessionToken
+    ? await db()
+        .select({ id: session.id })
+        .from(session)
+        .where(
+          and(
+            eq(session.token, currentSessionToken),
+            eq(session.userId, userId),
+            eq(session.tenantId, tenant.id),
+          ),
+        )
+        .limit(1)
+    : [];
 
   // Special token "all-others" revokes every session except the current one
   if (id === "all-others") {
     const userSessions = await db()
-      .select({ id: session.id, token: session.token })
+      .select({ id: session.id })
       .from(session)
-      .where(eq(session.userId, userId));
+      .where(and(eq(session.userId, userId), eq(session.tenantId, tenant.id)));
 
     const idsToRevoke = userSessions
-      .filter((s) => !s.token || !cookieHeader.includes(s.token))
+      .filter((s) => s.id !== current?.id)
       .map((s) => s.id);
 
     if (idsToRevoke.length > 0) {
       await db()
         .delete(session)
         .where(
-          and(eq(session.userId, userId), inArray(session.id, idsToRevoke)),
+          and(
+            eq(session.userId, userId),
+            eq(session.tenantId, tenant.id),
+            inArray(session.id, idsToRevoke),
+          ),
         );
       await recordUserAudit({
         userId,
@@ -50,16 +74,22 @@ export async function DELETE(
   }
 
   const [target] = await db()
-    .select()
+    .select({ id: session.id })
     .from(session)
-    .where(and(eq(session.id, id), eq(session.userId, userId)))
+    .where(
+      and(
+        eq(session.id, id),
+        eq(session.userId, userId),
+        eq(session.tenantId, tenant.id),
+      ),
+    )
     .limit(1);
 
   if (!target) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  if (target.token && cookieHeader.includes(target.token)) {
+  if (target.id === current?.id) {
     return NextResponse.json(
       { error: "cannot_revoke_current_session" },
       { status: 400 },
@@ -68,7 +98,13 @@ export async function DELETE(
 
   await db()
     .delete(session)
-    .where(and(eq(session.id, id), eq(session.userId, userId)));
+    .where(
+      and(
+        eq(session.id, id),
+        eq(session.userId, userId),
+        eq(session.tenantId, tenant.id),
+      ),
+    );
 
   await recordUserAudit({
     userId,

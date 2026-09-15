@@ -6,7 +6,14 @@ import {
   tokenDisplayPrefix,
 } from "@/lib/auth/account-token";
 import { auth } from "@repo/auth/server";
-import { and, db, desc, eq, isNull } from "@repo/database";
+import {
+  and,
+  db,
+  desc,
+  eq,
+  isNull,
+  resolveTenantFromHost,
+} from "@repo/database";
 import { accountApiToken } from "@repo/database/schema";
 import { nanoid } from "nanoid";
 import { headers } from "next/headers";
@@ -15,10 +22,14 @@ import { type NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+  if (!tenant)
+    return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
 
   const tokens = await db()
     .select({
@@ -34,6 +45,7 @@ export async function GET() {
     .where(
       and(
         eq(accountApiToken.userId, session.user.id),
+        eq(accountApiToken.tenantId, tenant.id),
         isNull(accountApiToken.revokedAt),
       ),
     )
@@ -43,10 +55,14 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+  if (!tenant)
+    return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
 
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") {
@@ -76,6 +92,7 @@ export async function POST(req: NextRequest) {
     .insert(accountApiToken)
     .values({
       id: nanoid(),
+      tenantId: tenant.id,
       userId: session.user.id,
       name,
       tokenHash,

@@ -151,18 +151,24 @@ export function createLinkHeader(pathname: string): string {
   ].join(", ");
 }
 
-function skillEntry(name: string, description: string, path: string) {
-  const url = absoluteUrl(path);
+function documentEntry(
+  name: string,
+  description: string,
+  path: string,
+  origin = absoluteUrl("/"),
+) {
+  const url = new URL(path, origin).toString();
   return {
     name,
     type: "documentation",
+    media_type: "text/markdown",
     description,
     url,
-    sha256: sha256(getSkillDocument(name, description, url)),
+    sha256: sha256(getAgentDocument(name, description, url)),
   };
 }
 
-export function getSkillDocument(
+export function getAgentDocument(
   name: string,
   description: string,
   url: string,
@@ -170,54 +176,69 @@ export function getSkillDocument(
   return [`# ${name}`, "", description, "", `Reference: ${url}`].join("\n");
 }
 
-export function getAgentSkillsIndex() {
+/**
+ * Application documentation for agents. This is intentionally not an MCP
+ * skills catalog: the MCP skills extension (`skills/list`, `skills/get`,
+ * `skill://`, and `resources/read`) is not implemented by this server.
+ */
+export function getAgentDocumentationIndex(origin = absoluteUrl("/")) {
   return {
-    $schema: "https://agentskills.io/schemas/index.json",
-    skills: [
-      skillEntry(
+    version: 1,
+    type: "documentation-index",
+    documents: [
+      documentEntry(
         "sitemap",
         "Describes how sitemap.xml is generated for canonical public URLs.",
-        "/.well-known/agent-skills/sitemap",
+        "/.well-known/agent-docs/sitemap",
+        origin,
       ),
-      skillEntry(
+      documentEntry(
         "link-headers",
         "Describes Link headers published for agent discovery.",
-        "/.well-known/agent-skills/link-headers",
+        "/.well-known/agent-docs/link-headers",
+        origin,
       ),
-      skillEntry(
+      documentEntry(
         "markdown-negotiation",
         "Describes markdown content negotiation for public pages.",
-        "/.well-known/agent-skills/markdown-negotiation",
+        "/.well-known/agent-docs/markdown-negotiation",
+        origin,
       ),
-      skillEntry(
+      documentEntry(
         "content-signals",
         "Describes AI content preferences advertised via robots.txt.",
-        "/.well-known/agent-skills/content-signals",
+        "/.well-known/agent-docs/content-signals",
+        origin,
       ),
-      skillEntry(
+      documentEntry(
         "api-catalog",
         "Describes the RFC 9727 API catalog published by the app.",
-        "/.well-known/agent-skills/api-catalog",
+        "/.well-known/agent-docs/api-catalog",
+        origin,
       ),
-      skillEntry(
+      documentEntry(
         "oauth-discovery",
         "Describes OIDC and OAuth discovery endpoints exposed by the app.",
-        "/.well-known/agent-skills/oauth-discovery",
+        "/.well-known/agent-docs/oauth-discovery",
+        origin,
       ),
-      skillEntry(
+      documentEntry(
         "oauth-protected-resource",
         "Describes OAuth protected resource metadata for authenticated APIs.",
-        "/.well-known/agent-skills/oauth-protected-resource",
+        "/.well-known/agent-docs/oauth-protected-resource",
+        origin,
       ),
-      skillEntry(
+      documentEntry(
         "mcp-server-card",
         "Describes the MCP server card published for the authenticated MCP endpoint.",
-        "/.well-known/agent-skills/mcp-server-card",
+        "/.well-known/agent-docs/mcp-server-card",
+        origin,
       ),
-      skillEntry(
+      documentEntry(
         "webmcp",
         "Describes WebMCP tools exposed to supporting browsers.",
-        "/.well-known/agent-skills/webmcp",
+        "/.well-known/agent-docs/webmcp",
+        origin,
       ),
     ],
   };

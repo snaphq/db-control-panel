@@ -35,6 +35,11 @@ state before continuing. The detailed reset procedure lives in `CLAUDE.md`.
 - Provider choice and generated files must agree; do not mix provider APIs.
 - Session and organization checks happen at the server boundary before a
   protected mutation.
+- Better Auth is backed by a tenant-bound adapter. Core auth, organization,
+  OIDC, passkey, and two-factor reads and writes require the request tenant;
+  OIDC access-token and consent rows also require the exact protected-resource
+  context. Transactions wrap their adapter so plugin-direct writes cannot
+  bypass these predicates.
 - Passkey relying-party configuration must match the deployed domain.
 - Auth errors should carry enough context for diagnosis without exposing
   credentials or sensitive user data.

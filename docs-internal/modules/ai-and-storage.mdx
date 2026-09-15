@@ -10,7 +10,10 @@ description: Shared model helpers and pluggable Vercel Blob/S3 storage.
 `packages/ai/src/client.ts` owns the OpenAI-compatible client and default model
 selection. `run.ts` exposes query, metadata, and streaming helpers. Keep API
 keys and optional `OPENAI_BASE_URL` values server-side; callers should use the
-package exports rather than instantiating a provider in a route.
+package exports rather than instantiating a provider in a route. Runtime calls
+validate HTTPS, public DNS resolution, redirect behavior, response size, and
+the `AI_PROVIDER_ALLOWED_HOSTS` production allowlist before sending a stored
+key to a custom OpenAI-compatible endpoint.
 
 ## `@repo/object-storage`
 

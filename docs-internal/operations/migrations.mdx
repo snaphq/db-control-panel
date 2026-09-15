@@ -31,3 +31,9 @@ bun run db:migrate
 
 Seeds and manual migration helpers are explicit scripts. They must not be
 silently invoked by a normal app build or request.
+
+The agent-readiness token-boundary changes are captured in the tracked
+`packages/database/migrations-manual/agent_readiness_security.sql` forward
+migration. Review it against the target database and apply it only through an
+authorized migration run; local Drizzle output under `packages/database/drizzle`
+is intentionally ignored.

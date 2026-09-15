@@ -1,9 +1,9 @@
 import { auth } from "@repo/auth/server";
 import { canDowngradeToFree, getUsageSummary } from "@repo/billing";
 import type { BillingUsageResponse } from "@repo/billing";
-import { db } from "@repo/database";
+import { db, resolveTenantFromHost } from "@repo/database";
 import { and, eq } from "@repo/database";
-import { member } from "@repo/database/schema";
+import { member, organization } from "@repo/database/schema";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -18,12 +18,18 @@ import { NextResponse } from "next/server";
  */
 export async function GET(request: Request) {
   try {
+    const requestHeaders = await headers();
     const session = await auth.api.getSession({
-      headers: await headers(),
+      headers: requestHeaders,
     });
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+    if (!tenant) {
+      return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -35,12 +41,15 @@ export async function GET(request: Request) {
 
     // Verify user is a member of the organization
     const membership = await db()
-      .select()
+      .select({ id: member.id })
       .from(member)
+      .innerJoin(organization, eq(member.organizationId, organization.id))
       .where(
         and(
           eq(member.userId, session.user.id),
           eq(member.organizationId, orgId),
+          eq(member.tenantId, tenant.id),
+          eq(organization.tenantId, tenant.id),
         ),
       )
       .limit(1);

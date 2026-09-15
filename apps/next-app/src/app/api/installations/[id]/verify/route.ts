@@ -16,7 +16,11 @@ export async function POST(_req: Request, { params }: RouteParams) {
   });
   if ("error" in result) return result.error;
 
-  const verify = await reverifyInstallation(result.row, result.integrationSlug);
+  const verify = await reverifyInstallation(
+    result.row,
+    result.integrationSlug,
+    result.tenantId,
+  );
   if (!verify.ok) {
     return NextResponse.json(
       { ok: false, error: verify.error },

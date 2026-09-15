@@ -45,6 +45,7 @@ export default async function WorkspacePage({ params }: PageProps) {
       and(
         eq(member.userId, session.user.id),
         eq(member.organizationId, org.id),
+        eq(member.tenantId, tenant.id),
       ),
     )
     .limit(1);
@@ -56,7 +57,9 @@ export default async function WorkspacePage({ params }: PageProps) {
   const projects = await db()
     .select()
     .from(project)
-    .where(eq(project.organizationId, org.id))
+    .where(
+      and(eq(project.organizationId, org.id), eq(project.tenantId, tenant.id)),
+    )
     .orderBy(desc(project.updatedAt));
 
   const canManageMembers =

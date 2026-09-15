@@ -10,6 +10,21 @@ export interface McpRequestContext {
   requestId: string;
   userId?: string;
   orgId?: string;
+  tenantId?: string;
+  projectId?: string;
+  actorId?: string;
+  actorType?: "human" | "internal_agent" | "external_agent" | "system";
+  /** Set only after the owning route has completed its admin authorization. */
+  isAdmin?: boolean;
+  credentialId?: string;
+  authMethod?:
+    | "session"
+    | "account_token"
+    | "oauth"
+    | "agent_jwt"
+    | "development";
+  scopes?: string[];
+  resource?: string;
 }
 
 const storage = new AsyncLocalStorage<McpRequestContext>();

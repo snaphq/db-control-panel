@@ -19,6 +19,7 @@ export default async function WorkspaceIntegrationsPage({ params }: PageProps) {
 
   const [installs, available] = await Promise.all([
     listScopedInstallations({
+      tenantId: organization.tenantId,
       organizationId: organization.id,
       projectId: null,
     }),

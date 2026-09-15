@@ -25,24 +25,54 @@ export function normalizeTenantDomain(hostOrUrl: string | null | undefined) {
   const raw = hostOrUrl.trim().toLowerCase();
   if (!raw) return null;
 
-  let host = raw;
+  const hasScheme = raw.includes("://");
+  let parsed: URL;
   try {
-    host = new URL(raw.includes("://") ? raw : `http://${raw}`).host;
+    parsed = new URL(hasScheme ? raw : `http://${raw}`);
   } catch {
-    host = raw;
+    return null;
   }
 
-  return host.replace(/:\d+$/, "");
+  // A Host header is an authority, not a URL with userinfo. URL.host would
+  // silently drop `foo@` and resolve that input as `tenant.example`, which can
+  // select the wrong tenant. Reject credentials before returning the hostname.
+  if (parsed.username || parsed.password) return null;
+  // A bare Host authority must not contain URL path/query/fragment syntax.
+  // Scheme-qualified environment URLs may include those parts because only
+  // their authority is used for tenant lookup.
+  if (!hasScheme && (parsed.pathname !== "/" || parsed.search || parsed.hash)) {
+    return null;
+  }
+
+  const hostname = parsed.hostname.trim().toLowerCase();
+  if (!hostname || /[\s\\/@?#]/.test(hostname)) return null;
+  return hostname.replace(/\.$/, "");
+}
+
+/**
+ * Normalize an actual HTTP Host authority.
+ *
+ * `normalizeTenantDomain` also accepts scheme-qualified environment URLs for
+ * tenant seeding. Request headers are different: accepting a scheme or path
+ * there would let a caller smuggle an URL through the host resolver and make
+ * the request appear to belong to a known tenant. Keep the request boundary
+ * strict while preserving the environment/configuration helper above.
+ */
+export function normalizeTenantHost(host: string | null | undefined) {
+  const raw = host?.trim();
+  if (!raw || raw.includes("://") || /[\s\\/@?#]/.test(raw)) return null;
+  return normalizeTenantDomain(raw);
 }
 
 export function isLocalTenantHost(host: string | null | undefined) {
-  const normalized = normalizeTenantDomain(host);
+  const normalized = normalizeTenantHost(host);
+  if (!normalized) return false;
+  const unbracketed = normalized.replace(/^\[|\]$/g, "");
   return (
-    !normalized ||
-    normalized === "localhost" ||
-    normalized === "127.0.0.1" ||
-    normalized === "::1" ||
-    normalized.endsWith(".localhost")
+    unbracketed === "localhost" ||
+    unbracketed === "127.0.0.1" ||
+    unbracketed === "::1" ||
+    unbracketed.endsWith(".localhost")
   );
 }
 
@@ -137,13 +167,30 @@ export async function ensureDefaultTenant(input: TenantSeedInput = {}) {
 }
 
 export async function resolveTenantFromHost(host: string | null | undefined) {
-  const normalized = normalizeTenantDomain(host);
+  const normalized = normalizeTenantHost(host);
 
+  // A missing or malformed Host header must never silently select the default
+  // tenant. Every request-bound credential and session depends on this
+  // resolution, so the absence of an explicit authority is an unknown host.
+  if (!normalized) return null;
+
+  const production =
+    process.env.NODE_ENV === "production" ||
+    process.env.VERCEL_ENV === "production";
   if (isLocalTenantHost(normalized)) {
+    // Local aliases are a development convenience. A production request with
+    // an arbitrary `*.localhost` Host must not select the default tenant or
+    // become a server-side fetch target.
+    if (production) return null;
     const [row] = await db()
       .select()
       .from(tenant)
-      .where(eq(tenant.id, getDefaultTenantId()))
+      .where(
+        and(
+          eq(tenant.id, getDefaultTenantId()),
+          or(eq(tenant.status, "active"), eq(tenant.status, "readonly")),
+        ),
+      )
       .limit(1);
     return row ?? null;
   }

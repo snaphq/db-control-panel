@@ -4,6 +4,8 @@ import {
   type IntegrationInstallation,
   integration,
   integrationInstallation,
+  organization,
+  project,
 } from "@repo/database/schema";
 import { type SafeInstallation, toSafeInstallation } from "./types";
 
@@ -20,6 +22,7 @@ export type ScopedInstallationRow = {
  * - Workspace scope: returns workspace-scoped only.
  */
 export async function listScopedInstallations(scope: {
+  tenantId: string;
   organizationId: string;
   projectId?: string | null;
 }): Promise<ScopedInstallationRow[]> {
@@ -40,9 +43,23 @@ export async function listScopedInstallations(scope: {
       integration,
       eq(integrationInstallation.integrationId, integration.id),
     )
+    .innerJoin(
+      organization,
+      eq(integrationInstallation.organizationId, organization.id),
+    )
+    .leftJoin(project, eq(integrationInstallation.projectId, project.id))
     .where(
       and(
         eq(integrationInstallation.organizationId, scope.organizationId),
+        eq(organization.tenantId, scope.tenantId),
+        or(
+          isNull(integrationInstallation.projectId),
+          and(
+            eq(project.id, integrationInstallation.projectId),
+            eq(project.tenantId, scope.tenantId),
+            eq(project.organizationId, scope.organizationId),
+          ),
+        ),
         projectFilter,
       ),
     );
@@ -80,11 +97,43 @@ export async function findIntegrationBySlug(
 
 export async function findInstallationById(
   id: string,
+  scope: {
+    tenantId: string;
+    organizationId: string;
+    projectId?: string | null;
+  },
 ): Promise<IntegrationInstallation | null> {
+  const projectFilter = scope.projectId
+    ? or(
+        eq(integrationInstallation.projectId, scope.projectId),
+        isNull(integrationInstallation.projectId),
+      )
+    : isNull(integrationInstallation.projectId);
+
   const [row] = await db()
-    .select()
+    .select({ installation: integrationInstallation, project })
     .from(integrationInstallation)
-    .where(eq(integrationInstallation.id, id))
+    .innerJoin(
+      organization,
+      eq(integrationInstallation.organizationId, organization.id),
+    )
+    .leftJoin(project, eq(integrationInstallation.projectId, project.id))
+    .where(
+      and(
+        eq(integrationInstallation.id, id),
+        eq(integrationInstallation.organizationId, scope.organizationId),
+        eq(organization.tenantId, scope.tenantId),
+        or(
+          isNull(integrationInstallation.projectId),
+          and(
+            eq(project.id, integrationInstallation.projectId),
+            eq(project.tenantId, scope.tenantId),
+            eq(project.organizationId, scope.organizationId),
+          ),
+        ),
+        projectFilter,
+      ),
+    )
     .limit(1);
-  return row ?? null;
+  return row?.installation ?? null;
 }

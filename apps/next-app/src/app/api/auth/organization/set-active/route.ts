@@ -1,11 +1,25 @@
-import { getBetterAuthServer } from "@repo/auth/server";
+import { resourceUrlForRequest } from "@/lib/agent-auth/discovery";
+import {
+  getBetterAuthServer,
+  runWithAuthTenantContext,
+} from "@repo/auth/server";
+import { and, db, eq, resolveTenantFromHost } from "@repo/database";
+import { member, organization } from "@repo/database/schema";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
     const server = getBetterAuthServer();
-    const session = await server.getSession(await headers());
+    const requestHeaders = await headers();
+    const tenant = await resolveTenantFromHost(requestHeaders.get("host"));
+    if (!tenant) {
+      return NextResponse.json(
+        { error: "Unknown tenant host" },
+        { status: 404 },
+      );
+    }
+    const session = await server.getSession(requestHeaders);
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,11 +35,38 @@ export async function POST(request: Request) {
       );
     }
 
+    const [membership] = await db()
+      .select({ id: member.id })
+      .from(member)
+      .innerJoin(organization, eq(member.organizationId, organization.id))
+      .where(
+        and(
+          eq(member.organizationId, organizationId),
+          eq(member.userId, session.user.id),
+          eq(member.tenantId, tenant.id),
+          eq(organization.tenantId, tenant.id),
+        ),
+      )
+      .limit(1);
+    if (!membership) {
+      return NextResponse.json(
+        { error: "Organization is not available on this tenant" },
+        { status: 403 },
+      );
+    }
+
     const instance = server.getAuthInstance();
-    await instance.api.setActiveOrganization({
-      body: { organizationId },
-      headers: await headers(),
-    });
+    await runWithAuthTenantContext(
+      {
+        tenantId: tenant.id,
+        resource: resourceUrlForRequest(request),
+      },
+      () =>
+        instance.api.setActiveOrganization({
+          body: { organizationId },
+          headers: requestHeaders,
+        }),
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {

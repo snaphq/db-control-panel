@@ -10,7 +10,14 @@ export type RequireAdmin = () => Promise<void>;
  * Configuration for registering ChatGPT widget tools.
  */
 export interface WidgetConfig {
+  /** Public origin used for widget metadata, CSP, and resource URIs. */
   baseURL: string;
+  /**
+   * Trusted application origin used to load the initial HTML snapshot. This
+   * is separate from `baseURL` because a request Host header can be a valid
+   * tenant alias without being a safe server-side fetch target.
+   */
+  contentURL?: string;
 }
 
 /**

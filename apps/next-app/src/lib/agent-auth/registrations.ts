@@ -8,6 +8,9 @@ import {
 } from "@repo/database/schema-agent-auth";
 import { and, eq, lt } from "drizzle-orm";
 import { sha256Hex } from "./keys";
+import { isRegistrationUsable, resolveScopes } from "./registration-policy";
+
+export { isRegistrationUsable, resolveScopes } from "./registration-policy";
 
 export const CLAIM_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // outer claim window
 export const USER_CODE_TTL_MS = 10 * 60 * 1000; // user_code window
@@ -52,6 +55,9 @@ export async function expireStaleRegistrations(
   tenantId?: string,
 ): Promise<void> {
   const now = new Date();
+  const tenantScope = tenantId
+    ? eq(agentRegistration.tenantId, tenantId)
+    : null;
   await db()
     .update(agentRegistration)
     .set({ status: "expired" })
@@ -59,6 +65,7 @@ export async function expireStaleRegistrations(
       and(
         eq(agentRegistration.status, "unclaimed"),
         lt(agentRegistration.registrationExpiresAt, now),
+        ...(tenantScope ? [tenantScope] : []),
       ),
     );
   await db()
@@ -68,31 +75,26 @@ export async function expireStaleRegistrations(
       and(
         eq(agentRegistration.status, "unclaimed"),
         lt(agentRegistration.claimExpiresAt, now),
+        ...(tenantScope ? [tenantScope] : []),
       ),
     );
-  void tenantId;
 }
 
 export async function getRegistration(
   id: string,
+  tenantId?: string,
 ): Promise<AgentRegistration | null> {
+  const tenantScope = tenantId
+    ? eq(agentRegistration.tenantId, tenantId)
+    : null;
   const [row] = await db()
     .select()
     .from(agentRegistration)
-    .where(eq(agentRegistration.id, id))
+    .where(
+      and(eq(agentRegistration.id, id), ...(tenantScope ? [tenantScope] : [])),
+    )
     .limit(1);
   return row ?? null;
-}
-
-/** Resolve the scope set a token exchange should grant for this registration. */
-export function resolveScopes(registration: AgentRegistration): string {
-  if (
-    registration.type === "anonymous" &&
-    registration.status === "unclaimed"
-  ) {
-    return registration.preClaimScopes;
-  }
-  return registration.scopes;
 }
 
 export function clientIp(req: Request): string | null {

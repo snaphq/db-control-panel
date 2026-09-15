@@ -116,7 +116,7 @@ export function AiProviderForm({ initial }: Props) {
       <AiProviderBaseUrlField
         value={baseUrl}
         onChange={setBaseUrl}
-        hint="Optional. Leave blank to use the provider default. Any OpenAI-compatible endpoint works (e.g. Azure, vLLM, Groq)."
+        hint="Optional. Leave blank to use the provider default. Use an approved HTTPS OpenAI-compatible endpoint (e.g. Azure, vLLM, Groq); production hosts must be allowlisted."
       />
       <AiProviderApiKeyField
         value={apiKey}
