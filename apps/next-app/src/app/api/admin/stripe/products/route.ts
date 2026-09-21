@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     const queryParams = productQuerySchema.safeParse({
       active: searchParams.get("active"),
       limit: searchParams.get("limit"),
-      search: searchParams.get("search") || undefined,
+      search: searchParams.get("search")?.trim() || undefined,
     });
 
     if (!queryParams.success) {
@@ -81,12 +81,21 @@ export async function GET(req: NextRequest) {
           ? false
           : undefined;
 
+    // Preserve the established Stripe API response and ordering for existing
+    // callers. The shared provider/DAL path is needed only for actual search.
+    if (!queryParams.data.search) {
+      const products = await stripe.products.list({
+        active,
+        limit: queryParams.data.limit || 100,
+      });
+      return NextResponse.json(products.data);
+    }
+
     const products = await getStripeProducts({
       active,
       search: queryParams.data.search,
       limit: queryParams.data.limit || 100,
     });
-
     return NextResponse.json(products);
   } catch (error: unknown) {
     console.error("Error fetching products:", error);

@@ -23,6 +23,7 @@ import {
 // Listed explicitly so renames are caught at startup by getMcpToolAnnotations.
 const ADMIN_TOOL_NAMES: McpToolName[] = [
   "get_admin_stats",
+  "search_records",
   "get_user_by_email",
   "get_user_by_id",
   "list_users",

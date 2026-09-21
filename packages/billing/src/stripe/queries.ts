@@ -6,6 +6,26 @@ import { stripe } from "./client";
 
 const STRIPE_SCHEMA = process.env.STRIPE_SCHEMA ?? "stripe";
 
+function filterStripeProducts<
+  T extends { description: string | null; name: string },
+>(
+  products: T[],
+  search: string | undefined,
+  limit: number | undefined,
+  offset: number | undefined,
+): T[] {
+  const needle = search?.trim().toLowerCase();
+  const filtered = needle
+    ? products.filter(
+        (product) =>
+          product.name.toLowerCase().includes(needle) ||
+          product.description?.toLowerCase().includes(needle),
+      )
+    : products;
+  const start = Math.max(0, offset || 0);
+  return filtered.slice(start, start + (limit || 100));
+}
+
 async function tableExists(
   tableName: string,
   schema: string = STRIPE_SCHEMA,
@@ -30,6 +50,7 @@ export async function getStripeProducts(filters?: {
   offset?: number;
 }) {
   const hasTable = await tableExists("products");
+  const search = filters?.search?.trim() || undefined;
 
   if (!hasTable) {
     console.warn(
@@ -38,17 +59,14 @@ export async function getStripeProducts(filters?: {
     try {
       const products = await stripe.products.list({
         active: filters?.active,
-        limit: filters?.search ? 100 : filters?.limit || 100,
+        limit: search ? 100 : filters?.limit || 100,
       });
-      const search = filters?.search?.trim().toLowerCase();
-      const filtered = search
-        ? products.data.filter(
-            (product) =>
-              product.name.toLowerCase().includes(search) ||
-              product.description?.toLowerCase().includes(search),
-          )
-        : products.data;
-      return filtered.slice(0, filters?.limit || 100);
+      return filterStripeProducts(
+        products.data,
+        search,
+        filters?.limit,
+        filters?.offset,
+      );
     } catch (error) {
       console.error("Error fetching from Stripe API:", error);
       return [];
@@ -63,8 +81,8 @@ export async function getStripeProducts(filters?: {
     query = sql`${query} AND active = ${filters.active}`;
   }
 
-  if (filters?.search) {
-    query = sql`${query} AND (name ILIKE ${`%${filters.search}%`} OR description ILIKE ${`%${filters.search}%`})`;
+  if (search) {
+    query = sql`${query} AND (name ILIKE ${`%${search}%`} OR description ILIKE ${`%${search}%`})`;
   }
 
   query = sql`${query} ORDER BY created ASC`;
@@ -84,9 +102,14 @@ export async function getStripeProducts(filters?: {
     console.error("Error querying stripe.products:", error);
     const products = await stripe.products.list({
       active: filters?.active,
-      limit: filters?.limit || 100,
+      limit: search ? 100 : filters?.limit || 100,
     });
-    return products.data;
+    return filterStripeProducts(
+      products.data,
+      search,
+      filters?.limit,
+      filters?.offset,
+    );
   }
 }
 
