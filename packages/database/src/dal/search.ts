@@ -96,7 +96,6 @@ function addTextConditions(
 
 function addFieldConditions(
   conditions: ReturnType<typeof sql>[],
-  warnings: SearchWarning[],
   query: SearchQuery,
   key: "description" | "email" | "name" | "slug" | "status",
   field: SQLWrapper,
@@ -110,23 +109,6 @@ function addFieldConditions(
   }
   for (const item of groups.negative) {
     conditions.push(sql`NOT (${contains(field, item.value)})`);
-  }
-
-  // Keep this branch explicit so adding a new field to the parser cannot make
-  // an entity silently claim to support it.
-  for (const item of query.qualifiers) {
-    if (item.key === key) continue;
-    if (item.key === "type" || item.key === "archived") continue;
-    if (item.key === "description" || item.key === "email") continue;
-    if (item.key === "name" || item.key === "slug" || item.key === "status")
-      continue;
-    warnings.push(
-      warning(
-        "unsupported_value",
-        `The ${item.key}: qualifier is not supported for this search field.`,
-        `${item.key}:${item.value}`,
-      ),
-    );
   }
 }
 
@@ -194,15 +176,9 @@ function projectConditions(
     project.slug,
     project.description,
   ]);
-  addFieldConditions(conditions, warnings, query, "name", project.name);
-  addFieldConditions(conditions, warnings, query, "slug", project.slug);
-  addFieldConditions(
-    conditions,
-    warnings,
-    query,
-    "description",
-    project.description,
-  );
+  addFieldConditions(conditions, query, "name", project.name);
+  addFieldConditions(conditions, query, "slug", project.slug);
+  addFieldConditions(conditions, query, "description", project.description);
   addTypeCondition(conditions, warnings, query, "project");
   addUnsupportedQualifiers(
     warnings,
@@ -246,15 +222,9 @@ function organizationConditions(
   if (tenantId !== null) conditions.push(eq(organization.tenantId, tenantId));
   const warnings = [...query.warnings];
   addTextConditions(conditions, query, [organization.name, organization.slug]);
-  addFieldConditions(conditions, warnings, query, "name", organization.name);
-  addFieldConditions(conditions, warnings, query, "slug", organization.slug);
-  addFieldConditions(
-    conditions,
-    warnings,
-    query,
-    "status",
-    organization.status,
-  );
+  addFieldConditions(conditions, query, "name", organization.name);
+  addFieldConditions(conditions, query, "slug", organization.slug);
+  addFieldConditions(conditions, query, "status", organization.status);
   addTypeCondition(conditions, warnings, query, "organization");
   addUnsupportedQualifiers(
     warnings,
@@ -299,9 +269,9 @@ function userConditions(
     user.publicEmail,
     user.username,
   ]);
-  addFieldConditions(conditions, warnings, query, "name", user.name);
-  addFieldConditions(conditions, warnings, query, "email", user.publicEmail);
-  addFieldConditions(conditions, warnings, query, "status", user.role);
+  addFieldConditions(conditions, query, "name", user.name);
+  addFieldConditions(conditions, query, "email", user.publicEmail);
+  addFieldConditions(conditions, query, "status", user.role);
   addTypeCondition(conditions, warnings, query, "user");
 
   const archived = qualifierGroups(query, "archived");

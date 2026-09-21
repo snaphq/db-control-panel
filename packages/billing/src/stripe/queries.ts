@@ -26,6 +26,10 @@ function filterStripeProducts<
   return filtered.slice(start, start + (limit || 100));
 }
 
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
 async function tableExists(
   tableName: string,
   schema: string = STRIPE_SCHEMA,
@@ -82,7 +86,8 @@ export async function getStripeProducts(filters?: {
   }
 
   if (search) {
-    query = sql`${query} AND (name ILIKE ${`%${search}%`} OR description ILIKE ${`%${search}%`})`;
+    const pattern = `%${escapeLike(search)}%`;
+    query = sql`${query} AND (name ILIKE ${pattern} ESCAPE '\\' OR description ILIKE ${pattern} ESCAPE '\\')`;
   }
 
   query = sql`${query} ORDER BY created ASC`;
