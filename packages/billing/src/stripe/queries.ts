@@ -38,9 +38,17 @@ export async function getStripeProducts(filters?: {
     try {
       const products = await stripe.products.list({
         active: filters?.active,
-        limit: filters?.limit || 100,
+        limit: filters?.search ? 100 : filters?.limit || 100,
       });
-      return products.data;
+      const search = filters?.search?.trim().toLowerCase();
+      const filtered = search
+        ? products.data.filter(
+            (product) =>
+              product.name.toLowerCase().includes(search) ||
+              product.description?.toLowerCase().includes(search),
+          )
+        : products.data;
+      return filtered.slice(0, filters?.limit || 100);
     } catch (error) {
       console.error("Error fetching from Stripe API:", error);
       return [];

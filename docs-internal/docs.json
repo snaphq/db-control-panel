@@ -18,6 +18,7 @@
           "architecture/system-overview",
           "architecture/auth-and-setup",
           "architecture/data-and-tenancy",
+          "architecture/search",
           "architecture/agent-auth",
           "architecture/mcp-and-agent-surfaces"
         ]

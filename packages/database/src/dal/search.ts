@@ -181,13 +181,13 @@ function addUnsupportedQualifiers(
 
 function projectConditions(
   tenantId: string,
-  organizationId: string,
+  organizationId: string | null,
   query: SearchQuery,
 ): { conditions: ReturnType<typeof sql>[]; warnings: SearchWarning[] } {
-  const conditions: ReturnType<typeof sql>[] = [
-    eq(project.tenantId, tenantId),
-    eq(project.organizationId, organizationId),
-  ];
+  const conditions: ReturnType<typeof sql>[] = [eq(project.tenantId, tenantId)];
+  if (organizationId !== null) {
+    conditions.push(eq(project.organizationId, organizationId));
+  }
   const warnings = [...query.warnings];
   addTextConditions(conditions, query, [
     project.name,
@@ -214,7 +214,7 @@ function projectConditions(
 
 export async function searchProjects(
   tenantId: string,
-  organizationId: string,
+  organizationId: string | null,
   options: SearchPageOptions,
 ): Promise<ProjectSearchResult> {
   const { limit, offset } = pageBounds(options);
@@ -305,6 +305,11 @@ function userConditions(
   addTypeCondition(conditions, warnings, query, "user");
 
   const archived = qualifierGroups(query, "archived");
+  const archivedCondition = (value: boolean) =>
+    value
+      ? sql`${user.archivedAt} IS NOT NULL`
+      : sql`${user.archivedAt} IS NULL`;
+  const positiveArchived: ReturnType<typeof sql>[] = [];
   for (const item of [...archived.positive, ...archived.negative]) {
     const value = item.value.toLowerCase();
     if (value !== "true" && value !== "false") {
@@ -319,11 +324,15 @@ function userConditions(
     }
     const archivedValue = value === "true";
     const wantsArchived = item.negated ? !archivedValue : archivedValue;
-    conditions.push(
-      wantsArchived
-        ? sql`${user.archivedAt} IS NOT NULL`
-        : sql`${user.archivedAt} IS NULL`,
-    );
+    if (item.negated) {
+      conditions.push(archivedCondition(wantsArchived));
+    } else {
+      positiveArchived.push(archivedCondition(wantsArchived));
+    }
+  }
+  if (positiveArchived.length > 0) {
+    const match = or(...positiveArchived);
+    if (match) conditions.push(match);
   }
 
   addUnsupportedQualifiers(

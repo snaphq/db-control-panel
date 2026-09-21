@@ -4,6 +4,9 @@ import {
   eq,
   getSafeSessions,
   getTenantAdminStats,
+  searchOrganizations,
+  searchProjects,
+  searchUsers,
 } from "@repo/database";
 import { organization, user } from "@repo/database/schema";
 import {
@@ -11,6 +14,7 @@ import {
   registerMcpTool,
   wrapToolHandler,
 } from "@repo/mcp-chatgpt";
+import { parseSearchQuery } from "@repo/search";
 import { z } from "zod";
 import type { McpServer, RequireAdmin } from "./types";
 
@@ -113,6 +117,54 @@ export function registerAdminTools(
           return found
             ? mcpText(found)
             : mcpText(`User with email ${email} not found`);
+        } catch (err) {
+          return mcpError(err);
+        }
+      },
+    ),
+  );
+
+  registerMcpTool(
+    server,
+    "search_records",
+    {
+      description:
+        "Search tenant-scoped organizations, projects, or users with expressive query syntax",
+      inputSchema: {
+        query: z.string().max(256).optional(),
+        entity: z.enum(["organization", "project", "user"]).optional(),
+        organizationId: z.string().optional(),
+        limit: z.number().int().min(1).max(100).optional(),
+        offset: z.number().int().min(0).max(100000).optional(),
+      },
+    },
+    wrapToolHandler(
+      "search_records",
+      async ({
+        query = "",
+        entity = "organization",
+        organizationId,
+        limit = 50,
+        offset = 0,
+      }: {
+        query?: string;
+        entity?: "organization" | "project" | "user";
+        organizationId?: string;
+        limit?: number;
+        offset?: number;
+      }) => {
+        try {
+          await requireAdmin();
+          const parsed = parseSearchQuery(query);
+          const options = { query: parsed, limit, offset };
+          const tenantId = currentTenantId();
+          const result =
+            entity === "project"
+              ? await searchProjects(tenantId, organizationId ?? null, options)
+              : entity === "user"
+                ? await searchUsers(tenantId, options)
+                : await searchOrganizations(tenantId, options);
+          return mcpText(result);
         } catch (err) {
           return mcpError(err);
         }

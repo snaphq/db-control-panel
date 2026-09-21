@@ -32,6 +32,7 @@ export type McpToolName =
   | "show_content"
   // Admin tools
   | "get_admin_stats"
+  | "search_records"
   | "get_user_by_email"
   | "get_user_by_id"
   | "list_users"
@@ -77,6 +78,24 @@ export const MCP_TOOL_METADATA: Record<McpToolName, McpToolMetadata> = {
         "Does not transmit data to external systems or modify any public-facing state.",
       destructive_justification:
         "Does not delete, overwrite, revoke access, or perform any irreversible actions.",
+    },
+  },
+
+  search_records: {
+    annotations: {
+      title: "Search Records",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    justifications: {
+      read_only_justification:
+        "Only searches tenant-scoped organization, project, or user records using bounded query input. No writes occur.",
+      open_world_justification:
+        "Does not transmit data to external systems or modify public-facing state.",
+      destructive_justification:
+        "Does not delete, overwrite, revoke access, or perform irreversible actions.",
     },
   },
 

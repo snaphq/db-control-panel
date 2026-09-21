@@ -1,14 +1,15 @@
 import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
 import { ORG_STATUS } from "@repo/billing/constants";
-import { and, db, eq } from "@repo/database";
+import { and, db, eq, searchOrganizations } from "@repo/database";
 import { member, organization, project, user } from "@repo/database/schema";
+import { parseSearchQuery } from "@repo/search";
 import { nanoid } from "nanoid";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -23,10 +24,16 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const organizations = await db()
-      .select()
-      .from(organization)
-      .orderBy(organization.createdAt);
+    const search = new URL(request.url).searchParams.get("search")?.trim();
+    const organizations = search
+      ? (
+          await searchOrganizations(null, {
+            query: parseSearchQuery(search),
+            limit: 100,
+            offset: 0,
+          })
+        ).results
+      : await db().select().from(organization).orderBy(organization.createdAt);
 
     return NextResponse.json(organizations);
   } catch (error) {

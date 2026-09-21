@@ -52,6 +52,9 @@ export function ProjectsOverview({
       return;
     }
 
+    setRemoteResults(null);
+    setSearchWarnings([]);
+    setSearchError(null);
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {

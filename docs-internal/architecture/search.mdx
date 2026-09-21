@@ -1,0 +1,55 @@
+---
+title: Search architecture
+description: Shared query syntax, authorization boundaries, and search adapters.
+---
+
+# Search architecture
+
+The repository uses one database-free query parser in `@repo/search` and a
+tenant-scoped executor in `@repo/database`. REST, dashboard, admin, and MCP
+surfaces are adapters over that executor; the legacy project-list route remains
+available for callers that need its original array response.
+
+## Query syntax
+
+Bare terms are ANDed. A term or qualifier can be negated with `-`. Quoted
+phrases support escaped quotes. Supported qualifiers are:
+
+| Qualifier | Meaning |
+| --- | --- |
+| `name:` | Match a name field |
+| `slug:` | Match a slug |
+| `description:` / `desc:` | Match a nullable description |
+| `email:` / `mail:` | Match a user email |
+| `status:` / `state:` | Match an entity status or role |
+| `archived:` | Match `true` or `false` for users |
+| `type:` | Constrain the selected entity (`project`, `organization`, or `user`) |
+
+For example:
+
+```text
+"billing api" -slug:legacy
+name:"Acme" status:active
+archived:false email:@example.com
+```
+
+Queries are capped at 256 characters and 32 tokens. Invalid or unsupported
+syntax produces machine-readable warnings; inaccessible records are not
+resolved by name and are never disclosed through reference errors.
+
+## Adapters and authorization
+
+- `/api/search/projects` requires a session, resolves the request tenant, and
+  verifies membership in the requested organization before executing the query.
+- `/api/admin/organizations?search=...` keeps the existing site-admin array
+  response while using the shared organization executor for picker searches.
+- `/api/admin/stripe/products?search=...` now carries the search parameter
+  through the hook, route, and Stripe/DB provider adapter.
+- The tenant-bound admin MCP surface exposes `search_records`; every call
+  requires an active site-admin session and limits records to the authenticated
+  tenant. The tool returns `{ results, count, warnings }`.
+
+All database predicates apply tenant and membership scope before ordering and
+pagination. Results have deterministic ordering and a maximum page size of
+100. Index or external-search migrations should follow query-plan and latency
+measurements rather than being inferred from the syntax alone.

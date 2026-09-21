@@ -2,6 +2,7 @@ import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { getErrorMessage } from "@/lib/error-utils";
 import { auth } from "@repo/auth/server";
 import { stripe } from "@repo/billing/stripe/client";
+import { getStripeProducts } from "@repo/billing/stripe/queries";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
@@ -38,6 +39,7 @@ const productSchema = z.object({
 const productQuerySchema = z.object({
   active: z.enum(["true", "false"]).optional(),
   limit: z.coerce.number().min(1).max(100).optional(),
+  search: z.string().max(256).optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -59,6 +61,7 @@ export async function GET(req: NextRequest) {
     const queryParams = productQuerySchema.safeParse({
       active: searchParams.get("active"),
       limit: searchParams.get("limit"),
+      search: searchParams.get("search") || undefined,
     });
 
     if (!queryParams.success) {
@@ -78,12 +81,13 @@ export async function GET(req: NextRequest) {
           ? false
           : undefined;
 
-    const products = await stripe.products.list({
+    const products = await getStripeProducts({
       active,
+      search: queryParams.data.search,
       limit: queryParams.data.limit || 100,
     });
 
-    return NextResponse.json(products.data);
+    return NextResponse.json(products);
   } catch (error: unknown) {
     console.error("Error fetching products:", error);
     return NextResponse.json(

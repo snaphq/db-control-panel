@@ -23,6 +23,12 @@
       ]
     },
     {
+      "id": "search",
+      "page": "architecture/search.mdx",
+      "visibility": "internal",
+      "sources": ["packages/search/src", "packages/database/src/dal/search.ts"]
+    },
+    {
       "id": "agent-auth",
       "page": "architecture/agent-auth.mdx",
       "visibility": "internal",
