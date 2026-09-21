@@ -74,7 +74,10 @@ export async function GET(request: Request) {
       );
     }
 
-    const query = parseSearchQuery(searchParams.get("query") ?? "");
+    const queryText = searchParams.has("query")
+      ? (searchParams.get("query") ?? "")
+      : (searchParams.get("q") ?? "");
+    const query = parseSearchQuery(queryText);
     const result = await searchProjects(tenant.id, organizationId, {
       query,
       limit,

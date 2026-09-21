@@ -49,7 +49,8 @@ resolved by name and are never disclosed through reference errors.
   requires an active site-admin session and limits records to the authenticated
   tenant. The tool returns `{ results, count, warnings }`.
 
-All database predicates apply tenant and membership scope before ordering and
-pagination. Results have deterministic ordering and a maximum page size of
-100. Index or external-search migrations should follow query-plan and latency
-measurements rather than being inferred from the syntax alone.
+Tenant-bound database predicates apply tenant and membership scope before
+ordering and pagination. The global organization picker is an intentional
+site-admin exception. Results have deterministic ordering and a maximum page
+size of 100. Index or external-search migrations should follow query-plan and
+latency measurements rather than being inferred from the syntax alone.
