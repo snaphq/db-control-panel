@@ -48,6 +48,7 @@
         "@repo/mcp-chatgpt": "workspace:*",
         "@repo/mcp-server": "workspace:*",
         "@repo/object-storage": "workspace:*",
+        "@repo/search": "workspace:*",
         "@stripe/stripe-js": "^3.4.0",
         "@tailwindcss/postcss": "^4.2.2",
         "@tanstack/react-query": "^4.35.3",
@@ -168,6 +169,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@neondatabase/serverless": "1.0.2",
+        "@repo/search": "workspace:*",
         "drizzle-orm": "^0.44.7",
         "undici": "catalog:",
       },
@@ -227,6 +229,7 @@
         "@modelcontextprotocol/sdk": "catalog:",
         "@repo/database": "workspace:*",
         "@repo/mcp-chatgpt": "workspace:*",
+        "@repo/search": "workspace:*",
         "mcp-handler": "catalog:",
         "zod": "catalog:",
       },
@@ -246,6 +249,14 @@
       "devDependencies": {
         "@types/node": "catalog:",
         "typescript": "catalog:",
+      },
+    },
+    "packages/search": {
+      "name": "@repo/search",
+      "version": "0.0.0",
+      "devDependencies": {
+        "typescript": "catalog:",
+        "vitest": "catalog:",
       },
     },
   },
@@ -863,6 +874,8 @@
     "@repo/next-app": ["@repo/next-app@workspace:apps/next-app"],
 
     "@repo/object-storage": ["@repo/object-storage@workspace:packages/object-storage"],
+
+    "@repo/search": ["@repo/search@workspace:packages/search"],
 
     "@rollup/rollup-android-arm-eabi": ["@rollup/rollup-android-arm-eabi@4.60.0", "", { "os": "android", "cpu": "arm" }, "sha512-WOhNW9K8bR3kf4zLxbfg6Pxu2ybOUbB2AjMDHSQx86LIF4rH4Ft7vmMwNt0loO0eonglSNy4cpD3MKXXKQu0/A=="],
 

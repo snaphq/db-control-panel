@@ -24,6 +24,18 @@ export {
 export { getAdminStats, getTenantAdminStats } from "./dal/admin";
 export { getSafeSessions } from "./dal/admin";
 export type { AdminStats, SafeSession, TenantAdminStats } from "./dal/admin";
+export {
+  searchOrganizations,
+  searchProjects,
+  searchUsers,
+} from "./dal/search";
+export type {
+  AdminSearchUser,
+  OrganizationSearchResult,
+  ProjectSearchResult,
+  SearchPage,
+  UserSearchResult,
+} from "./dal/search";
 
 // Re-export drizzle-orm operators for convenience
 export {

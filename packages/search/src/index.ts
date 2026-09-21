@@ -1,12 +1,20 @@
 export const DEFAULT_MAX_QUERY_LENGTH = 256;
 export const DEFAULT_MAX_QUERY_TOKENS = 32;
 
-export type SearchQualifierKey = "description" | "name" | "slug" | "type";
+export type SearchQualifierKey =
+  | "archived"
+  | "description"
+  | "email"
+  | "name"
+  | "slug"
+  | "status"
+  | "type";
 
 export type SearchWarningCode =
   | "empty_qualifier"
   | "query_too_long"
   | "too_many_tokens"
+  | "unsupported_value"
   | "unknown_qualifier"
   | "unterminated_quote";
 
@@ -39,10 +47,15 @@ interface Token {
 }
 
 const QUALIFIER_ALIASES: Record<string, SearchQualifierKey> = {
+  archived: "archived",
   description: "description",
   desc: "description",
+  email: "email",
+  mail: "email",
   name: "name",
   slug: "slug",
+  state: "status",
+  status: "status",
   type: "type",
 };
 
@@ -108,8 +121,10 @@ function warning(
  * Parse a small, deterministic search language without touching the database.
  *
  * Bare terms are ANDed by executors. A leading '-' negates a term or
- * qualifier. Supported qualifiers are name:, slug:, description:/desc:, and
- * type:. Values may be quoted and escaped with a backslash.
+ * qualifier. Supported qualifiers are name:, slug:, description:/desc:,
+ * email:/mail:, status:/state:, archived:, and type:. Values may be quoted and
+ * escaped with a backslash. Individual executors decide which qualifiers are
+ * meaningful for their entity and return warnings for the rest.
  */
 export function parseSearchQuery(
   input: string,

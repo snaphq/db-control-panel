@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { SearchWarning } from "@repo/search";
 import { FolderOpen, Plus } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useState } from "react";
@@ -28,6 +29,11 @@ export function ProjectsOverview({
 }: ProjectsOverviewProps) {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<ViewMode>("grid");
+  const [remoteResults, setRemoteResults] = useState<
+    ProjectCardProject[] | null
+  >(null);
+  const [searchWarnings, setSearchWarnings] = useState<SearchWarning[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
 
   useEffect(() => {
@@ -37,6 +43,50 @@ export function ProjectsOverview({
     } catch {}
   }, []);
 
+  useEffect(() => {
+    const query = deferredSearch.trim();
+    if (!query) {
+      setRemoteResults(null);
+      setSearchWarnings([]);
+      setSearchError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({
+          organizationId,
+          query,
+        });
+        const response = await fetch(`/api/search/projects?${params}`, {
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as {
+          error?: string;
+          results?: ProjectCardProject[];
+          warnings?: SearchWarning[];
+        };
+        if (!response.ok) throw new Error(payload.error || "Search failed");
+        setRemoteResults(payload.results ?? []);
+        setSearchWarnings(payload.warnings ?? []);
+        setSearchError(null);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setRemoteResults(null);
+        setSearchWarnings([]);
+        setSearchError(
+          error instanceof Error ? error.message : "Search failed",
+        );
+      }
+    }, 150);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [deferredSearch, organizationId]);
+
   const handleViewChange = (next: ViewMode) => {
     setView(next);
     try {
@@ -45,7 +95,7 @@ export function ProjectsOverview({
   };
 
   const needle = deferredSearch.trim().toLowerCase();
-  const filtered = needle
+  const localFiltered = needle
     ? projects.filter(
         (p) =>
           p.name.toLowerCase().includes(needle) ||
@@ -53,6 +103,7 @@ export function ProjectsOverview({
           (p.description?.toLowerCase().includes(needle) ?? false),
       )
     : projects;
+  const filtered = remoteResults ?? localFiltered;
 
   return (
     <div className="w-full">
@@ -70,6 +121,16 @@ export function ProjectsOverview({
           view={view}
           onViewChange={handleViewChange}
         />
+        {searchWarnings.length > 0 && (
+          <output className="mt-2 block text-xs text-muted-foreground">
+            {searchWarnings.map((item) => item.message).join(" ")}
+          </output>
+        )}
+        {searchError && (
+          <p className="mt-2 text-xs text-destructive" role="alert">
+            {searchError}
+          </p>
+        )}
       </div>
 
       {projects.length === 0 ? (
