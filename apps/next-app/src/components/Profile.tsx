@@ -1,4 +1,5 @@
 "use client";
+import { clearAnalyticsCache } from "@/components/analytics/use-analytics";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -27,6 +28,7 @@ export function Profile() {
 
   const handleSignOut = async () => {
     try {
+      clearAnalyticsCache();
       const result = await signOut();
 
       // Check if signOut had an error

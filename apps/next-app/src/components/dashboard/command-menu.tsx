@@ -1,5 +1,6 @@
 "use client";
 
+import { clearAnalyticsCache } from "@/components/analytics/use-analytics";
 import {
   CommandDialog,
   CommandEmpty,
@@ -136,6 +137,7 @@ export function CommandMenu() {
     setOpen(false);
 
     try {
+      clearAnalyticsCache();
       const result = await signOut();
 
       if (result?.error) {

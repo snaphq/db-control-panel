@@ -1,5 +1,6 @@
 "use client";
 
+import { clearAnalyticsCache } from "@/components/analytics/use-analytics";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -97,6 +98,7 @@ export function SidebarUserMenu() {
 
   const handleSignOut = async () => {
     try {
+      clearAnalyticsCache();
       await signOut();
       await new Promise((resolve) => setTimeout(resolve, 100));
       router.push("/");
