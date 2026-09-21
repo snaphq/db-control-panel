@@ -1,7 +1,8 @@
 import { auth } from "@repo/auth/server";
-import { db, resolveTenantFromHost } from "@repo/database";
+import { db, resolveTenantFromHost, searchProjects } from "@repo/database";
 import { and, eq } from "@repo/database";
 import { member, organization, project } from "@repo/database/schema";
+import { parseSearchQuery } from "@repo/search";
 import { nanoid } from "nanoid";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -57,6 +58,34 @@ export async function GET(request: Request) {
         { status: 403 },
       );
     }
+
+    const queryText = searchParams.has("query")
+      ? (searchParams.get("query") ?? "")
+      : searchParams.get("q");
+    if (queryText !== null) {
+      const limitValue = searchParams.get("limit");
+      const offsetValue = searchParams.get("offset");
+      const limit = limitValue ? Number.parseInt(limitValue, 10) : 50;
+      const offset = offsetValue ? Number.parseInt(offsetValue, 10) : 0;
+      if (
+        !Number.isFinite(limit) ||
+        !Number.isFinite(offset) ||
+        limit < 1 ||
+        offset < 0
+      ) {
+        return NextResponse.json(
+          { error: "limit and offset must be valid non-negative integers" },
+          { status: 400 },
+        );
+      }
+      const result = await searchProjects(tenant.id, organizationId, {
+        query: parseSearchQuery(queryText),
+        limit,
+        offset,
+      });
+      return NextResponse.json(result);
+    }
+
     const projects = await db()
       .select()
       .from(project)
