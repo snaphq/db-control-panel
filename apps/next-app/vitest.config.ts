@@ -10,6 +10,10 @@ export default defineConfig({
         __dirname,
         "../../packages/database/src/schema-agent-auth.ts",
       ),
+      "@repo/database/schema-operators": path.resolve(
+        __dirname,
+        "../../packages/database/src/schema-operators.ts",
+      ),
       "@repo/database/schema": path.resolve(
         __dirname,
         "../../packages/database/src/schema.ts",
