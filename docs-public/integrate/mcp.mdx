@@ -50,6 +50,15 @@ from discovery/runtime negotiation; the version above is the current SDK
 default and clients should fall back to a version they advertise as
 supported.
 
-Use [Agent authentication](/integrate/agent-auth) to obtain a token. Treat
-`401` responses and the `WWW-Authenticate` challenge as a signal to restart
-discovery and authentication.
+Authenticate with one of:
+
+- an [operator token](/integrate/operators) (`Authorization: Bearer opt_...`)
+  for account-owned automation and tools;
+- [Agent authentication](/integrate/agent-auth) for external agents registered
+  through the `auth.md` contract;
+- an OAuth MCP access token for connector flows.
+
+Treat `401` responses and the `WWW-Authenticate` challenge as a signal to
+restart discovery and authentication. Retired personal account tokens
+(`cet_...`) return an actionable `401` pointing at
+`/account/settings/operators`.

@@ -1,0 +1,71 @@
+---
+title: Operator tokens
+description: Create named operator credentials for programmatic MCP and API access.
+---
+
+# Operator tokens
+
+An **operator** is a named machine identity owned by your account. Every
+programmatic request authenticates as an operator, so MCP calls and future API
+changes can be attributed to the specific tool or automation that made them.
+Use the web app with a normal session; use operator tokens for anything
+programmatic.
+
+Operator tokens replace the retired personal account tokens (`cet_…`). Sending
+a retired token to `/mcp` returns an actionable `401` pointing here.
+
+## Create an operator
+
+1. Open **Account → Settings → Operators** (`/account/settings/operators`).
+2. Choose a name (for example `Claude`, `n8n pipeline`, or `CI`) and an optional
+   description.
+3. Pick the scope:
+   - **All organizations I own** — every organization where you currently have
+     the `owner` role.
+   - **Specific organizations** — only organizations you currently belong to.
+4. Pick a token expiration and create the operator. The plaintext token
+   (`opt_…`) is shown once; store it in your secret manager.
+
+An operator never exceeds its scope, and membership and roles are re-checked on
+every request. Removing yourself from an organization removes it from reachable
+scope immediately; write operations require `owner` or `admin`.
+
+## Use a token
+
+Send the token as a bearer credential:
+
+```http
+Authorization: Bearer opt_your-token
+```
+
+For the MCP endpoint:
+
+```http
+POST /mcp
+Authorization: Bearer opt_your-token
+Content-Type: application/json
+Accept: application/json, text/event-stream
+```
+
+See [Connect to MCP](/integrate/mcp) for the JSON-RPC flow. Agent-registered
+machine users can keep using [Agent authentication](/integrate/agent-auth).
+
+## Rotate and revoke
+
+- **Rotate**: add a second token to the same operator, switch your integration,
+  then revoke the old token. Tokens are independently revocable and expiring.
+- **Revoke a token**: it stops authenticating immediately.
+- **Suspend an operator**: pauses every token without losing the identity or
+  its history; resume at any time.
+- **Revoke an operator**: permanent. All of its tokens stop authenticating.
+
+## Errors
+
+| Status | Meaning |
+| --- | --- |
+| `401 invalid_token` | Unknown, expired, revoked, suspended, or wrong-tenant credential; retired `cet_…` tokens also return `401` with migration guidance. |
+| `403` | The operator has no reachable organization, or its role cannot perform the requested write. |
+| `404` | The named organization is not reachable by this operator. |
+
+Tokens are stored only as SHA-256 hashes; the plaintext is never recoverable
+after creation.

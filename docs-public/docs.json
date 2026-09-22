@@ -27,7 +27,11 @@
       {
         "tab": "Integrate",
         "icon": "plug",
-        "pages": ["integrate/agent-auth", "integrate/mcp"]
+        "pages": [
+          "integrate/agent-auth",
+          "integrate/operators",
+          "integrate/mcp"
+        ]
       },
       {
         "tab": "Operate and troubleshoot",

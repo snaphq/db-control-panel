@@ -17,6 +17,15 @@ Keep the tool registry explicit. Tool names, annotations, widget metadata, and
 admin authorization should be reviewed as an API contract; do not expose admin
 tools through the public widget registration path.
 
+The public transport accepts three bearer credential types, tried in order:
+agent access JWTs issued by the `auth.md` flow, operator tokens (`opt_…`,
+attributed through the operator request context), and OAuth MCP access tokens.
+Retired personal account tokens (`cet_…`) are rejected with migration guidance.
+The separate `/api/adminx/mcp` transport remains session + `site-admin` only and
+never accepts operator credentials. See
+[Operator tokens](/architecture/operator-tokens) for scope, role, and activity
+behavior.
+
 ## Administrative surfaces and tenant scope
 
 `/adminx` is the global site-admin web console. Its pages are intentionally

@@ -52,6 +52,21 @@
       ]
     },
     {
+      "id": "operator-tokens",
+      "page": "architecture/operator-tokens.mdx",
+      "visibility": "internal",
+      "sources": [
+        "packages/database/src/schema-operators.ts",
+        "packages/database/migrations-manual/operator_tokens.sql",
+        "apps/next-app/src/lib/auth/operator-token.ts",
+        "apps/next-app/src/lib/auth/operator-authorization.ts",
+        "apps/next-app/src/lib/operators",
+        "apps/next-app/src/app/api/account/operators",
+        "apps/next-app/src/components/account/operators",
+        "packages/mcp-chatgpt/src/logger.ts"
+      ]
+    },
+    {
       "id": "analytics",
       "page": "modules/analytics.mdx",
       "visibility": "internal",
@@ -208,6 +223,16 @@
       "page": "integrate/mcp.mdx",
       "visibility": "public",
       "sources": ["apps/next-app/src/app/mcp", "packages/mcp-server/src"]
+    },
+    {
+      "id": "public-operators",
+      "site": "docs-public",
+      "page": "integrate/operators.mdx",
+      "visibility": "public",
+      "sources": [
+        "apps/next-app/src/app/api/account/operators",
+        "apps/next-app/src/components/account/operators"
+      ]
     },
     {
       "id": "public-run-locally",

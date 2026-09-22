@@ -1,0 +1,142 @@
+---
+title: Operator tokens
+description: Named, organization-scoped machine identities for programmatic authentication.
+---
+
+# Operator tokens
+
+Operator tokens replaced the personal account token model (`account_api_token`,
+`cet_…`). Programmatic requests (today `/mcp`; future public APIs) authenticate
+as a named **operator** owned by a user, so requests are attributed to the
+specific machine identity instead of an anonymous account credential. The web
+application continues to use Better Auth sessions exclusively.
+
+## Source map
+
+| Concern | Location |
+| --- | --- |
+| Tables | `packages/database/src/schema-operators.ts` (`operator`, `operator_token`, `operator_activity`) |
+| Migration | `packages/database/migrations-manual/operator_tokens.sql` |
+| Token format, scope parsing, verification | `apps/next-app/src/lib/auth/operator-token.ts` |
+| Organization-scoped authorization helper | `apps/next-app/src/lib/auth/operator-authorization.ts` |
+| Account-management helpers | `apps/next-app/src/lib/operators/management.ts` |
+| Database activity fallback sink | `apps/next-app/src/lib/operators/activity.ts` |
+| Management API | `apps/next-app/src/app/api/account/operators/**` |
+| Account UI | `apps/next-app/src/app/account/settings/operators/page.tsx`, `apps/next-app/src/components/account/operators/**` |
+| MCP authentication | `apps/next-app/src/app/mcp/route.ts` |
+| Context/logger/fallback | `packages/mcp-chatgpt/src/{request-context,logger}.ts` |
+
+## Data model
+
+- `operator` — owner (`user_id`), `tenant_id`, `name`, optional `description`,
+  `status` (`active` / `suspended`), JSON `scope`, and terminal `revoked_at`.
+- `operator_token` — credential rows for an operator: `label`, `token_hash`
+  (unique, SHA-256 hex), display `token_prefix`, `expires_at`, `last_used_at`,
+  `revoked_at`. One operator may hold multiple independently revocable tokens.
+- `operator_activity` — fallback event sink used only when Axiom is not
+  configured or an ingest fails (see below).
+
+Scope JSON:
+
+```json
+{ "mode": "all_owned" }
+{ "mode": "organizations", "organizationIds": ["org_..."] }
+```
+
+`parseOperatorScope` rejects malformed values and fails closed; corrupt stored
+scope makes verification return `null` (401), never a 500.
+
+## Verification and authorization
+
+`verifyOperatorToken(req)` (server-only):
+
+1. Requires a single `Bearer` credential with the `opt_` prefix.
+2. Looks up the token hash with `operator_token.revoked_at IS NULL`, joined to
+   its operator, and rejects expired tokens, `status !== "active"`, or a
+   revoked operator.
+3. Resolves the request host tenant and requires the token tenant, operator
+   tenant, and owner user tenant to match; archived owners are rejected.
+4. Resolves reachable organizations live with one `member JOIN organization`
+   query: `all_owned` keeps only current `owner` roles; explicit scope keeps
+   current memberships in the listed IDs. Zero reachable organizations is not
+   an authentication failure — org-requiring operations fail later.
+5. Derives protocol scopes: always `api.read`; `api.write` only when at least
+   one reachable organization grants `owner`/`admin`.
+6. Updates `lastUsedAt` best-effort; failures are swallowed.
+
+All failure modes return the same generic 401 `invalid_token` at the MCP
+boundary, so callers cannot distinguish unknown, expired, revoked, suspended,
+or cross-tenant credentials.
+
+Tools and future routes resolve the acting organization with
+`requireOperatorOrganization({ organization, write })`, which reads the live
+operator context from the MCP request store (no extra queries) and enforces:
+
+- an operator credential (`actorType === "operator"`), otherwise 403;
+- a reachable organization, otherwise 403 with guidance;
+- unambiguous selection: explicit slug/ID, auto-select when exactly one
+  organization is reachable, otherwise 400 listing accessible slugs;
+- unknown/not-reachable organization → 404 (no cross-tenant enumeration);
+- `write: true` requires the live role `owner` or `admin`.
+
+Global `site-admin`/`admin` user roles do not bypass operator scope.
+
+## Attribution and activity sinks
+
+Every MCP request, response, and tool call carries the actor fields from the
+request context: `actorId = operator.id`, `actorType = "operator"`,
+`actorName`, `credentialId`, `authMethod = "operator_credential"`, and the owner
+`userId`.
+
+- **Primary sink:** the axiom.co dataset. Operator events are routed to
+  `AXIOM_OPERATOR_DATASET` when set, otherwise `AXIOM_DATASET`, and tagged with
+  `project.type: "operator"` so they can be filtered separately. Both names
+  require `AXIOM_TOKEN`.
+- **Fallback sink:** `apps/next-app/src/lib/operators/activity.ts` registers an
+  `McpLogFallback` with `@repo/mcp-chatgpt`. It runs when Axiom is not
+  configured or when an ingest request rejects or returns a non-2xx status, and
+  inserts `operator_activity` rows for operator-attributed events only. It is
+  fire-and-forget and idempotently registered.
+
+Both sinks are best-effort: logging never throws, never blocks a request, and
+never changes a response. Exactly one sink handles each event, so activity is
+not double-written. Non-operator events keep the previous no-op behavior when
+Axiom is off.
+
+## Security invariants
+
+- Only SHA-256 hashes are stored; plaintext (`opt_…`) is returned exactly once
+  at creation and never logged or persisted.
+- Credentials are tenant-bound; host, token, operator, and owner tenants must
+  all agree.
+- Organization scope, membership, and roles are re-resolved on every request;
+  scope JSON is not an authorization cache.
+- Management routes (`/api/account/operators/**`) are session-only. Operator
+  credentials cannot create, edit, or revoke operators.
+- Revocation is soft (`revoked_at`) so historical attribution stays resolvable;
+  list endpoints exclude revoked rows.
+
+## Cutover and operations
+
+- The manual migration creates the three tables and renames
+  `account_api_token` to `account_api_token_archive`. Apply it before deploying
+  the application release: the app no longer references the old table, so all
+  `cet_` credentials stop authenticating.
+- `/mcp` detects `cet_` credentials and returns an actionable 401 pointing at
+  `/account/settings/operators`; agent-JWT and OAuth verifiers skip `opt_`
+  values to avoid misparsing.
+- `operator_activity` is append-only per invocation; define pruning by age in
+  the target environment if Axiom is not used.
+
+## Verification
+
+```bash
+bun run --filter @repo/next-app test
+bun run lint
+bun run build
+```
+
+Manual: create an operator, call `/mcp` with `opt_…`, confirm actor fields in
+logs; remove the owner from a scoped organization and confirm the next request
+loses that organization; suspend and revoke tokens/operators and confirm the
+generic 401; run with Axiom unset and confirm `operator_activity` rows.

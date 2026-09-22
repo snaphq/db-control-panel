@@ -37,3 +37,12 @@ The agent-readiness token-boundary changes are captured in the tracked
 migration. Review it against the target database and apply it only through an
 authorized migration run; local Drizzle output under `packages/database/drizzle`
 is intentionally ignored.
+
+Operator tokens are introduced by the tracked
+`packages/database/migrations-manual/operator_tokens.sql` forward migration. It
+creates `operator`, `operator_token`, and `operator_activity`, then renames
+`account_api_token` to `account_api_token_archive` (hard cutover: retired
+`cet_…` credentials stop authenticating). Apply it before deploying the release
+that reads the new tables. Because the archive table is intentionally outside
+the Drizzle schema, reserve `bun run db:push` for disposable databases and use
+the manual migration or `db:migrate` for shared environments.

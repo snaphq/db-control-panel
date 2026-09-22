@@ -20,7 +20,8 @@
           "architecture/data-and-tenancy",
           "architecture/search",
           "architecture/agent-auth",
-          "architecture/mcp-and-agent-surfaces"
+          "architecture/mcp-and-agent-surfaces",
+          "architecture/operator-tokens"
         ]
       },
       {

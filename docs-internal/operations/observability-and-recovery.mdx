@@ -10,6 +10,17 @@ structured request/response logging from `@repo/mcp-chatgpt`; agent-auth writes
 state changes to its audit table. PostHog and Vercel analytics are observability
 integrations, not proof that a request or workflow reached production.
 
+Operator activity is attributed per request through the actor fields on every
+MCP log entry (`actorId`, `actorType`, `actorName`, `credentialId`). Operator
+events are sent to the Axiom dataset named by `AXIOM_OPERATOR_DATASET` when set,
+otherwise `AXIOM_DATASET`, and tagged `project.type: "operator"`. When Axiom is
+not configured, or an ingest request fails, the application writes
+operator-attributed events to the `operator_activity` table instead. Both sinks
+are best-effort: they never block or fail a request, and each event reaches
+exactly one sink. `operator_activity` is append-only; prune by age in
+environments that rely on the fallback. See
+[Operator tokens](/architecture/operator-tokens).
+
 ## Diagnostic order
 
 1. Check the deployment status and build revision.
