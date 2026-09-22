@@ -37,7 +37,7 @@ export async function verifyOAuthMcpToken(
   if (!match) return null;
 
   const token = match[1].trim();
-  if (!token || token.startsWith("cet_") || token.startsWith("clm_")) {
+  if (!token || token.startsWith("opt_") || token.startsWith("clm_")) {
     return null;
   }
 

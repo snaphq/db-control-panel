@@ -6,7 +6,10 @@ import {
 import { AgentAuthConfigurationError } from "@/lib/agent-auth/keys";
 import { verifyAgentAccessToken } from "@/lib/agent-auth/tokens";
 import { verifyOAuthMcpToken } from "@/lib/auth/oauth-token";
-import { verifyOperatorToken } from "@/lib/auth/operator-token";
+import {
+  isLegacyAccountToken,
+  verifyOperatorToken,
+} from "@/lib/auth/operator-token";
 import { MCP_SERVER_INFO } from "@/lib/mcp-server-info";
 import "@/lib/operators/activity";
 import { getSiteUrl } from "@/lib/site-config";
@@ -226,8 +229,31 @@ async function withAuth(req: Request): Promise<AuthResult> {
       };
     }
 
-    // Agent access tokens (auth.md flow) take precedence over opaque account
-    // tokens.
+    // Retired personal account tokens get an actionable 401 instead of a
+    // generic invalid-token response. The prefix is client-known, so this
+    // leaks nothing.
+    if (isLegacyAccountToken(req)) {
+      return {
+        ok: false,
+        error: NextResponse.json(
+          {
+            error: "invalid_token",
+            message:
+              "Account tokens were replaced by operator tokens. Create one at /account/settings/operators.",
+          },
+          {
+            status: 401,
+            headers: {
+              "WWW-Authenticate": `${bearerChallenge(req)}, error="invalid_token"`,
+            },
+          },
+        ),
+        context: tenantContext,
+        logMessage: "Retired account token",
+      };
+    }
+
+    // Agent access tokens (auth.md flow) take precedence over operator tokens.
     const agentToken = await verifyAgentAccessToken(req);
     if (agentToken) {
       return {

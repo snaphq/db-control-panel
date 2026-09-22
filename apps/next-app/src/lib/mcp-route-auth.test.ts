@@ -12,6 +12,7 @@ vi.mock("@/lib/agent-auth/tokens", () => ({
 }));
 vi.mock("@/lib/auth/operator-token", () => ({
   verifyOperatorToken: vi.fn(async () => null),
+  isLegacyAccountToken: vi.fn(() => false),
 }));
 vi.mock("@/lib/auth/oauth-token", () => ({
   verifyOAuthMcpToken: vi.fn(async () => null),
@@ -40,7 +41,9 @@ vi.mock("mcp-handler", () => ({
 
 const { POST } = await import("../app/mcp/route");
 const { verifyAgentAccessToken } = await import("@/lib/agent-auth/tokens");
-const { verifyOperatorToken } = await import("@/lib/auth/operator-token");
+const { isLegacyAccountToken, verifyOperatorToken } = await import(
+  "@/lib/auth/operator-token"
+);
 
 describe("MCP route authentication failures", () => {
   beforeEach(() => {
@@ -49,6 +52,7 @@ describe("MCP route authentication failures", () => {
     logResponse.mockClear();
     vi.mocked(verifyAgentAccessToken).mockResolvedValue(null);
     vi.mocked(verifyOperatorToken).mockResolvedValue(null);
+    vi.mocked(isLegacyAccountToken).mockReturnValue(false);
   });
 
   it("returns protocol status and preserves tenant context in failure logs", async () => {
@@ -145,6 +149,31 @@ describe("MCP route authentication failures", () => {
       400,
       expect.any(Number),
       "Malformed bearer authorization header",
+    );
+  });
+
+  it("returns an actionable error for retired account tokens", async () => {
+    vi.mocked(isLegacyAccountToken).mockReturnValueOnce(true);
+
+    const response = await POST(
+      new Request("https://tenant.example.test/mcp", {
+        method: "POST",
+        headers: {
+          host: "tenant.example.test",
+          authorization: "Bearer cet_retired",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(401);
+    const body = await response.json();
+    expect(body).toMatchObject({ error: "invalid_token" });
+    expect(body.message).toContain("operator tokens");
+    expect(logResponse).toHaveBeenCalledWith(
+      expect.any(String),
+      401,
+      expect.any(Number),
+      "Retired account token",
     );
   });
 

@@ -35,8 +35,8 @@ export async function verifyAgentAccessToken(
   const match = authz.match(/^Bearer\s+(.+)$/i);
   if (!match) return null;
   const token = match[1].trim();
-  // Agent tokens are compact JWS; opaque account tokens (cet_/clm_) are not.
-  if (token.startsWith("cet_") || token.startsWith("clm_")) return null;
+  // Agent tokens are compact JWS; opaque operator/claim tokens (opt_/clm_) are not.
+  if (token.startsWith("opt_") || token.startsWith("clm_")) return null;
 
   const tenant = await resolveTenantFromHost(req.headers.get("host"));
   if (!tenant) return null;
@@ -56,7 +56,7 @@ export async function verifyAgentAccessToken(
   } catch (error) {
     // Keep an unavailable production signing key distinguishable from an
     // invalid bearer token. The MCP adapter maps this configuration failure to
-    // a retryable 503, while opaque OAuth/account tokens can still fall through
+    // a retryable 503, while opaque OAuth/operator tokens can still fall through
     // to their own verifiers.
     if (
       error instanceof AgentAuthConfigurationError &&
