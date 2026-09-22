@@ -20,7 +20,6 @@ const { decryptJson, encryptJson } = await import("./integrations/encryption");
 const { normalizeMcpHeaders, publicMcpHeaders, toSafeInstallation } =
   await import("./integrations/types");
 const { getProviderHandler } = await import("./integrations/provider-handlers");
-const { normalizeAccountScope } = await import("./auth/account-token");
 const { verificationUriFor } = await import("./agent-auth/claim-uri");
 const { selectPrimaryOrganizationMembership } = await import(
   "./agent-auth/claims"
@@ -228,14 +227,6 @@ describe("agent authentication boundaries", () => {
       if (previousAppUrl === undefined) vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
       else vi.stubEnv("NEXT_PUBLIC_APP_URL", previousAppUrl);
     }
-  });
-
-  it("normalizes legacy and unsupported account scopes fail-closed", () => {
-    expect(normalizeAccountScope("full")).toBe("api.read api.write");
-    expect(normalizeAccountScope("api.read invalid api.write")).toBe(
-      "api.read api.write",
-    );
-    expect(normalizeAccountScope("invalid")).toBe("");
   });
 
   it("binds claim verification URLs to the owning origin", () => {

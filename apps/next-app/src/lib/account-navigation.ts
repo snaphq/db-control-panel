@@ -70,9 +70,9 @@ export const accountNav: AccountNavConfig = {
           href: "/account/settings/authentication",
         },
         {
-          label: "Tokens",
+          label: "Operators",
           icon: KeyRound,
-          href: "/account/settings/tokens",
+          href: "/account/settings/operators",
         },
       ],
     },

@@ -370,30 +370,6 @@ export const orgBilling = pgTable("org_billing", {
     .notNull(),
 });
 
-// Personal API tokens for the user account. These are explicitly tenant-bound
-// so a credential cannot be replayed against another tenant host.
-export const accountApiToken = pgTable("account_api_token", {
-  id: text("id").primaryKey(),
-  tenantId: text("tenant_id")
-    .notNull()
-    .default("default")
-    .references(() => tenant.id, { onDelete: "cascade" }),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  // sha256 hex of the full plaintext token (cet_<random>)
-  tokenHash: text("token_hash").notNull().unique(),
-  // First chars of the plaintext for display (e.g., "cet_abcd")
-  tokenPrefix: text("token_prefix").notNull(),
-  // Currently only "full" is supported. Stored as text for forward compat.
-  scope: text("scope").notNull().default("full"),
-  expiresAt: timestamp("expires_at"),
-  lastUsedAt: timestamp("last_used_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  revokedAt: timestamp("revoked_at"),
-});
-
 // App settings (for configurable values like enterprise contact link)
 export const appSettings = pgTable("app_settings", {
   id: text("id").primaryKey(),
@@ -420,8 +396,6 @@ export type AppSetting = typeof appSettings.$inferSelect;
 export type NewAppSetting = typeof appSettings.$inferInsert;
 export type OrgBilling = typeof orgBilling.$inferSelect;
 export type NewOrgBilling = typeof orgBilling.$inferInsert;
-export type AccountApiToken = typeof accountApiToken.$inferSelect;
-export type NewAccountApiToken = typeof accountApiToken.$inferInsert;
 
 // Referral program configuration (single row for app-wide settings)
 export const referralConfig = pgTable("referral_config", {
