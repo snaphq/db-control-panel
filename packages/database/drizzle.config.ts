@@ -11,6 +11,7 @@ export default defineConfig({
     "./src/schema-agent-auth.ts",
     "./src/schema-agents.ts",
     "./src/schema-ext.ts",
+    "./src/schema-operators.ts",
     "./src/schema-seo.ts",
   ],
   schemaFilter: ["public", "archived"],

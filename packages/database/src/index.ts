@@ -2,6 +2,7 @@
 export * from "./schema";
 export * from "./schema-agent-auth";
 export * from "./schema-agents";
+export * from "./schema-operators";
 export * from "./schema-analytics";
 export * from "./schema-seo";
 export {
