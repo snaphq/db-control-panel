@@ -13,13 +13,34 @@ export interface McpRequestContext {
   tenantId?: string;
   projectId?: string;
   actorId?: string;
-  actorType?: "human" | "internal_agent" | "external_agent" | "system";
+  actorType?:
+    | "human"
+    | "internal_agent"
+    | "external_agent"
+    | "operator"
+    | "system";
+  /** Human-readable actor label, e.g. the operator name. */
+  actorName?: string;
+  /**
+   * Set for operator credentials: the operator identity and the organizations
+   * it can currently reach, resolved live during authentication.
+   */
+  operator?: {
+    id: string;
+    name: string;
+    organizations: Array<{
+      id: string;
+      slug: string;
+      name: string;
+      role: string;
+    }>;
+  };
   /** Set only after the owning route has completed its admin authorization. */
   isAdmin?: boolean;
   credentialId?: string;
   authMethod?:
     | "session"
-    | "account_token"
+    | "operator_credential"
     | "oauth"
     | "agent_jwt"
     | "development";

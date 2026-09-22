@@ -5,9 +5,10 @@ import {
 } from "@/lib/agent-auth/discovery";
 import { AgentAuthConfigurationError } from "@/lib/agent-auth/keys";
 import { verifyAgentAccessToken } from "@/lib/agent-auth/tokens";
-import { verifyAccountToken } from "@/lib/auth/account-token";
 import { verifyOAuthMcpToken } from "@/lib/auth/oauth-token";
+import { verifyOperatorToken } from "@/lib/auth/operator-token";
 import { MCP_SERVER_INFO } from "@/lib/mcp-server-info";
+import "@/lib/operators/activity";
 import { getSiteUrl } from "@/lib/site-config";
 import { resolveTenantFromHost } from "@repo/database";
 import {
@@ -244,18 +245,29 @@ async function withAuth(req: Request): Promise<AuthResult> {
         },
       };
     }
-    const result = await verifyAccountToken(req);
-    if (result) {
+    // Operator credentials replace the retired personal account tokens.
+    const operator = await verifyOperatorToken(req);
+    if (operator) {
       return {
         ok: true,
         context: {
-          actorId: result.userId,
-          actorType: "human",
-          authMethod: "account_token",
-          credentialId: result.tokenId,
-          userId: result.userId,
-          tenantId: result.tenantId,
-          scopes: result.scope.split(" ").filter(Boolean),
+          actorId: operator.operatorId,
+          actorType: "operator",
+          actorName: operator.operatorName,
+          authMethod: "operator_credential",
+          credentialId: operator.credentialId,
+          userId: operator.userId,
+          tenantId: operator.tenantId,
+          orgId:
+            operator.organizations.length === 1
+              ? operator.organizations[0].id
+              : undefined,
+          operator: {
+            id: operator.operatorId,
+            name: operator.operatorName,
+            organizations: operator.organizations,
+          },
+          scopes: operator.scopes,
           resource: resourceUrlForRequest(req),
         },
       };

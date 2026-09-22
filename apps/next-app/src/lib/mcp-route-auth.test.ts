@@ -10,12 +10,13 @@ vi.mock("@/lib/site-config", () => ({
 vi.mock("@/lib/agent-auth/tokens", () => ({
   verifyAgentAccessToken: vi.fn(async () => null),
 }));
-vi.mock("@/lib/auth/account-token", () => ({
-  verifyAccountToken: vi.fn(async () => null),
+vi.mock("@/lib/auth/operator-token", () => ({
+  verifyOperatorToken: vi.fn(async () => null),
 }));
 vi.mock("@/lib/auth/oauth-token", () => ({
   verifyOAuthMcpToken: vi.fn(async () => null),
 }));
+vi.mock("@/lib/operators/activity", () => ({}));
 vi.mock("@/lib/agent-auth/keys", () => ({
   AgentAuthConfigurationError: class AgentAuthConfigurationError extends Error {},
 }));
@@ -39,6 +40,7 @@ vi.mock("mcp-handler", () => ({
 
 const { POST } = await import("../app/mcp/route");
 const { verifyAgentAccessToken } = await import("@/lib/agent-auth/tokens");
+const { verifyOperatorToken } = await import("@/lib/auth/operator-token");
 
 describe("MCP route authentication failures", () => {
   beforeEach(() => {
@@ -46,6 +48,7 @@ describe("MCP route authentication failures", () => {
     logRequest.mockClear();
     logResponse.mockClear();
     vi.mocked(verifyAgentAccessToken).mockResolvedValue(null);
+    vi.mocked(verifyOperatorToken).mockResolvedValue(null);
   });
 
   it("returns protocol status and preserves tenant context in failure logs", async () => {
@@ -143,5 +146,50 @@ describe("MCP route authentication failures", () => {
       expect.any(Number),
       "Malformed bearer authorization header",
     );
+  });
+
+  it("maps an operator credential to an operator actor context", async () => {
+    vi.mocked(verifyOperatorToken).mockResolvedValueOnce({
+      credentialId: "cred_1",
+      operatorId: "op_1",
+      operatorName: "Claude",
+      userId: "user_1",
+      tenantId: "tenant-a",
+      scope: { mode: "organizations", organizationIds: ["org_1"] },
+      organizations: [
+        { id: "org_1", slug: "acme", name: "Acme", role: "owner" },
+      ],
+      scopes: ["api.read", "api.write"],
+    });
+
+    const response = await POST(
+      new Request("https://tenant.example.test/mcp", {
+        method: "POST",
+        headers: {
+          host: "tenant.example.test",
+          authorization: "Bearer opt_test",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(contexts[0]).toMatchObject({
+      actorId: "op_1",
+      actorType: "operator",
+      actorName: "Claude",
+      authMethod: "operator_credential",
+      credentialId: "cred_1",
+      userId: "user_1",
+      tenantId: "tenant-a",
+      orgId: "org_1",
+      scopes: ["api.read", "api.write"],
+      operator: {
+        id: "op_1",
+        name: "Claude",
+        organizations: [
+          { id: "org_1", slug: "acme", name: "Acme", role: "owner" },
+        ],
+      },
+    });
   });
 });

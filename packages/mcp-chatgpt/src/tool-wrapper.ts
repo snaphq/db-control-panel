@@ -5,8 +5,8 @@ import { logMcpToolCall, logMcpToolResponse } from "./logger";
  *
  * Logs `mcp_tool_call` before the handler runs and `mcp_tool_response` (or
  * `mcp_error` on failure) after, including wall-clock duration. Both log
- * events are fire-and-forget and will silently no-op when Axiom is not
- * configured.
+ * events are fire-and-forget; they go to Axiom when configured, and operator
+ * entries fall back to the host-registered sink otherwise.
  *
  * The request context (requestId, userId, orgId) is read automatically from
  * AsyncLocalStorage — callers do not need to pass it explicitly.

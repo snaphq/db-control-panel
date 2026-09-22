@@ -25,9 +25,10 @@ export {
   logMcpResponse,
   logMcpToolCall,
   logMcpToolResponse,
+  registerMcpLogFallback,
   sanitizeHeaders,
 } from "./logger";
-export type { McpEventType } from "./logger";
+export type { McpEventType, McpLogEntry, McpLogFallback } from "./logger";
 
 // Tool handler wrapper
 export { wrapToolHandler } from "./tool-wrapper";

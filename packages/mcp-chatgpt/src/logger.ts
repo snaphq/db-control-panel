@@ -10,7 +10,7 @@ export type McpEventType =
   | "mcp_tool_response"
   | "mcp_error";
 
-interface McpLogEntry {
+export interface McpLogEntry {
   type: McpEventType;
   timestamp: string;
   requestId: string;
@@ -20,6 +20,7 @@ interface McpLogEntry {
   projectId?: string;
   actorId?: string;
   actorType?: string;
+  actorName?: string;
   isAdmin?: boolean;
   credentialId?: string;
   authMethod?: string;
@@ -40,45 +41,91 @@ interface McpLogEntry {
   environment: string;
 }
 
+/**
+ * Fallback sink invoked when Axiom is not configured, or when an ingest
+ * request fails. Registered by the host application (e.g. to persist operator
+ * activity to the database). Sinks must be fire-and-forget and never throw.
+ */
+export type McpLogFallback = (entry: McpLogEntry) => void;
+
+let logFallback: McpLogFallback | null = null;
+
+export function registerMcpLogFallback(sink: McpLogFallback): void {
+  logFallback = sink;
+}
+
 const NODE_ENV = process.env.NODE_ENV ?? "development";
 
 /**
- * Returns true only when both AXIOM_TOKEN and AXIOM_DATASET are set.
- * Logging silently no-ops when either is absent.
+ * Resolve the Axiom ingest target for an entry. Operator activity can use a
+ * dedicated dataset (`AXIOM_OPERATOR_DATASET`) and otherwise falls back to the
+ * shared MCP dataset (`AXIOM_DATASET`). Both require `AXIOM_TOKEN`.
  */
-function isAxiomEnabled(): boolean {
-  return !!(process.env.AXIOM_TOKEN && process.env.AXIOM_DATASET);
+function resolveAxiomTarget(
+  entry: McpLogEntry,
+): { token: string; dataset: string } | null {
+  const token = process.env.AXIOM_TOKEN;
+  if (!token) return null;
+  if (entry.actorType === "operator") {
+    const dataset =
+      process.env.AXIOM_OPERATOR_DATASET ?? process.env.AXIOM_DATASET;
+    return dataset ? { token, dataset } : null;
+  }
+  const dataset = process.env.AXIOM_DATASET;
+  return dataset ? { token, dataset } : null;
+}
+
+function invokeFallback(entry: McpLogEntry): void {
+  if (!logFallback) return;
+  try {
+    logFallback(entry);
+  } catch {
+    // Fallback sinks are best-effort; never let them break logging callers.
+  }
 }
 
 /**
- * Send a log entry to Axiom. Fire-and-forget — never throws and never
- * blocks the request.
+ * Send a log entry to Axiom. Fire-and-forget — never throws and never blocks
+ * the request. Operator entries fall back to the registered sink when Axiom is
+ * not configured or the ingest request fails.
  */
 function sendToAxiom(entry: McpLogEntry): void {
-  if (!isAxiomEnabled()) return;
-
-  const token = process.env.AXIOM_TOKEN as string;
-  const dataset = process.env.AXIOM_DATASET as string;
+  const target = resolveAxiomTarget(entry);
+  if (!target) {
+    if (entry.actorType === "operator") invokeFallback(entry);
+    return;
+  }
 
   const payload = [
     {
-      project: { env: NODE_ENV, type: "mcp" },
+      project: {
+        env: NODE_ENV,
+        type: entry.actorType === "operator" ? "operator" : "mcp",
+      },
       type: entry.type,
       payload: entry,
       _time: entry.timestamp,
     },
   ];
 
-  fetch(`https://api.axiom.co/v1/datasets/${dataset}/ingest`, {
+  fetch(`https://api.axiom.co/v1/datasets/${target.dataset}/ingest`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${target.token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  }).catch(() => {
-    // Intentionally swallowed — logging must never surface errors to callers
-  });
+  })
+    .then((response) => {
+      if (!response.ok && entry.actorType === "operator") {
+        invokeFallback(entry);
+      }
+    })
+    .catch(() => {
+      // Intentionally swallowed — logging must never surface errors to
+      // callers. Operator entries still reach the fallback sink.
+      if (entry.actorType === "operator") invokeFallback(entry);
+    });
 }
 
 /**
@@ -158,6 +205,7 @@ function base(
   | "projectId"
   | "actorId"
   | "actorType"
+  | "actorName"
   | "isAdmin"
   | "credentialId"
   | "authMethod"
@@ -173,6 +221,7 @@ function base(
     projectId: ctx?.projectId,
     actorId: ctx?.actorId,
     actorType: ctx?.actorType,
+    actorName: ctx?.actorName,
     isAdmin: ctx?.isAdmin,
     credentialId: ctx?.credentialId,
     authMethod: ctx?.authMethod,
