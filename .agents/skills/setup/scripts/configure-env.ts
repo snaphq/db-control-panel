@@ -9,10 +9,14 @@
  *   bun .agents/skills/setup/scripts/configure-env.ts --from-json values.json
  *   bun .agents/skills/setup/scripts/configure-env.ts --generate BETTER_AUTH_SECRET
  *   bun .agents/skills/setup/scripts/configure-env.ts --check
+ *   bun .agents/skills/setup/scripts/configure-env.ts --site com.site-a \
+ *     --set NEXT_PUBLIC_APP_URL=http://localhost:8801
  *
  * --generate KEY   writes a random base64 secret only if KEY is not set yet
  * --section NAME   section header for newly added keys (default "Setup")
  * --check          report required keys; exit 1 if any are missing
+ * --site FOLDER    write to sites/FOLDER/.env.development instead (non-secret
+ *                  local values such as the site URL; the file is committed)
  */
 
 import { randomBytes } from "node:crypto";
@@ -23,15 +27,18 @@ import { colors } from "../../../../scripts/lib/colors";
 import { parseEnvFile, updateEnvFile } from "./lib/env";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-const ENV_PATH = resolve(ROOT, ".env.local");
-const APP_PACKAGE = resolve(ROOT, "apps/next-app/package.json");
+const ROOT_ENV_PATH = resolve(ROOT, ".env.local");
 
 const REQUIRED_KEYS = [
   "DATABASE_URL",
-  "NEXT_PUBLIC_APP_URL",
   "BETTER_AUTH_SECRET",
-  "BETTER_AUTH_URL",
+  "BACKEND_ADMIN_EMAILS",
+  "BACKEND_SESSION_SECRET",
 ];
+
+// Each app sets its own URL in its .env.development; a root value would
+// override every app's value with one URL.
+const PER_APP_KEYS = ["NEXT_PUBLIC_APP_URL", "BETTER_AUTH_URL"];
 
 const SECRET_PATTERN = /SECRET|PASSWORD|TOKEN|PRIVATE|_KEY$/;
 
@@ -40,6 +47,7 @@ interface Flags {
   generate: string[];
   section: string;
   check: boolean;
+  site?: string;
 }
 
 function fail(message: string): never {
@@ -70,15 +78,24 @@ function parseFlags(argv: string[]): Flags {
     } else if (arg === "--generate") flags.generate.push(next());
     else if (arg === "--section") flags.section = next();
     else if (arg === "--check") flags.check = true;
+    else if (arg === "--site") flags.site = next();
     else fail(`Unknown argument: ${arg}`);
   }
   return flags;
 }
 
-function readEnv(): Map<string, string> {
-  return existsSync(ENV_PATH)
-    ? parseEnvFile(readFileSync(ENV_PATH, "utf8"))
+function readEnv(envPath: string): Map<string, string> {
+  return existsSync(envPath)
+    ? parseEnvFile(readFileSync(envPath, "utf8"))
     : new Map();
+}
+
+function siteDir(site: string): string {
+  const dir = resolve(ROOT, "sites", site);
+  if (!existsSync(resolve(dir, "package.json"))) {
+    fail(`sites/${site} is not a site workspace`);
+  }
+  return dir;
 }
 
 function mask(key: string, value: string): string {
@@ -87,8 +104,8 @@ function mask(key: string, value: string): string {
   return value.length <= 8 ? "********" : `${value.slice(0, 4)}…`;
 }
 
-/** Keep `next dev -p <port>` in sync with a localhost NEXT_PUBLIC_APP_URL. */
-function syncDevPort(appUrl: string): void {
+/** Keep a site's `next dev -p <port>` in sync with its localhost URL. */
+function syncDevPort(appDir: string, appUrl: string): void {
   let url: URL;
   try {
     url = new URL(appUrl);
@@ -96,13 +113,16 @@ function syncDevPort(appUrl: string): void {
     fail(`NEXT_PUBLIC_APP_URL is not a valid URL: ${appUrl}`);
   }
   if (!["localhost", "127.0.0.1"].includes(url.hostname) || !url.port) return;
-  const pkg = JSON.parse(readFileSync(APP_PACKAGE, "utf8"));
+  const appPackage = resolve(appDir, "package.json");
+  const pkg = JSON.parse(readFileSync(appPackage, "utf8"));
   const current: string = pkg.scripts?.dev ?? "";
   const updated = current.replace(/-p\s+\d+/, `-p ${url.port}`);
   if (updated === current) return;
   pkg.scripts.dev = updated;
-  writeFileSync(APP_PACKAGE, `${JSON.stringify(pkg, null, 2)}\n`);
-  console.log(`  updated apps/next-app dev port to ${url.port}`);
+  writeFileSync(appPackage, `${JSON.stringify(pkg, null, 2)}\n`);
+  console.log(
+    `  updated ${appDir.slice(ROOT.length + 1)} dev port to ${url.port}`,
+  );
 }
 
 function check(env: Map<string, string>): boolean {
@@ -118,13 +138,32 @@ function check(env: Map<string, string>): boolean {
       console.log(`  ${colors.red}✗${colors.reset} ${key} is missing`);
     }
   }
+  for (const key of PER_APP_KEYS) {
+    if (env.get(key)) {
+      ok = false;
+      console.log(
+        `  ${colors.red}✗${colors.reset} ${key} is set in .env.local; move it to each app's .env.development (--site)`,
+      );
+    }
+  }
   return ok;
 }
 
 function main(): void {
   const flags = parseFlags(process.argv.slice(2));
-  const existing = readEnv();
+  const appDir = flags.site ? siteDir(flags.site) : undefined;
+  const envPath = appDir ? resolve(appDir, ".env.development") : ROOT_ENV_PATH;
+  const existing = readEnv(envPath);
   const updates: Record<string, string> = { ...flags.set };
+
+  if (!appDir) {
+    const misplaced = PER_APP_KEYS.filter((key) => key in updates);
+    if (misplaced.length > 0) {
+      fail(`${misplaced.join(", ")} are per-site; pass --site <folder>`);
+    }
+  } else if (flags.generate.length > 0) {
+    fail("--generate writes secrets; use it without --site");
+  }
 
   for (const key of flags.generate) {
     if (!existing.get(key) && !updates[key]) {
@@ -134,13 +173,13 @@ function main(): void {
 
   const appUrl =
     updates.NEXT_PUBLIC_APP_URL ?? existing.get("NEXT_PUBLIC_APP_URL");
-  if (appUrl && !existing.get("BETTER_AUTH_URL") && !updates.BETTER_AUTH_URL) {
+  if (appDir && appUrl && !updates.BETTER_AUTH_URL) {
     updates.BETTER_AUTH_URL = appUrl;
   }
 
   if (Object.keys(updates).length > 0) {
     updateEnvFile(updates, {
-      envPath: ENV_PATH,
+      envPath,
       sectionName: flags.section,
     });
     for (const [key, value] of Object.entries(updates)) {
@@ -148,10 +187,12 @@ function main(): void {
         `  ${colors.green}✓${colors.reset} ${key} = ${mask(key, value)}`,
       );
     }
-    if (updates.NEXT_PUBLIC_APP_URL) syncDevPort(updates.NEXT_PUBLIC_APP_URL);
+    if (appDir && updates.NEXT_PUBLIC_APP_URL) {
+      syncDevPort(appDir, updates.NEXT_PUBLIC_APP_URL);
+    }
   }
 
-  if (flags.check && !check(readEnv())) process.exit(1);
+  if (flags.check && !check(readEnv(ROOT_ENV_PATH))) process.exit(1);
 }
 
 main();

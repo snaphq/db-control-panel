@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - 'apps/**'
+      - 'sites/**'
       - 'packages/**'
       - 'package.json'
       - 'bun.lock'
@@ -29,6 +30,27 @@ permissions:
 jobs:
   deploy-preview:
     runs-on: self-hosted
+    name: deploy-preview (${{ matrix.app }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # Same app list as deploy-vercel.yml; apps without a project id skip.
+        include:
+          - app: site-a
+            project_id_var: VERCEL_PROJECT_ID_SITE_A
+            default_project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
+            project_name: 'nexvio-ai'
+            alias_prefix: ${{ matrix.alias_prefix }}
+          - app: site-b
+            project_id_var: VERCEL_PROJECT_ID_SITE_B
+            default_project_id: ''
+            project_name: 'site-b'
+            alias_prefix: 'nextjs-starter-kit-site-b'
+          - app: backend
+            project_id_var: VERCEL_PROJECT_ID_BACKEND
+            default_project_id: ''
+            project_name: 'backend'
+            alias_prefix: 'nextjs-starter-kit-backend'
     if: >
       github.event_name != 'pull_request' ||
       (!startsWith(github.event.pull_request.title, 'WIP') &&
@@ -40,21 +62,23 @@ jobs:
 
     steps:
       - name: Checkout code
+        if: ${{ vars[matrix.project_id_var] != '' || matrix.default_project_id != '' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Deploy to Vercel
+        if: ${{ vars[matrix.project_id_var] != '' || matrix.default_project_id != '' }}
         uses: W3Dev/vercel-deploy@main
         with:
           vercel_token: ${{ secrets.VERCEL_TOKEN }}
-          vercel_org_id: 'team_M1i3qUTW4i3A6mETy54E1Fy8'
-          vercel_project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
-          vercel_project_name: 'nexvio-ai'
+          vercel_org_id: ${{ vars.VERCEL_ORG_ID || 'team_M1i3qUTW4i3A6mETy54E1Fy8' }}
+          vercel_project_id: ${{ vars[matrix.project_id_var] || matrix.default_project_id }}
+          vercel_project_name: ${{ matrix.project_name }}
           package_manager: 'bun'
           node_version: '22'
           deploy_args: '--archive=tgz'
-          alias_prefix: 'nextjs-starter-kit'
+          alias_prefix: ${{ matrix.alias_prefix }}
           environment: 'preview'
           prebuild_script: |
             git config --global user.email "ashutosh@w3dev.in"

@@ -37,10 +37,11 @@ user runs it in their own terminal. In Claude Code they can type:
 It will:
 
 1. Verify the API keys and detect test vs live mode.
-2. Create the webhook endpoint `<NEXT_PUBLIC_APP_URL>/api/webhooks/stripe`
+2. Create the webhook endpoint `<backend URL>/api/webhooks/stripe` (the
+   admin backend, `apps/backend`, handles Stripe webhooks for every site)
    and save `STRIPE_WEBHOOK_SECRET` to `.env.local`. For local development
    the user can instead run `stripe listen --forward-to
-   localhost:8801/api/webhooks/stripe` and use its signing secret.
+   localhost:8800/api/webhooks/stripe` and use its signing secret.
 3. Run the `stripe-sync-engine` migrations (`stripe` schema in Postgres).
 4. Create default products and prices.
 5. Backfill existing Stripe data into the database.

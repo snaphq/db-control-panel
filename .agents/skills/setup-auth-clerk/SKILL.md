@@ -41,7 +41,7 @@ Ask and record the answers before editing:
   `CLERK_WEBHOOK_SIGNING_SECRET` if syncing. Add them to `env.example`,
   `turbo.json` (the `NEXT_PUBLIC_` key), and the setup env scripts. Remove the
   Better Auth keys.
-- Deps: add `@clerk/nextjs` to `sites/com.site-a` and `packages/auth` (plus
+- Deps: add `@clerk/nextjs` to `packages/site-kit` and `packages/auth` (plus
   `@clerk/backend` in `packages/auth` for server-side calls); remove
   `better-auth` and `@better-auth/passkey`. Use the root catalog for versions
   shared across workspaces.
@@ -56,12 +56,14 @@ Ask and record the answers before editing:
    them.
 2. Wrap the app in `<ClerkProvider>` via
    `packages/ui/src/components/AuthProviderWrapper.tsx`.
-3. Replace request gating in `sites/com.site-a/src/proxy.ts` with
+3. Replace request gating in `packages/site-kit/src/proxy.ts` (re-exported by
+   every `sites/*/src/proxy.ts`) with
    `clerkMiddleware()` exported as `proxy` (Next.js 16 uses `proxy.ts`; the
    pre-commit hook rejects `middleware.ts`).
 4. Replace `app/auth/sign-in` and `sign-up` pages with Clerk's `<SignIn />`
-   and `<SignUp />`; delete the `/api/auth/*` Better Auth routes and the
-   cookie helpers in `lib/auth/session-cookie.ts` / `oauth-route-utils.ts`.
+   and `<SignUp />`; delete the `/api/auth/*` Better Auth routes in `packages/site-kit`
+   (then `bun run sites:sync`) and the
+   cookie helpers in `packages/core/src/auth/session-cookie.ts` / `oauth-route-utils.ts`.
 5. Implement the MCP OAuth decision from step 2.
 6. If syncing, add a webhook route that verifies the signature and upserts
    users, organizations, and memberships with the tenant id.

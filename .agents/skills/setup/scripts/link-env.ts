@@ -1,13 +1,20 @@
 #!/usr/bin/env bun
 /**
- * Symlink the root .env.local into apps/next-app/.env.local and
- * packages/database/.env.local so every workspace reads the same
- * environment without duplicating secrets.
+ * Symlink the root .env.local into apps/backend, every sites/* app, and
+ * packages/database so every workspace reads the same shared secrets
+ * without duplicating them. Per-app local URLs stay in each app's committed
+ * .env.development.
  *
  * Usage:
  *   bun .agents/skills/setup/scripts/link-env.ts
  */
-import { existsSync, lstatSync, symlinkSync, unlinkSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  symlinkSync,
+  unlinkSync,
+} from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { colors } from "../../../../scripts/lib/colors";
@@ -15,8 +22,17 @@ import { colors } from "../../../../scripts/lib/colors";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const SOURCE = resolve(ROOT, ".env.local");
 
+function siteDirs(): string[] {
+  const sitesDir = resolve(ROOT, "sites");
+  if (!existsSync(sitesDir)) return [];
+  return readdirSync(sitesDir)
+    .map((name) => resolve(sitesDir, name))
+    .filter((dir) => existsSync(resolve(dir, "package.json")));
+}
+
 const TARGETS = [
-  resolve(ROOT, "apps/next-app/.env.local"),
+  resolve(ROOT, "apps/backend/.env.local"),
+  ...siteDirs().map((dir) => resolve(dir, ".env.local")),
   resolve(ROOT, "packages/database/.env.local"),
 ];
 

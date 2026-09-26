@@ -40,18 +40,26 @@ the sign-in/sign-up/reset/organization param and result types.
 
 ## 2. Better Auth–specific code outside `packages/auth`
 
+Tenant sites (`sites/*`) share their routes through `packages/site-kit`; the
+files under `sites/*/src/app` are generated one-line shims
+(`bun run sites:sync`), so edit the implementation in `packages/site-kit`.
+`apps/backend` has its own admin sign-in (`apps/backend/src/lib/admin-auth.ts`,
+`BACKEND_ADMIN_EMAILS`) and is out of scope, except
+`apps/backend/src/app/api/admin/users/route.ts`, which creates tenant users
+through `getBetterAuthServer()`.
+
 | Path | Coupling |
 | --- | --- |
 | `packages/auth/src/auth-instance.ts` | Plugins: `organization` (tenant-bound fields), `twoFactor`, `passkey`, `oidcProvider` (MCP OAuth), Google/GitHub social providers, email+password |
 | `packages/auth/src/tenant-binding.ts` | Tenant-bound Drizzle adapter wrapper |
-| `sites/com.site-a/src/app/api/auth/[...all]` | Better Auth catch-all handler |
-| `sites/com.site-a/src/app/api/auth/{sign-in,sign-up,sign-out,get-session,forgot-password,reset-password,organization}` | Wrappers over `baseServer` / Better Auth API |
-| `sites/com.site-a/src/app/auth/**` | Sign-in, sign-up, invitation, onboarding, reset, profile UI |
+| `packages/site-kit/src/app/api/auth/[...all]` | Better Auth catch-all handler |
+| `packages/site-kit/src/app/api/auth/{sign-in,sign-up,sign-out,get-session,forgot-password,reset-password,organization}` | Wrappers over `baseServer` / Better Auth API |
+| `packages/site-kit/src/app/auth/**` | Sign-in, sign-up, invitation, onboarding, reset, profile UI |
 | `packages/core/src/auth/session-cookie.ts` | Hard-coded `better-auth.session_token` cookie names |
 | `packages/core/src/auth/oauth-route-*.ts`, `oauth-token.ts` | Session-cookie detection and OIDC route helpers |
-| `sites/com.site-a/src/proxy.ts` | Session check via `auth.api.getSession` |
-| `packages/core/src/auth-utils.ts` | `getSiteAdminStatus` (~55 importers) built on the session |
-| `sites/com.site-a/src/app/oauth2/*`, `.well-known/{oauth-authorization-server,openid-configuration,jwks.json,oauth-protected-resource}` | MCP OAuth/OIDC authorization server built on `oidcProvider` |
+| `packages/site-kit/src/proxy.ts` | Session check via `auth.api.getSession` |
+| `packages/core/src/auth/require-membership.ts` | `site-admin` role check for workspace access |
+| `packages/site-kit/src/app/oauth2/*`, `.well-known/{oauth-authorization-server,openid-configuration,jwks.json,oauth-protected-resource}` | MCP OAuth/OIDC authorization server built on `oidcProvider` |
 | `packages/core/src/agent-auth/**`, `app/auth.md` | Agent registration protocol; uses the OIDC server above |
 | `packages/ui/src/components/account/authentication/*` | Passkey, two-factor, sign-in-method cards |
 | `packages/site-kit/src/__tests__/agent-readiness-protocol.test.ts` | Imports `better-auth` types |
@@ -79,8 +87,9 @@ against the provider's current docs.
 
 ## 5. Environment, dependencies, docs
 
-- Remove `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `PASSKEY_RP_ID` (if
-  passkeys go), and add the provider's keys in `env.example`, `turbo.json`
+- Remove `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (also in every
+  `sites/*/.env.development`), `PASSKEY_RP_ID` (if passkeys go), and add the
+  provider's keys in `env.example`, `turbo.json`
   (`globalEnv`/task `env` for `NEXT_PUBLIC_*`), and the setup env scripts.
 - `packages/auth/package.json`: remove `better-auth`, `@better-auth/passkey`;
   add the provider SDK. Shared versions go in the root `catalog`

@@ -1,22 +1,21 @@
+# Builds one app from the monorepo. Pick it with build args, e.g.:
+#   docker build --build-arg APP_DIR=apps/backend --build-arg APP_PACKAGE=@repo/backend --build-arg PORT=8800 .
+#   docker build --build-arg APP_DIR=sites/com.site-b --build-arg APP_PACKAGE=com.site-b --build-arg PORT=8802 .
 FROM oven/bun:1 AS base
+
+ARG APP_DIR=sites/com.site-a
+ARG APP_PACKAGE=com.site-a
+ARG PORT=8801
 
 WORKDIR /app
 
-# Copy root workspace files
-COPY package.json bun.lock turbo.json ./
-COPY apps/next-app/package.json ./apps/next-app/
-COPY packages/database/package.json ./packages/database/
-
-# Install dependencies
-RUN bun install
-
-# Copy all source files
 COPY . .
 
-# Build the app
-RUN bun run build
+RUN bun install --frozen-lockfile
+RUN bun run build --filter=${APP_PACKAGE}
 
-EXPOSE 8801
+ENV PORT=${PORT}
+EXPOSE ${PORT}
 
-WORKDIR /app/apps/next-app
+WORKDIR /app/${APP_DIR}
 CMD ["bun", "run", "start"]

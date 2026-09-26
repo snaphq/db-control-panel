@@ -158,11 +158,23 @@ function residueScan(): void {
   console.log("  none");
 }
 
+// Renaming the template's sites is optional, so leftovers only warn.
+function warnPlaceholderSites(): void {
+  const placeholders = ["com.site-a", "com.site-b"].filter((site) =>
+    existsSync(join(ROOT, "sites", site)),
+  );
+  if (placeholders.length === 0) return;
+  console.log(
+    `\n\x1b[33m! Placeholder site folders remain: ${placeholders.map((site) => `sites/${site}`).join(", ")}. Rename them with rename-site.ts before finalizing if you want your own names.\x1b[0m`,
+  );
+}
+
 function main(): void {
   if (!existsSync(join(ROOT, "SETUP.md"))) {
     fail("SETUP.md not found — this project already looks set up.");
   }
   if (!ci) checkEnv();
+  warnPlaceholderSites();
   stripMarkerBlocks();
   deletePaths();
 

@@ -37,10 +37,11 @@ export async function configureWebhook(
     }
   }
 
-  const defaultUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8801";
+  // Stripe webhooks are served by the admin backend (apps/backend).
+  const defaultUrl = "http://localhost:8800";
 
   const baseUrl = await input({
-    message: "Base URL for webhook endpoint:",
+    message: "Backend base URL for the webhook endpoint:",
     default: defaultUrl,
   });
 

@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'apps/**'
+      - 'sites/**'
       - 'packages/**'
       - 'package.json'
       - 'bun.lock'
@@ -14,6 +15,7 @@ on:
     branches: [main]
     paths:
       - 'apps/**'
+      - 'sites/**'
       - 'packages/**'
       - 'package.json'
       - 'bun.lock'

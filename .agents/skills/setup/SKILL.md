@@ -15,8 +15,9 @@ Run from the repo root.
 
 | Script | Purpose |
 | --- | --- |
-| `bun .agents/skills/setup/scripts/configure-env.ts --set KEY=VALUE …` | Merge values into the root `.env.local`. `--generate KEY` creates a secret if missing; `--from-json file` reads many values; `--check` verifies the required keys. Setting `NEXT_PUBLIC_APP_URL` also fills `BETTER_AUTH_URL` and syncs the dev port. |
-| `bun .agents/skills/setup/scripts/link-env.ts` | Symlink `.env.local` into `sites/com.site-a` and `packages/database`. |
+| `bun .agents/skills/setup/scripts/configure-env.ts --set KEY=VALUE …` | Merge shared values into the root `.env.local`. `--generate KEY` creates a secret if missing; `--from-json file` reads many values; `--check` verifies the required keys. `--site FOLDER` writes a site's non-secret local values to `sites/FOLDER/.env.development` instead; setting its `NEXT_PUBLIC_APP_URL` also fills `BETTER_AUTH_URL` and syncs that site's dev port. |
+| `bun .agents/skills/setup/scripts/rename-site.ts --from com.site-a --to com.acme …` | Rename a placeholder site folder and package, and optionally set its name, domain, tenant, and MCP server name. Updates every tracked reference; run `bun install` afterwards. |
+| `bun .agents/skills/setup/scripts/link-env.ts` | Symlink `.env.local` into `apps/backend`, every `sites/*` app, and `packages/database`. |
 | `bun .agents/skills/setup/scripts/finalize.ts` | Last step. Removes every setup artifact listed in `manifest.json`, strips `setup:start`/`setup:end` marker blocks, scans for leftovers, runs the dead-code gate and repo checks, and commits. `--no-commit` skips the commit; `--ci` also skips the env check. |
 
 ## Manifest

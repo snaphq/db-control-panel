@@ -94,13 +94,8 @@ export async function verifyCredentials(): Promise<VerifyCredentialsResult> {
 export async function configureAppSettings(): Promise<Record<string, string>> {
   printHeader("STEP 2: CONFIGURE APP SETTINGS");
 
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (await input({
-      message: "Enter your application URL:",
-      default: "http://localhost:8801",
-    }));
-
+  // App URLs are per site (sites/*/.env.development and each Vercel project),
+  // so they are deliberately not written to the shared .env.local here.
   const appName =
     process.env.NEXT_PUBLIC_APP_NAME ||
     (await input({
@@ -116,12 +111,10 @@ export async function configureAppSettings(): Promise<Record<string, string>> {
     }));
 
   const settings = {
-    NEXT_PUBLIC_APP_URL: appUrl,
     NEXT_PUBLIC_APP_NAME: appName,
     SUPPORT_EMAIL: supportEmail,
   };
 
-  printSuccess(`App URL: ${appUrl}`);
   printSuccess(`App Name: ${appName}`);
   printSuccess(`Support Email: ${supportEmail}`);
 

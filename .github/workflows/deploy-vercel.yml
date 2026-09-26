@@ -23,22 +23,45 @@ permissions:
 jobs:
   deploy:
     runs-on: self-hosted
+    name: deploy (${{ matrix.app }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # One Vercel project per app. Set VERCEL_PROJECT_ID_<APP> repository
+        # variables; apps without a project id are skipped. sites/com.site-a
+        # deploys from the repository root (root vercel.json); the others use
+        # the vercel.json in their own folder as the project Root Directory.
+        include:
+          - app: site-a
+            project_id_var: VERCEL_PROJECT_ID_SITE_A
+            default_project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
+            project_name: 'nexvio-ai'
+          - app: site-b
+            project_id_var: VERCEL_PROJECT_ID_SITE_B
+            default_project_id: ''
+            project_name: 'site-b'
+          - app: backend
+            project_id_var: VERCEL_PROJECT_ID_BACKEND
+            default_project_id: ''
+            project_name: 'backend'
     environment:
       name: ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')) && 'production' || 'preview' }}
 
     steps:
       - name: Checkout code
+        if: ${{ vars[matrix.project_id_var] != '' || matrix.default_project_id != '' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Deploy to Vercel
+        if: ${{ vars[matrix.project_id_var] != '' || matrix.default_project_id != '' }}
         uses: W3Dev/vercel-deploy@main
         with:
           vercel_token: ${{ secrets.VERCEL_TOKEN }}
-          vercel_org_id: 'team_M1i3qUTW4i3A6mETy54E1Fy8'
-          vercel_project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
-          vercel_project_name: 'nexvio-ai'
+          vercel_org_id: ${{ vars.VERCEL_ORG_ID || 'team_M1i3qUTW4i3A6mETy54E1Fy8' }}
+          vercel_project_id: ${{ vars[matrix.project_id_var] || matrix.default_project_id }}
+          vercel_project_name: ${{ matrix.project_name }}
           package_manager: 'bun'
           node_version: '22'
           deploy_args: '--archive=tgz'
