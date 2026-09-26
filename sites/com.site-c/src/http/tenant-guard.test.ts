@@ -43,6 +43,15 @@ vi.mock("@repo/database", () => ({
   ),
 }));
 
+// app.ts mounts Better Auth under /api/auth/*, and @repo/auth/server imports
+// the `server-only` marker, which throws outside a real server. No auth route is
+// exercised here, so stub it rather than loading the auth stack.
+vi.mock("@repo/auth/server", () => ({
+  getBetterAuthServer: vi.fn(() => ({
+    getAuthInstance: () => ({ handler: vi.fn() }),
+  })),
+}));
+
 const { default: middleware } = await import("./tenant-guard");
 
 // createMiddleware returns an array argument unchanged, so the exported value is

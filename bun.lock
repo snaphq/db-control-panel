@@ -404,6 +404,7 @@
       "name": "com.site-c",
       "version": "0.1.0",
       "dependencies": {
+        "@repo/auth": "workspace:*",
         "@repo/database": "workspace:*",
         "@solidjs/meta": "catalog:",
         "@solidjs/router": "catalog:",

@@ -1,3 +1,4 @@
+import { getBetterAuthServer } from "@repo/auth/server";
 import type { Tenant } from "@repo/database";
 import { Hono } from "hono";
 
@@ -36,3 +37,27 @@ api.get("/tenant", (c) => {
     status: tenant.status,
   });
 });
+
+/**
+ * Better Auth's own routes, mounted for every method under /api/auth/*.
+ *
+ * `cookieDelivery: "response"` drops Better Auth's `nextCookies` plugin, which
+ * exists only to re-apply Set-Cookie through Next's `cookies()` API. Hono
+ * returns the Response as-is, so the browser receives the headers directly.
+ *
+ * The instance is created once per process and is tenant-agnostic: every
+ * Better Auth read and write is bound to the request's tenant by
+ * withTenantBoundAuthAdapter inside @repo/auth, so one instance serves all
+ * tenants safely.
+ */
+api.on(["GET", "POST", "PATCH", "PUT", "DELETE"], "/auth/*", (c) =>
+  getBetterAuthServer({ cookieDelivery: "response" })
+    .getAuthInstance()
+    .handler(c.req.raw),
+);
+
+api.on(["GET", "POST", "PATCH", "PUT", "DELETE"], "/auth", (c) =>
+  getBetterAuthServer({ cookieDelivery: "response" })
+    .getAuthInstance()
+    .handler(c.req.raw),
+);

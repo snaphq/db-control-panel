@@ -1,8 +1,24 @@
 # `com.site-c` — standalone Solid/Hono/Effect tenant site
 
-**Status:** In progress — Phases 1, 2 and step 14 of Phase 3 done
+**Status:** In progress — Phases 1, 2, 3 done; Phase 6's isolation test done
 **Date:** 2026-09-26
 **Baseline:** local `main` at `026798d`
+**Commits:** `177bbd9` scaffold, `7c6bb05` tenant resolution
+
+## Environment blocker: no database
+
+`@repo/database` uses `@neondatabase/serverless`, whose `neon()` driver speaks
+Neon's HTTP API, so a local plain Postgres cannot serve it. There is no root
+`.env.local` and no reachable Neon instance in this environment, so
+`bun run db:seed:sites` and every DB-backed path are **unverified**.
+
+What that blocks: tenant seeding, the real `resolveTenantFromHost` lookup, and
+the Overview / Logs data reads. What it does not block: the guard's
+no-database branches (verified live), and the isolation test (mocks
+`@repo/database`, following `packages/core/src/tenant-isolation.test.ts`).
+
+Note for whoever runs setup: `link-env.ts` already enumerates every `sites/*`
+directory, so this site gets the root `.env.local` symlink with no change.
 
 ## Implementation notes
 

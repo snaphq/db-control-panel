@@ -43,6 +43,25 @@ export interface BetterAuthServerOptions {
   checkPasswordResetRateLimit?: (
     email: string,
   ) => Promise<{ success: boolean }>;
+  /**
+   * How the auth response's `Set-Cookie` headers reach the client.
+   *
+   * `"next"` (the default) installs Better Auth's `nextCookies` plugin, which
+   * re-applies them through Next's `cookies()` API. That is required under the
+   * Next.js App Router and must stay the default so every existing site is
+   * unaffected.
+   *
+   * `"response"` omits the plugin for hosts that return the Better Auth
+   * `Response` straight to the client — SolidStart's h3 pipeline does, and
+   * `Set-Cookie` needs no re-application there. Use it from com.site-c.
+   *
+   * Known cost: the `nextCookies` import stays static so the plugins array can
+   * be built synchronously, so `better-auth/next-js` and ~160KB of Next's edge
+   * runtime are still bundled on the server. It is never executed under
+   * `"response"` and never reaches the browser — the client bundle is clean.
+   * Removing it would mean making plugin construction async for every caller.
+   */
+  cookieDelivery?: "next" | "response";
 }
 
 // Get auth config from environment
@@ -403,7 +422,9 @@ export function createAuthInstance(options?: BetterAuthServerOptions) {
         }
       : {}),
     plugins: [
-      nextCookies(),
+      // Omitted for hosts that pass the Response through untouched; see
+      // BetterAuthServerOptions.cookieDelivery.
+      ...(options?.cookieDelivery === "response" ? [] : [nextCookies()]),
       organization({
         schema: {
           organization: {

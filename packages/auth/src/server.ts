@@ -12,8 +12,6 @@ import {
 } from "@repo/database";
 import { and, eq } from "@repo/database";
 import * as schema from "@repo/database/schema";
-import { toNextJsHandler } from "better-auth/next-js";
-
 import {
   type BetterAuthServerOptions,
   createAuthInstance,
@@ -95,7 +93,16 @@ class BetterAuthServer {
     );
   }
 
-  getApiHandler() {
+  /**
+   * Next.js App Router handler for the auth API routes.
+   *
+   * `better-auth/next-js` is imported lazily so this module stays free of a
+   * static Next.js dependency: com.site-c runs the same Better Auth instance
+   * under SolidStart and passes `authInstance.handler` straight to Hono, and
+   * must not pull `next/headers` into its module graph.
+   */
+  async getApiHandler() {
+    const { toNextJsHandler } = await import("better-auth/next-js");
     return toNextJsHandler(this.authInstance.handler);
   }
 
