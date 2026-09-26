@@ -16,8 +16,7 @@ Set these in `.env.local` and in your deployment environment:
 | Variable | Purpose |
 | --- | --- |
 | `BETTER_AUTH_SECRET` | Signs sessions on every site. Generate with `openssl rand -base64 32`. |
-| `BETTER_AUTH_URL` | Public base URL of the site, for example `http://localhost:8801`. Per site: set it in the site's `.env.development` locally and in its Vercel project. |
-| `NEXT_PUBLIC_APP_URL` | Same base URL, exposed to the browser (per site, like `BETTER_AUTH_URL`). |
+| `NEXT_PUBLIC_APP_URL` | Public base URL of the site, for example `http://localhost:8801`; also the auth base URL. Per site: set it in the site's `.env.development` locally and in its Vercel project. |
 
 Rotating `BETTER_AUTH_SECRET` signs every user out.
 

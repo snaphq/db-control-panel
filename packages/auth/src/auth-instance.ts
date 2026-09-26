@@ -67,7 +67,6 @@ export interface BetterAuthServerOptions {
 // Get auth config from environment
 export function getAuthConfig() {
   const baseURL =
-    process.env.BETTER_AUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_ENV === "production"
       ? process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -442,7 +441,7 @@ export function createAuthInstance(options?: BetterAuthServerOptions) {
       passkey({
         rpName: "Cold Email Platform",
         rpID: process.env.PASSKEY_RP_ID,
-        origin: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL,
+        origin: process.env.NEXT_PUBLIC_APP_URL,
       }),
       oidcProvider({
         loginPage: "/auth/sign-in",

@@ -196,8 +196,8 @@ BACKEND_ADMIN_EMAILS=you@example.com
 BACKEND_SESSION_SECRET=   # openssl rand -base64 32
 ```
 
-`NEXT_PUBLIC_APP_URL` and `BETTER_AUTH_URL` are per app: set them in each
-app's `.env.development` locally and in each Vercel project in production.
+`NEXT_PUBLIC_APP_URL` is per app (it is also the auth base URL): set it in
+each app's `.env.development` locally and in each Vercel project in production.
 
 ## Development Guidelines
 

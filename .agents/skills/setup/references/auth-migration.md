@@ -87,8 +87,7 @@ against the provider's current docs.
 
 ## 5. Environment, dependencies, docs
 
-- Remove `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (also in every
-  `sites/*/.env.development`), `PASSKEY_RP_ID` (if passkeys go), and add the
+- Remove `BETTER_AUTH_SECRET`, `PASSKEY_RP_ID` (if passkeys go), and add the
   provider's keys in `env.example`, `turbo.json`
   (`globalEnv`/task `env` for `NEXT_PUBLIC_*`), and the setup env scripts.
 - `packages/auth/package.json`: remove `better-auth`, `@better-auth/passkey`;

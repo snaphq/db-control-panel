@@ -80,14 +80,11 @@ export function resolveAuthClientBaseUrl(
     : undefined,
 ): string {
   // Browser requests must stay on the tenant origin. A globally configured
-  // BETTER_AUTH_URL is useful for server-side jobs, but using it in the
+  // NEXT_PUBLIC_APP_URL is the fallback for server-side use, but using it in the
   // browser would send a tenant's cookies and organization operations to the
   // platform host instead of the custom domain that established the session.
   return (
-    browserOrigin ||
-    process.env.BETTER_AUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:3000"
+    browserOrigin || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   );
 }
 

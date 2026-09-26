@@ -101,7 +101,7 @@ bun .agents/skills/setup/scripts/configure-env.ts --section Core \
 
 Shared values go in the root `.env.local`. Each app's local URL lives in its
 committed `.env.development` (backend 8800, sites 8801 and 8802), so never put
-`NEXT_PUBLIC_APP_URL` or `BETTER_AUTH_URL` in `.env.local`. To change a site's
+`NEXT_PUBLIC_APP_URL` in `.env.local`. To change a site's
 local URL (this also updates its dev port):
 
 ```bash

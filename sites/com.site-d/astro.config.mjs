@@ -20,7 +20,8 @@ for (const [key, value] of Object.entries(loadedEnv)) {
 }
 
 export default defineConfig({
-  site: process.env.SITE_URL ?? "https://starter-astro-stack.vercel.app",
+  site:
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://starter-astro-stack.vercel.app",
   output: "server",
   adapter: vercel(),
   integrations: [react()],

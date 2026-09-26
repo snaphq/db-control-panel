@@ -4,7 +4,6 @@ const DEFAULT_PRODUCTION_URL = "https://nextjs-starter-kit-app.vercel.app";
 
 export function getSiteUrl(): string {
   const envUrl =
-    process.env.BETTER_AUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     (process.env.VERCEL_ENV === "production"
       ? process.env.VERCEL_PROJECT_PRODUCTION_URL

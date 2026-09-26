@@ -21,8 +21,7 @@ app. An entry is skipped until its project id is configured.
 
 `VERCEL_ORG_ID` and the project-id variables are repository variables;
 `VERCEL_TOKEN` is a secret. Each project needs its own runtime variables,
-including its public URL (`NEXT_PUBLIC_APP_URL`, and `BETTER_AUTH_URL` for
-sites) and each site's production domain (which must match
+including its public URL (`NEXT_PUBLIC_APP_URL`) and each site's production domain (which must match
 `site.config.ts` → `tenant_domain`). Preview and production URLs feed the
 shared `site-config` base-URL helper used by discovery metadata and agent
 credentials.

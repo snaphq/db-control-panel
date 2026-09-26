@@ -38,7 +38,7 @@ const REQUIRED_KEYS = [
 
 // Each app sets its own URL in its .env.development; a root value would
 // override every app's value with one URL.
-const PER_APP_KEYS = ["NEXT_PUBLIC_APP_URL", "BETTER_AUTH_URL"];
+const PER_APP_KEYS = ["NEXT_PUBLIC_APP_URL"];
 
 const SECRET_PATTERN = /SECRET|PASSWORD|TOKEN|PRIVATE|_KEY$/;
 
@@ -169,12 +169,6 @@ function main(): void {
     if (!existing.get(key) && !updates[key]) {
       updates[key] = randomBytes(32).toString("base64");
     }
-  }
-
-  const appUrl =
-    updates.NEXT_PUBLIC_APP_URL ?? existing.get("NEXT_PUBLIC_APP_URL");
-  if (appDir && appUrl && !updates.BETTER_AUTH_URL) {
-    updates.BETTER_AUTH_URL = appUrl;
   }
 
   if (Object.keys(updates).length > 0) {

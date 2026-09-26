@@ -22,7 +22,7 @@ the whole app per site drifts; a shared route tree does not.
 | `src/lib/source.ts`, `source.config.ts`, `content/blog` | The site's fumadocs collections (docs mirror of `docs-public/` and its own blog). |
 | `src/proxy.ts` | Re-exports the shared proxy; `config.matcher` must stay literal here. |
 | `next.config.ts` | Pins `SITE_TENANT_ID` from `site.config.ts` (see below). |
-| `.env.development` | Committed, non-secret local URLs (`NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_URL`). |
+| `.env.development` | Committed, non-secret local URL (`NEXT_PUBLIC_APP_URL`, also the auth base URL). |
 
 Everything else under `src/app` is generated.
 

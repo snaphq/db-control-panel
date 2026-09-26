@@ -11,7 +11,6 @@ export function getProviderName(): string {
 
 export function getAuthConfig(provider?: string) {
   const baseURL =
-    process.env.BETTER_AUTH_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
     (typeof window !== "undefined"
       ? window.location.origin

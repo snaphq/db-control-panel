@@ -214,10 +214,8 @@ describe("MCP egress policy", () => {
 
 describe("agent authentication boundaries", () => {
   it("keeps browser auth calls on the active tenant origin", () => {
-    const previousAuthUrl = process.env.BETTER_AUTH_URL;
     const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL;
-    vi.stubEnv("BETTER_AUTH_URL", "https://platform.example");
-    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.example");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://platform.example");
     try {
       expect(resolveAuthClientBaseUrl("https://tenant.example")).toBe(
         "https://tenant.example",
@@ -226,8 +224,6 @@ describe("agent authentication boundaries", () => {
         "https://platform.example",
       );
     } finally {
-      if (previousAuthUrl === undefined) vi.stubEnv("BETTER_AUTH_URL", "");
-      else vi.stubEnv("BETTER_AUTH_URL", previousAuthUrl);
       if (previousAppUrl === undefined) vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
       else vi.stubEnv("NEXT_PUBLIC_APP_URL", previousAppUrl);
     }
