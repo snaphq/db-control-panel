@@ -22,7 +22,7 @@
     "@repo/mcp-server": "workspace:*",
     "@repo/object-storage": "workspace:*",
     "@repo/search": "workspace:*",
-    "@repo/ui": "workspace:*",
+    "@repo/react-ui": "workspace:*",
     "@tanstack/react-query": "^4.35.3",
     "@tanstack/react-query-devtools": "^5.13.3",
     "bcryptjs": "catalog:",

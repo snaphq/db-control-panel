@@ -1,7 +1,7 @@
 "use client";
 
 import { ActionsMenu } from "@/components/admin/stripe/ActionsMenu";
-import { Badge } from "@repo/ui/components/ui/badge";
+import { Badge } from "@repo/react-ui/components/ui/badge";
 import Link from "next/link";
 
 interface Price {

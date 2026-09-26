@@ -1,16 +1,16 @@
 "use client";
 
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Button } from "@repo/react-ui/components/ui/button";
+import { Card } from "@repo/react-ui/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@repo/ui/components/ui/dropdown-menu";
-import { cn } from "@repo/ui/lib/utils";
+} from "@repo/react-ui/components/ui/dropdown-menu";
+import { cn } from "@repo/react-ui/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import {
   ArrowUpRight,

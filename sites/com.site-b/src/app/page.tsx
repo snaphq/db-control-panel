@@ -1,5 +1,5 @@
 import PageWrapper from "@/components/Container/PageWrapper";
-import { Button } from "@repo/ui/components/ui/button";
+import { Button } from "@repo/react-ui/components/ui/button";
 import Link from "next/link";
 import { siteConfig } from "../site.config";
 

@@ -12,7 +12,7 @@
         "sites/com.site-c/package.json",
         "packages/site-kit/src",
         "packages/core/src",
-        "packages/ui/src"
+        "packages/react-ui/src"
       ]
     },
     {
@@ -130,7 +130,7 @@
         "packages/core/src/auth/operator-authorization.ts",
         "packages/core/src/operators",
         "packages/site-kit/src/app/api/account/operators",
-        "packages/ui/src/components/account/operators",
+        "packages/react-ui/src/components/account/operators",
         "packages/mcp-chatgpt/src/logger.ts"
       ]
     },
@@ -291,7 +291,7 @@
         "packages/billing/src/referrals",
         "packages/site-kit/src/app/api/referral",
         "packages/site-kit/src/app/r",
-        "packages/ui/src/components/referrals",
+        "packages/react-ui/src/components/referrals",
         "apps/backend/src/components/admin/referrals",
         "packages/durable-exec/src/billing/functions/referral-window.ts",
         "scripts/seed-referrals.ts"
@@ -336,7 +336,7 @@
       "visibility": "public",
       "sources": [
         "packages/site-kit/src/app/api/account/operators",
-        "packages/ui/src/components/account/operators"
+        "packages/react-ui/src/components/account/operators"
       ]
     },
     {

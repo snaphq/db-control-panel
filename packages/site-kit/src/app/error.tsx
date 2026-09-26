@@ -1,6 +1,6 @@
 "use client";
 
-import { ErrorScreen } from "@repo/ui/components/errors/error-screen";
+import { ErrorScreen } from "@repo/react-ui/components/errors/error-screen";
 import { useEffect } from "react";
 
 interface ErrorPageProps {

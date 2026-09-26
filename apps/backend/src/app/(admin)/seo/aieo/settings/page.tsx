@@ -6,7 +6,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import type { Metadata } from "next";
 import Link from "next/link";

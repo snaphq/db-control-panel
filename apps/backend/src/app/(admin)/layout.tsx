@@ -1,8 +1,8 @@
 import AdminSidebar from "@/app/(admin)/(components)/AdminSidebar";
 import AdminTopNav from "@/app/(admin)/(components)/AdminTopNav";
 import { requireAdmin } from "@/lib/admin-auth";
-import { SidebarProvider } from "@repo/ui/components/dashboard/sidebar-context";
-import { ReactQueryProvider } from "@repo/ui/providers/react-query-provider";
+import { SidebarProvider } from "@repo/react-ui/components/dashboard/sidebar-context";
+import { ReactQueryProvider } from "@repo/react-ui/providers/react-query-provider";
 import type { ReactNode } from "react";
 
 export default async function AdminLayout({

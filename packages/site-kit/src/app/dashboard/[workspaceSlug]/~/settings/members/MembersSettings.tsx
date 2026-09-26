@@ -5,16 +5,16 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@repo/ui/components/ui/avatar";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
+} from "@repo/react-ui/components/ui/avatar";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -23,16 +23,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@repo/ui/components/ui/dialog";
-import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
+} from "@repo/react-ui/components/ui/dialog";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { Label } from "@repo/react-ui/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@repo/ui/components/ui/select";
+} from "@repo/react-ui/components/ui/select";
 import {
   Copy,
   Loader2,

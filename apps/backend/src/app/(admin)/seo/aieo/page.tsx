@@ -6,13 +6,13 @@ import {
   listPrompts,
 } from "@repo/database/dal/seo";
 import { getSetting } from "@repo/durable-exec";
-import { Badge } from "@repo/ui/components/ui/badge";
+import { Badge } from "@repo/react-ui/components/ui/badge";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import type { Metadata } from "next";
 import Link from "next/link";
 

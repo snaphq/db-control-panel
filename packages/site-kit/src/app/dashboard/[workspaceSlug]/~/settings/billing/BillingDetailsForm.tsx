@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@repo/ui/components/ui/button";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,17 +8,17 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
-import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
+} from "@repo/react-ui/components/ui/card";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { Label } from "@repo/react-ui/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@repo/ui/components/ui/select";
-import { Textarea } from "@repo/ui/components/ui/textarea";
+} from "@repo/react-ui/components/ui/select";
+import { Textarea } from "@repo/react-ui/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

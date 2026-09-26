@@ -4,7 +4,7 @@ import {
   findIntegrationBySlug,
 } from "@repo/core/integrations/queries";
 import { toSafeInstallation } from "@repo/core/integrations/types";
-import { InstallationManager } from "@repo/ui/components/integrations/installation-manager";
+import { InstallationManager } from "@repo/react-ui/components/integrations/installation-manager";
 import { notFound } from "next/navigation";
 
 interface PageProps {

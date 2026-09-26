@@ -1,17 +1,17 @@
 "use client";
 
 import { signIn, signUp } from "@repo/auth/client";
-import { Icons } from "@repo/ui/components/Icons";
-import { Button } from "@repo/ui/components/ui/button";
+import { Icons } from "@repo/react-ui/components/Icons";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
-import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
+} from "@repo/react-ui/components/ui/card";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { Label } from "@repo/react-ui/components/ui/label";
 import PageWrapper from "@site/components/Container/PageWrapper";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

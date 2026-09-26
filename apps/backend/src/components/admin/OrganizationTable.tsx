@@ -3,10 +3,10 @@
 import { CreateOrganizationDialog } from "@/components/admin/CreateOrganizationDialog";
 import { RowActionsMenu } from "@/components/admin/RowActionsMenu";
 import type { Organization, Tenant } from "@repo/database/schema";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Input } from "@repo/ui/components/ui/input";
-import { cn } from "@repo/ui/lib/utils";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Button } from "@repo/react-ui/components/ui/button";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { cn } from "@repo/react-ui/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

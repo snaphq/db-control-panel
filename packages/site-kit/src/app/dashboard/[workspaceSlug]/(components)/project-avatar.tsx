@@ -1,4 +1,4 @@
-import { cn } from "@repo/ui/lib/utils";
+import { cn } from "@repo/react-ui/lib/utils";
 
 function hashToHue(input: string): number {
   let hash = 0;

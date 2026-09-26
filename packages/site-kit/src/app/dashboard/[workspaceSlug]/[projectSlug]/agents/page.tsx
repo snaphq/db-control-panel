@@ -8,7 +8,7 @@ import {
   inArray,
   ne,
 } from "@repo/database";
-import { AgentsBrowser } from "@repo/ui/components/agents/agents-browser";
+import { AgentsBrowser } from "@repo/react-ui/components/agents/agents-browser";
 
 interface PageProps {
   params: Promise<{ workspaceSlug: string; projectSlug: string }>;

@@ -1,8 +1,8 @@
 "use client";
 
 import type { SafeSession } from "@repo/database";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Input } from "@repo/ui/components/ui/input";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Input } from "@repo/react-ui/components/ui/input";
 import { useState } from "react";
 
 interface SessionTableProps {

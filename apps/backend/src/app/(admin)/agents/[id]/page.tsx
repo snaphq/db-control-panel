@@ -5,7 +5,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import { notFound } from "next/navigation";
 
 interface PageProps {

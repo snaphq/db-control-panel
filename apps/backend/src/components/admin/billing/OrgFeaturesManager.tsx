@@ -1,8 +1,8 @@
 "use client";
 
 import { FEATURE_DEFINITIONS } from "@repo/billing/constants";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,16 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@repo/ui/components/ui/dialog";
-import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
+} from "@repo/react-ui/components/ui/dialog";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { Label } from "@repo/react-ui/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@repo/ui/components/ui/select";
+} from "@repo/react-ui/components/ui/select";
 import { Loader2, Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";

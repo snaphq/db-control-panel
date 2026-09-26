@@ -11,7 +11,7 @@ export default defineConfig({
         replacement: `${path.resolve(__dirname, "src")}/$1`,
       },
       {
-        find: /^@repo\/(core|ui)\/(.*)$/,
+        find: /^@repo\/(core|react-ui)\/(.*)$/,
         replacement: `${packages}/$1/src/$2`,
       },
       {

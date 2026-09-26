@@ -1,7 +1,7 @@
 "use client";
 
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,7 +9,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import { CreditCard, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";

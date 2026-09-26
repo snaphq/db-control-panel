@@ -4,15 +4,15 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@repo/ui/components/ui/avatar";
+} from "@repo/react-ui/components/ui/avatar";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
-import { Label } from "@repo/ui/components/ui/label";
+} from "@repo/react-ui/components/ui/card";
+import { Label } from "@repo/react-ui/components/ui/label";
 import PageWrapper from "@site/components/Container/PageWrapper";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";

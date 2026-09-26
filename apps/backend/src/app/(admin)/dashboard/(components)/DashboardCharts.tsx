@@ -1,13 +1,13 @@
 "use client";
 
 import { parseRange } from "@repo/analytics/admin-range";
-import { AnalyticsRangeSelector } from "@repo/ui/components/analytics/AnalyticsRangeSelector";
-import { DonutSnapshotChart } from "@repo/ui/components/analytics/DonutSnapshotChart";
-import { HorizontalBarSnapshot } from "@repo/ui/components/analytics/HorizontalBarSnapshot";
-import { LineSeriesChart } from "@repo/ui/components/analytics/LineSeriesChart";
-import { RevenueChart } from "@repo/ui/components/analytics/RevenueChart";
-import { SignupsChart } from "@repo/ui/components/analytics/SignupsChart";
-import { TopOrgsChart } from "@repo/ui/components/analytics/TopOrgsChart";
+import { AnalyticsRangeSelector } from "@repo/react-ui/components/analytics/AnalyticsRangeSelector";
+import { DonutSnapshotChart } from "@repo/react-ui/components/analytics/DonutSnapshotChart";
+import { HorizontalBarSnapshot } from "@repo/react-ui/components/analytics/HorizontalBarSnapshot";
+import { LineSeriesChart } from "@repo/react-ui/components/analytics/LineSeriesChart";
+import { RevenueChart } from "@repo/react-ui/components/analytics/RevenueChart";
+import { SignupsChart } from "@repo/react-ui/components/analytics/SignupsChart";
+import { TopOrgsChart } from "@repo/react-ui/components/analytics/TopOrgsChart";
 import { useSearchParams } from "next/navigation";
 
 const SERIES = "/api/admin/analytics/series";

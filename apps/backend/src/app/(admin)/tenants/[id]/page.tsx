@@ -1,13 +1,13 @@
 import { requireAdmin } from "@/lib/admin-auth";
 import { db, eq, getTenantAdminStats } from "@repo/database";
 import { tenant, tenantDomain } from "@repo/database/schema";
-import { Badge } from "@repo/ui/components/ui/badge";
+import { Badge } from "@repo/react-ui/components/ui/badge";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 

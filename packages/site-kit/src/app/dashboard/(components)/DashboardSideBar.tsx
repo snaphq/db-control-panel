@@ -1,16 +1,16 @@
 "use client";
 
-import { useSidebar } from "@repo/ui/components/dashboard/sidebar-context";
-import { SidebarFinder } from "@repo/ui/components/dashboard/sidebar-finder";
-import { SidebarUserMenu } from "@repo/ui/components/dashboard/sidebar-user-menu";
-import { WorkspaceSwitcher } from "@repo/ui/components/dashboard/workspace-switcher";
-import { Separator } from "@repo/ui/components/ui/separator";
+import { useSidebar } from "@repo/react-ui/components/dashboard/sidebar-context";
+import { SidebarFinder } from "@repo/react-ui/components/dashboard/sidebar-finder";
+import { SidebarUserMenu } from "@repo/react-ui/components/dashboard/sidebar-user-menu";
+import { WorkspaceSwitcher } from "@repo/react-ui/components/dashboard/workspace-switcher";
+import { Separator } from "@repo/react-ui/components/ui/separator";
 import {
   SidebarDrillDownButton,
   SidebarGroupLabel,
   SidebarNavLink,
   resolveMostSpecificActiveHref,
-} from "@repo/ui/components/ui/sidebar-nav";
+} from "@repo/react-ui/components/ui/sidebar-nav";
 import {
   type NavConfig,
   type NavItem,
@@ -18,8 +18,8 @@ import {
   buildHref,
   projectNav,
   workspaceNav,
-} from "@repo/ui/lib/navigation";
-import { cn } from "@repo/ui/lib/utils";
+} from "@repo/react-ui/lib/navigation";
+import { cn } from "@repo/react-ui/lib/utils";
 import { ChevronLeft } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";

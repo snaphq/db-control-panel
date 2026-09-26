@@ -6,18 +6,18 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@repo/ui/components/ui/accordion";
-import { Button } from "@repo/ui/components/ui/button";
+} from "@repo/react-ui/components/ui/accordion";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
-import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
-import { Textarea } from "@repo/ui/components/ui/textarea";
-import { cn } from "@repo/ui/lib/utils";
+} from "@repo/react-ui/components/ui/card";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { Label } from "@repo/react-ui/components/ui/label";
+import { Textarea } from "@repo/react-ui/components/ui/textarea";
+import { cn } from "@repo/react-ui/lib/utils";
 import { Loader2, Plus, X } from "lucide-react";
 import type { FormEvent } from "react";
 

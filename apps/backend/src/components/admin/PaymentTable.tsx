@@ -1,9 +1,9 @@
 "use client";
 
 import type { Payment } from "@repo/database/schema";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Input } from "@repo/ui/components/ui/input";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Button } from "@repo/react-ui/components/ui/button";
+import { Input } from "@repo/react-ui/components/ui/input";
 import { useState } from "react";
 
 interface PaymentTableProps {

@@ -2,13 +2,13 @@ import { CompetitorRowActions } from "@/app/(admin)/seo/aieo/competitors/Competi
 import { ReinferButton } from "@/app/(admin)/seo/aieo/competitors/ReinferButton";
 import { ensureSeoAccess } from "@/lib/seo-guard";
 import { listCompetitors } from "@repo/database/dal/seo";
-import { Badge } from "@repo/ui/components/ui/badge";
+import { Badge } from "@repo/react-ui/components/ui/badge";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import type { Metadata } from "next";
 import Link from "next/link";

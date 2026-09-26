@@ -1,9 +1,9 @@
 "use client";
 
 import type { Integration } from "@repo/database/schema";
-import { Button } from "@repo/ui/components/ui/button";
-import { Input } from "@repo/ui/components/ui/input";
-import { cn } from "@repo/ui/lib/utils";
+import { Button } from "@repo/react-ui/components/ui/button";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { cn } from "@repo/react-ui/lib/utils";
 import { Search } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 import { IntegrationTile } from "./IntegrationTile";

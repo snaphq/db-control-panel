@@ -1,5 +1,5 @@
-import { ThemeProvider } from "@repo/ui/components/theme-provider";
-import { Toaster } from "@repo/ui/components/ui/sonner";
+import { ThemeProvider } from "@repo/react-ui/components/theme-provider";
+import { Toaster } from "@repo/react-ui/components/ui/sonner";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata } from "next";
 import "./globals.css";

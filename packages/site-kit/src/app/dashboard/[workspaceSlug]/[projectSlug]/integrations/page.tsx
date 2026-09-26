@@ -3,8 +3,8 @@ import {
   listAvailableIntegrations,
   listScopedInstallations,
 } from "@repo/core/integrations/queries";
-import { AvailableIntegrationsList } from "@repo/ui/components/integrations/available-integrations-list";
-import { InstalledIntegrationsList } from "@repo/ui/components/integrations/installed-integrations-list";
+import { AvailableIntegrationsList } from "@repo/react-ui/components/integrations/available-integrations-list";
+import { InstalledIntegrationsList } from "@repo/react-ui/components/integrations/installed-integrations-list";
 
 interface PageProps {
   params: Promise<{ workspaceSlug: string; projectSlug: string }>;

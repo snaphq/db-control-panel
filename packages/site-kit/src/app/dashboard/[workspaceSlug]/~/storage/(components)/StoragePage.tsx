@@ -1,7 +1,7 @@
 "use client";
 
 import type { FileMetadata } from "@repo/object-storage";
-import { Button } from "@repo/ui/components/ui/button";
+import { Button } from "@repo/react-ui/components/ui/button";
 import { Copy, Loader2, Trash2, Upload } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 

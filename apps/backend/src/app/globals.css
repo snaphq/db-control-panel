@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "../../../../packages/ui/src/styles/theme.css";
+@import "../../../../packages/react-ui/src/styles/theme.css";
 
 /* Backend-only components (admin screens) live in this app's src. */
 @source "../";

@@ -53,7 +53,7 @@ Ask and record the answers before editing:
    the WorkOS Organizations API server-side. Delete `auth-instance.ts` and
    `tenant-binding.ts` once nothing imports them.
 2. Wrap the app in `<AuthKitProvider>` via
-   `packages/ui/src/components/AuthProviderWrapper.tsx`.
+   `packages/react-ui/src/components/AuthProviderWrapper.tsx`.
 3. Replace request gating in `packages/site-kit/src/proxy.ts` (re-exported by
    every `sites/*/src/proxy.ts`) with
    `authkitMiddleware()` exported as `proxy` (Next.js 16 uses `proxy.ts`; the

@@ -1,11 +1,11 @@
-import { Button } from "@repo/ui/components/ui/button";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import { MessageSquare, Plus } from "lucide-react";
 
 export default function SupportCasesPage() {

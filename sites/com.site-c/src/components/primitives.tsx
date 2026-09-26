@@ -3,7 +3,7 @@ import { For, type JSX, Show } from "solid-js";
 /**
  * The small set of primitives the three dashboard pages actually use.
  *
- * Deliberately not a port of @repo/ui: that package is React (Radix, lucide-react,
+ * Deliberately not a port of @repo/react-ui: that package is React (Radix, lucide-react,
  * @tanstack/react-query) and Solid cannot render it. Building only what is used
  * keeps the surface honest — anything added here should have a caller.
  */

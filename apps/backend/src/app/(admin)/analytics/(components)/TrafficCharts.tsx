@@ -1,13 +1,13 @@
 "use client";
 
 import { parseRange } from "@repo/analytics/admin-range";
-import { AnalyticsRangeSelector } from "@repo/ui/components/analytics/AnalyticsRangeSelector";
-import { DonutSnapshotChart } from "@repo/ui/components/analytics/DonutSnapshotChart";
-import { FunnelChart } from "@repo/ui/components/analytics/FunnelChart";
-import { HorizontalBarSnapshot } from "@repo/ui/components/analytics/HorizontalBarSnapshot";
-import { LineSeriesChart } from "@repo/ui/components/analytics/LineSeriesChart";
-import { TrafficKpiCards } from "@repo/ui/components/analytics/TrafficKpiCards";
-import { Button } from "@repo/ui/components/ui/button";
+import { AnalyticsRangeSelector } from "@repo/react-ui/components/analytics/AnalyticsRangeSelector";
+import { DonutSnapshotChart } from "@repo/react-ui/components/analytics/DonutSnapshotChart";
+import { FunnelChart } from "@repo/react-ui/components/analytics/FunnelChart";
+import { HorizontalBarSnapshot } from "@repo/react-ui/components/analytics/HorizontalBarSnapshot";
+import { LineSeriesChart } from "@repo/react-ui/components/analytics/LineSeriesChart";
+import { TrafficKpiCards } from "@repo/react-ui/components/analytics/TrafficKpiCards";
+import { Button } from "@repo/react-ui/components/ui/button";
 import { Settings2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";

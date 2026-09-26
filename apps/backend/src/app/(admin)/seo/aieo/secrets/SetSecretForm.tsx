@@ -1,16 +1,16 @@
 "use client";
 
 import { setSecretAction } from "@/app/(admin)/seo/aieo/secrets/actions";
-import { Button } from "@repo/ui/components/ui/button";
-import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
+import { Button } from "@repo/react-ui/components/ui/button";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { Label } from "@repo/react-ui/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@repo/ui/components/ui/select";
+} from "@repo/react-ui/components/ui/select";
 import { useState, useTransition } from "react";
 
 export function SetSecretForm({ allKeys }: { allKeys: string[] }) {

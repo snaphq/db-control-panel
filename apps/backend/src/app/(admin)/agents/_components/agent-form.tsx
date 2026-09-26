@@ -11,9 +11,9 @@ import {
   SystemManagedCheckbox,
   parseJsonField,
 } from "@/components/admin/resource-form-fields";
-import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
-import { Textarea } from "@repo/ui/components/ui/textarea";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { Label } from "@repo/react-ui/components/ui/label";
+import { Textarea } from "@repo/react-ui/components/ui/textarea";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";

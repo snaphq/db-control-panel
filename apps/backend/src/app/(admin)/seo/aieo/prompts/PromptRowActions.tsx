@@ -5,7 +5,7 @@ import {
   snapshotPromptNowAction,
   togglePromptActiveAction,
 } from "@/app/(admin)/seo/aieo/prompts/actions";
-import { Button } from "@repo/ui/components/ui/button";
+import { Button } from "@repo/react-ui/components/ui/button";
 import { useTransition } from "react";
 
 export function PromptRowActions({

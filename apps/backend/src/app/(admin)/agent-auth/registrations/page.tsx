@@ -7,9 +7,9 @@ import {
   organization,
   user,
 } from "@repo/database";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
-import { Label } from "@repo/ui/components/ui/label";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Button } from "@repo/react-ui/components/ui/button";
+import { Label } from "@repo/react-ui/components/ui/label";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";

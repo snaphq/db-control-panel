@@ -6,14 +6,14 @@ import { requireSession } from "@repo/core/auth/require-membership";
 import { getCurrentTenant } from "@repo/core/tenant";
 import { and, db, eq } from "@repo/database";
 import { member, organization } from "@repo/database/schema";
-import { Badge } from "@repo/ui/components/ui/badge";
+import { Badge } from "@repo/react-ui/components/ui/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 

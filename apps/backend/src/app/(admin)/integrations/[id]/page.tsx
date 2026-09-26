@@ -1,13 +1,13 @@
 import { IntegrationForm } from "@/app/(admin)/integrations/_components/integration-form";
 import { db, eq } from "@repo/database";
 import { integration, integrationInstallation } from "@repo/database/schema";
-import { Badge } from "@repo/ui/components/ui/badge";
+import { Badge } from "@repo/react-ui/components/ui/badge";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import { notFound } from "next/navigation";
 
 interface PageProps {

@@ -1,7 +1,7 @@
 "use client";
 
 import { reinferCompetitorsAction } from "@/app/(admin)/seo/aieo/competitors/actions";
-import { Button } from "@repo/ui/components/ui/button";
+import { Button } from "@repo/react-ui/components/ui/button";
 import { useState, useTransition } from "react";
 
 export function ReinferButton() {

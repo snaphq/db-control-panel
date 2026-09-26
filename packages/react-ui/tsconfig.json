@@ -17,7 +17,7 @@
       "@repo/object-storage": ["../object-storage/src"],
       "@repo/object-storage/*": ["../object-storage/src/*"],
       "@repo/core/*": ["../core/src/*"],
-      "@repo/ui/*": ["../ui/src/*"]
+      "@repo/react-ui/*": ["../react-ui/src/*"]
     },
     "jsx": "react-jsx"
   },

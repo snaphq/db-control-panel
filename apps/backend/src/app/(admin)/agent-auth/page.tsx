@@ -10,14 +10,14 @@ import {
   lte,
   user,
 } from "@repo/database";
-import { Badge } from "@repo/ui/components/ui/badge";
+import { Badge } from "@repo/react-ui/components/ui/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";

@@ -30,7 +30,7 @@
       "@repo/search": ["../search/src"],
       "@repo/search/*": ["../search/src/*"],
       "@repo/core/*": ["../core/src/*"],
-      "@repo/ui/*": ["../ui/src/*"],
+      "@repo/react-ui/*": ["../react-ui/src/*"],
       "@repo/site-kit/*": ["../site-kit/src/*"],
       "@site/*": ["../../sites/com.site-a/src/*"]
     }

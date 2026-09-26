@@ -1,5 +1,5 @@
-import { ModeToggle } from "@repo/ui/components/ModeToggle";
-import { Button } from "@repo/ui/components/ui/button";
+import { ModeToggle } from "@repo/react-ui/components/ModeToggle";
+import { Button } from "@repo/react-ui/components/ui/button";
 import Link from "next/link";
 import type React from "react";
 import { siteConfig } from "../../site.config";

@@ -15,14 +15,14 @@ monorepo's single `DATABASE_URL` and owning its own tenant.
 | Framework | Next.js 16 App Router | SolidStart 2 + Vite 8 |
 | Shared routes | `@repo/site-kit` | none, owns `src/routes` |
 | API | Next route handlers | Hono, mounted at `/api` |
-| Styling | Tailwind 4 + `@repo/ui` | Tailwind 4 + its own Solid primitives |
+| Styling | Tailwind 4 + `@repo/react-ui` | Tailwind 4 + its own Solid primitives |
 | Node | 22 | **24+** (SolidStart 2 requirement) |
 | Deploy output | `.next` | Nitro (`.output` locally, Vercel on Vercel) |
 
 ## Why it does not use site-kit
 
 `packages/site-kit/src/app` is a Next.js App Router route tree. Its route files
-depend on `next/headers`, `next/server`, and React components from `@repo/ui`.
+depend on `next/headers`, `next/server`, and React components from `@repo/react-ui`.
 SolidStart discovers routes under `src/routes` and renders Solid, so none of it
 can be re-exported into this app. The reuse audit found the rest of the monorepo
 is framework-neutral (11 of 13 packages, ~200 of ~436 files), so only `ui` and

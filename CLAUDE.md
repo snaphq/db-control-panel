@@ -28,7 +28,7 @@ notes.
   `bun run check:site-routes` in pre-commit) plus its own `site.config.ts`,
   branding, and landing/legal pages. Edit shared routes in site-kit, never the
   generated shims; a site overrides a route by committing its own file there.
-- Shared logic is in `packages/core`, shared React in `packages/ui`.
+- Shared logic is in `packages/core`, shared React in `packages/react-ui`.
 
 ## Repo conventions
 

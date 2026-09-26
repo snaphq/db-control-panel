@@ -24,7 +24,7 @@ sign-in in `src/lib/admin-auth.ts`. Stripe webhooks and Inngest run here too.
 ## Shared code
 
 Server helpers and integration adapters live in `packages/core`; shared React
-components, hooks, and the theme live in `packages/ui`.
+components, hooks, and the theme live in `packages/react-ui`.
 
 ## Shared behavior
 
@@ -35,7 +35,7 @@ consumer:
 | --- | --- |
 | `@repo/site-kit` | Routes, proxy, and root layout shared by every site |
 | `@repo/core` | Server helpers: agent auth, operators, integrations, auth routes |
-| `@repo/ui` | React components, hooks, providers, and `theme.css` |
+| `@repo/react-ui` | React components, hooks, providers, and `theme.css` |
 | `@repo/auth` | Better Auth instance, tenant binding, and session helpers |
 | `@repo/database` | Drizzle client, schemas, tenancy, and DALs |
 | `@repo/billing` | Stripe, subscriptions, pricing, usage, and referrals |

@@ -11,7 +11,7 @@ import {
   CommandKbd,
   CommandList,
   CommandSeparator,
-} from "@repo/ui/components/ui/command";
+} from "@repo/react-ui/components/ui/command";
 import {
   Home,
   LogOut,

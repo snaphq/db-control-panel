@@ -2,9 +2,9 @@ import type { Integration } from "@repo/database/schema";
 import {
   InstalledIntegrationsList,
   type InstalledItem,
-} from "@repo/ui/components/integrations/installed-integrations-list";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/integrations/installed-integrations-list";
+import { Button } from "@repo/react-ui/components/ui/button";
+import { Card } from "@repo/react-ui/components/ui/card";
 import { Info } from "lucide-react";
 import Link from "next/link";
 import { LatestIntegrationsCard } from "./LatestIntegrationsCard";

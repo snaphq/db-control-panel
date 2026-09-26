@@ -1,7 +1,7 @@
 import type { Integration } from "@repo/database/schema";
-import { Button } from "@repo/ui/components/ui/button";
-import { Card } from "@repo/ui/components/ui/card";
-import { Separator } from "@repo/ui/components/ui/separator";
+import { Button } from "@repo/react-ui/components/ui/button";
+import { Card } from "@repo/react-ui/components/ui/card";
+import { Separator } from "@repo/react-ui/components/ui/separator";
 import { Layers } from "lucide-react";
 import Link from "next/link";
 import { IntegrationLogo } from "./IntegrationLogo";

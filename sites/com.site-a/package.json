@@ -16,7 +16,7 @@
     "@repo/billing": "workspace:*",
     "@repo/fumadocs": "workspace:*",
     "@repo/site-kit": "workspace:*",
-    "@repo/ui": "workspace:*",
+    "@repo/react-ui": "workspace:*",
     "@tailwindcss/postcss": "^4.2.2",
     "framer-motion": "^11.1.9",
     "fumadocs-mdx": "catalog:",

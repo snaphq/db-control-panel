@@ -1,6 +1,6 @@
 import { getOrgOpenAIConfigMasked } from "@repo/core/ai-provider";
 import { requireOrganizationMembership } from "@repo/core/auth/require-membership";
-import { WorkspaceAiProviderForm } from "@repo/ui/components/workspaces/workspace-ai-provider-form";
+import { WorkspaceAiProviderForm } from "@repo/react-ui/components/workspaces/workspace-ai-provider-form";
 import { notFound } from "next/navigation";
 
 interface PageProps {

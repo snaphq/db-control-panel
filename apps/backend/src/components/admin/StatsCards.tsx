@@ -3,7 +3,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import { Activity, Building2, CreditCard, Users } from "lucide-react";
 
 interface StatsCardsProps {

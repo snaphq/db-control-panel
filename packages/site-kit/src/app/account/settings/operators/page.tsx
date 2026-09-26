@@ -6,7 +6,7 @@ import { requireSession } from "@repo/core/auth/require-membership";
 import { listOperatorsForUser } from "@repo/core/operators/management";
 import type { OperatorView } from "@repo/core/operators/view-types";
 import { getCurrentTenant } from "@repo/core/tenant";
-import { OperatorsManager } from "@repo/ui/components/account/operators/operators-manager";
+import { OperatorsManager } from "@repo/react-ui/components/account/operators/operators-manager";
 
 export const dynamic = "force-dynamic";
 

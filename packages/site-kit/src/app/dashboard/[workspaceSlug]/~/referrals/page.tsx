@@ -1,6 +1,6 @@
 import { auth } from "@repo/auth/server";
 import { getReferralStats, isUserEligibleForReferralCode } from "@repo/billing";
-import { ReferralDashboard } from "@repo/ui/components/referrals/ReferralDashboard";
+import { ReferralDashboard } from "@repo/react-ui/components/referrals/ReferralDashboard";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 

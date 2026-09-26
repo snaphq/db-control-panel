@@ -1,7 +1,7 @@
 "use client";
 
 import { organizationMethods } from "@repo/auth/client";
-import { Button } from "@repo/ui/components/ui/button";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,23 +9,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@repo/ui/components/ui/dialog";
+} from "@repo/react-ui/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@repo/ui/components/ui/dropdown-menu";
-import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
+} from "@repo/react-ui/components/ui/dropdown-menu";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { Label } from "@repo/react-ui/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@repo/ui/components/ui/select";
-import { cn } from "@repo/ui/lib/utils";
+} from "@repo/react-ui/components/ui/select";
+import { cn } from "@repo/react-ui/lib/utils";
 import {
   ChevronDown,
   FolderPlus,

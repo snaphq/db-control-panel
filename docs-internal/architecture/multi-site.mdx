@@ -16,7 +16,7 @@ the whole app per site drifts; a shared route tree does not.
 | --- | --- |
 | `src/site.config.ts` | Identity: tenant id/slug, name, description, production domain, public pages, agent markdown, MCP server name and toolsets. Imported by `next.config.ts`, so it may only have type imports. |
 | `src/app/layout.tsx` | Renders `SiteRootLayout` from `@repo/site-kit/root-layout` and imports the site's `globals.css`. |
-| `src/app/globals.css` | Imports `packages/ui/src/styles/theme.css` and overrides design tokens for the brand. |
+| `src/app/globals.css` | Imports `packages/react-ui/src/styles/theme.css` and overrides design tokens for the brand. |
 | `src/app/page.tsx`, legal/marketing pages | Site-specific public pages listed in `publicPaths`. |
 | `src/components/Container/PageWrapper.tsx` | Public-page chrome (header/footer) used by shared routes. |
 | `src/lib/source.ts`, `source.config.ts`, `content/blog` | The site's fumadocs collections (docs mirror of `docs-public/` and its own blog). |

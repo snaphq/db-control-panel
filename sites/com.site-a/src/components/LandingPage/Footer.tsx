@@ -1,6 +1,6 @@
 "use client";
-import { Button } from "@repo/ui/components/ui/button";
-import { Input } from "@repo/ui/components/ui/input";
+import { Button } from "@repo/react-ui/components/ui/button";
+import { Input } from "@repo/react-ui/components/ui/input";
 import { useForm } from "react-hook-form";
 
 type FooterFormValues = {

@@ -2,8 +2,8 @@
 
 /*
  * Site-owned theme. This site deliberately does NOT import
- * packages/ui/src/styles/theme.css: that file drives the shared React component
- * kit in @repo/ui, which SolidStart cannot render. Tokens here are the small
+ * packages/react-ui/src/styles/theme.css: that file drives the shared React component
+ * kit in @repo/react-ui, which SolidStart cannot render. Tokens here are the small
  * neutral scale the dashboard needs, matched to the opencode console palette so
  * the two dashboards read the same.
  */

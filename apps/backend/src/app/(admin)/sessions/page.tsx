@@ -2,7 +2,7 @@ import { SessionTable } from "@/components/admin/SessionTable";
 import { requireAdmin } from "@/lib/admin-auth";
 import { db, getSafeSessions } from "@repo/database";
 import { tenant } from "@repo/database/schema";
-import { cn } from "@repo/ui/lib/utils";
+import { cn } from "@repo/react-ui/lib/utils";
 import Link from "next/link";
 
 async function getSessions(tenantId: string | undefined) {

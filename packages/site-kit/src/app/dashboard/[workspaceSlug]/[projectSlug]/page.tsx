@@ -1,10 +1,10 @@
-import { RevenueChart } from "@repo/ui/components/analytics/RevenueChart";
+import { RevenueChart } from "@repo/react-ui/components/analytics/RevenueChart";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 
 interface PageProps {
   params: Promise<{ workspaceSlug: string; projectSlug: string }>;

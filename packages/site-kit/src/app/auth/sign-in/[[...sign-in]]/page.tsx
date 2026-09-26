@@ -1,16 +1,16 @@
 "use client";
 import { passkey, signIn, twoFactor } from "@repo/auth/client";
-import { Icons } from "@repo/ui/components/Icons";
-import { Button } from "@repo/ui/components/ui/button";
+import { Icons } from "@repo/react-ui/components/Icons";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
-import { Input } from "@repo/ui/components/ui/input";
-import { Label } from "@repo/ui/components/ui/label";
+} from "@repo/react-ui/components/ui/card";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { Label } from "@repo/react-ui/components/ui/label";
 import PageWrapper from "@site/components/Container/PageWrapper";
 import { KeyRound } from "lucide-react";
 import Link from "next/link";

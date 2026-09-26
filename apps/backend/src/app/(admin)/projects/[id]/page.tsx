@@ -1,14 +1,14 @@
 import { db } from "@repo/database";
 import { eq } from "@repo/database";
 import { organization, project } from "@repo/database/schema";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 

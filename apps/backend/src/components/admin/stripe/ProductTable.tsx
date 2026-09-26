@@ -2,8 +2,8 @@
 
 import { ActionsMenu } from "@/components/admin/stripe/ActionsMenu";
 import type { Product } from "@repo/billing/stripe/client";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Input } from "@repo/ui/components/ui/input";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Input } from "@repo/react-ui/components/ui/input";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 

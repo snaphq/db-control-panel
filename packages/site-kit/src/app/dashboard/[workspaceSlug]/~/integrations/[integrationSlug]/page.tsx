@@ -1,13 +1,13 @@
 import { requireOrganizationMembership } from "@repo/core/auth/require-membership";
 import { findIntegrationBySlug } from "@repo/core/integrations/queries";
-import { InstallIntegrationForm } from "@repo/ui/components/integrations/install-integration-form";
-import type { ConfigSchema } from "@repo/ui/components/integrations/install-integration-form";
+import { InstallIntegrationForm } from "@repo/react-ui/components/integrations/install-integration-form";
+import type { ConfigSchema } from "@repo/react-ui/components/integrations/install-integration-form";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import { notFound } from "next/navigation";
 
 interface PageProps {

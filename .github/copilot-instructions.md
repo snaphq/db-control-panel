@@ -212,7 +212,7 @@ export default async function MyPage() {
 #### Creating a Client Component
 
 ```typescript
-// packages/ui/src/components/MyComponent.tsx
+// packages/react-ui/src/components/MyComponent.tsx
 "use client";
 
 import { useState } from "react";

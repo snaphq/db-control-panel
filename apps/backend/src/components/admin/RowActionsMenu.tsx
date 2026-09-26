@@ -9,15 +9,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@repo/ui/components/ui/alert-dialog";
-import { Button } from "@repo/ui/components/ui/button";
+} from "@repo/react-ui/components/ui/alert-dialog";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@repo/ui/components/ui/dropdown-menu";
+} from "@repo/react-ui/components/ui/dropdown-menu";
 import { Archive, ArchiveRestore, MoreHorizontal, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

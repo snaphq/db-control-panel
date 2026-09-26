@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "../../../../packages/ui/src/styles/theme.css";
+@import "../../../../packages/react-ui/src/styles/theme.css";
 
 /* Shared site routes live in @repo/site-kit; scan them for class names. */
 @source "../../../../packages/site-kit/src";

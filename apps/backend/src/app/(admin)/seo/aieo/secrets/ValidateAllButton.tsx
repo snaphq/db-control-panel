@@ -1,7 +1,7 @@
 "use client";
 
 import { validateAllSecretsAction } from "@/app/(admin)/seo/aieo/secrets/actions";
-import { Button } from "@repo/ui/components/ui/button";
+import { Button } from "@repo/react-ui/components/ui/button";
 import { useState, useTransition } from "react";
 
 export function ValidateAllButton() {

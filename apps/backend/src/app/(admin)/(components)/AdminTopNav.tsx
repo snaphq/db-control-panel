@@ -3,15 +3,15 @@
 import { AdminAccountMenu } from "@/components/admin/admin-account-menu";
 import { AdminCommandMenu } from "@/components/admin/admin-command-menu";
 import { HamburgerMenuIcon } from "@radix-ui/react-icons";
-import { ModeToggle } from "@repo/ui/components/ModeToggle";
-import { Button } from "@repo/ui/components/ui/button";
+import { ModeToggle } from "@repo/react-ui/components/ModeToggle";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@repo/ui/components/ui/sheet";
+} from "@repo/react-ui/components/ui/sheet";
 import {
   Activity,
   Building2,

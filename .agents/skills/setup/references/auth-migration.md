@@ -61,7 +61,7 @@ through `getBetterAuthServer()`.
 | `packages/core/src/auth/require-membership.ts` | `site-admin` role check for workspace access |
 | `packages/site-kit/src/app/oauth2/*`, `.well-known/{oauth-authorization-server,openid-configuration,jwks.json,oauth-protected-resource}` | MCP OAuth/OIDC authorization server built on `oidcProvider` |
 | `packages/core/src/agent-auth/**`, `app/auth.md` | Agent registration protocol; uses the OIDC server above |
-| `packages/ui/src/components/account/authentication/*` | Passkey, two-factor, sign-in-method cards |
+| `packages/react-ui/src/components/account/authentication/*` | Passkey, two-factor, sign-in-method cards |
 | `packages/site-kit/src/__tests__/agent-readiness-protocol.test.ts` | Imports `better-auth` types |
 
 ## 3. Database tables owned by Better Auth

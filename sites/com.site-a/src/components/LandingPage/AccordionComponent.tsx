@@ -3,7 +3,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@repo/ui/components/ui/accordion";
+} from "@repo/react-ui/components/ui/accordion";
 
 export function AccordionComponent() {
   return (

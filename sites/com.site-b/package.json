@@ -14,7 +14,7 @@
   "dependencies": {
     "@repo/fumadocs": "workspace:*",
     "@repo/site-kit": "workspace:*",
-    "@repo/ui": "workspace:*",
+    "@repo/react-ui": "workspace:*",
     "@tailwindcss/postcss": "^4.2.2",
     "fumadocs-mdx": "catalog:",
     "next": "catalog:",

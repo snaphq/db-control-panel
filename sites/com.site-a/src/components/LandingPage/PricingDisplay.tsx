@@ -1,7 +1,7 @@
 "use client";
 
 import type { PricingTier } from "@repo/billing/stripe/queries";
-import { Button } from "@repo/ui/components/ui/button";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,9 +9,9 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@repo/ui/components/ui/tabs";
-import { cn } from "@repo/ui/lib/utils";
+} from "@repo/react-ui/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@repo/react-ui/components/ui/tabs";
+import { cn } from "@repo/react-ui/lib/utils";
 import { CheckCircle2, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";

@@ -1,10 +1,10 @@
 import { PostHogProvider } from "@repo/analytics";
 import { Analytics } from "@repo/analytics/vercel";
 import { absoluteUrl, getSiteUrl } from "@repo/core/site-config";
-import { NextChatSDKBootstrap } from "@repo/ui/components/NextChatSDKBootstrap";
-import { WebMcpBootstrap } from "@repo/ui/components/WebMcpBootstrap";
-import { ThemeProvider } from "@repo/ui/components/theme-provider";
-import { Toaster } from "@repo/ui/components/ui/sonner";
+import { NextChatSDKBootstrap } from "@repo/react-ui/components/NextChatSDKBootstrap";
+import { WebMcpBootstrap } from "@repo/react-ui/components/WebMcpBootstrap";
+import { ThemeProvider } from "@repo/react-ui/components/theme-provider";
+import { Toaster } from "@repo/react-ui/components/ui/sonner";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";

@@ -1,13 +1,13 @@
 "use client";
 
 import { HamburgerMenuIcon } from "@radix-ui/react-icons";
-import { CommandMenu } from "@repo/ui/components/dashboard/command-menu";
-import { InvitationBell } from "@repo/ui/components/dashboard/invitation-bell";
-import { ProjectSwitcher } from "@repo/ui/components/dashboard/project-switcher";
-import { useSidebar } from "@repo/ui/components/dashboard/sidebar-context";
-import { SidebarUserMenu } from "@repo/ui/components/dashboard/sidebar-user-menu";
-import { Button } from "@repo/ui/components/ui/button";
-import { Separator } from "@repo/ui/components/ui/separator";
+import { CommandMenu } from "@repo/react-ui/components/dashboard/command-menu";
+import { InvitationBell } from "@repo/react-ui/components/dashboard/invitation-bell";
+import { ProjectSwitcher } from "@repo/react-ui/components/dashboard/project-switcher";
+import { useSidebar } from "@repo/react-ui/components/dashboard/sidebar-context";
+import { SidebarUserMenu } from "@repo/react-ui/components/dashboard/sidebar-user-menu";
+import { Button } from "@repo/react-ui/components/ui/button";
+import { Separator } from "@repo/react-ui/components/ui/separator";
 import {
   Sheet,
   SheetClose,
@@ -15,7 +15,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@repo/ui/components/ui/sheet";
+} from "@repo/react-ui/components/ui/sheet";
 import { Folder, HomeIcon, PanelLeft, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";

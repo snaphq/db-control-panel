@@ -1,6 +1,6 @@
 "use client";
 import { useSession } from "@repo/auth/client";
-import { Button } from "@repo/ui/components/ui/button";
+import { Button } from "@repo/react-ui/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { BorderBeam } from "../magicui/border-beam";

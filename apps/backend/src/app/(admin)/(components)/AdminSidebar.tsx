@@ -5,16 +5,16 @@ import {
   type AdminNavSection,
   adminNav,
 } from "@/lib/navigation";
-import { useSidebar } from "@repo/ui/components/dashboard/sidebar-context";
-import { SidebarUserMenu } from "@repo/ui/components/dashboard/sidebar-user-menu";
-import { Separator } from "@repo/ui/components/ui/separator";
+import { useSidebar } from "@repo/react-ui/components/dashboard/sidebar-context";
+import { SidebarUserMenu } from "@repo/react-ui/components/dashboard/sidebar-user-menu";
+import { Separator } from "@repo/react-ui/components/ui/separator";
 import {
   SidebarDrillDownButton,
   SidebarGroupLabel,
   SidebarNavLink,
   resolveMostSpecificActiveHref,
-} from "@repo/ui/components/ui/sidebar-nav";
-import { cn } from "@repo/ui/lib/utils";
+} from "@repo/react-ui/components/ui/sidebar-nav";
+import { cn } from "@repo/react-ui/lib/utils";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";

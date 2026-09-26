@@ -1,7 +1,7 @@
 import { auth } from "@repo/auth/server";
 import { canUserCreateFreeWorkspace } from "@repo/billing";
 import { getPricingTiers } from "@repo/billing/stripe/queries";
-import { CreateWorkspaceProvider } from "@repo/ui/components/workspace/create/CreateWorkspaceContext";
+import { CreateWorkspaceProvider } from "@repo/react-ui/components/workspace/create/CreateWorkspaceContext";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 

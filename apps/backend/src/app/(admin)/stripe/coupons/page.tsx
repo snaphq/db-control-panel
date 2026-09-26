@@ -1,6 +1,6 @@
 import { CouponTable } from "@/components/admin/stripe/CouponTable";
 import { getStripeCoupons } from "@repo/billing/stripe/queries";
-import { Button } from "@repo/ui/components/ui/button";
+import { Button } from "@repo/react-ui/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 

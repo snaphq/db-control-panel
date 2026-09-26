@@ -3,13 +3,13 @@ import { KeywordPositionChart } from "@/app/(admin)/seo/keywords/[id]/KeywordPos
 import { ensureSeoAccess } from "@/lib/seo-guard";
 import { getKeywordById } from "@repo/database/dal/seo";
 import { listSnapshotsForKeyword } from "@repo/database/dal/seo";
-import { Badge } from "@repo/ui/components/ui/badge";
+import { Badge } from "@repo/react-ui/components/ui/badge";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import { format } from "date-fns";
 import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";

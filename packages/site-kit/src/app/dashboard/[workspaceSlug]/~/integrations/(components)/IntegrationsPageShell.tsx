@@ -1,4 +1,4 @@
-import { cn } from "@repo/ui/lib/utils";
+import { cn } from "@repo/react-ui/lib/utils";
 import Link from "next/link";
 import type { ReactNode } from "react";
 

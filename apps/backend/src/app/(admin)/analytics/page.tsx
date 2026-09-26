@@ -2,7 +2,7 @@ import { TrafficCharts } from "@/app/(admin)/analytics/(components)/TrafficChart
 import { assertPosthogConfigured } from "@repo/analytics/posthog-query";
 import { asc, db } from "@repo/database";
 import { analyticsFunnel } from "@repo/database";
-import { Card, CardContent } from "@repo/ui/components/ui/card";
+import { Card, CardContent } from "@repo/react-ui/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 
 export const dynamic = "force-dynamic";

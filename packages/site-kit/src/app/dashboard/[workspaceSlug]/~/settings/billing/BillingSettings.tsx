@@ -7,9 +7,9 @@ import type {
   BillingSubscriptionResponse,
   BillingUsageResponse,
 } from "@repo/billing/types";
-import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Button } from "@repo/ui/components/ui/button";
+import { Alert, AlertDescription } from "@repo/react-ui/components/ui/alert";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Button } from "@repo/react-ui/components/ui/button";
 import {
   Card,
   CardContent,
@@ -17,8 +17,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
-import { Progress } from "@repo/ui/components/ui/progress";
+} from "@repo/react-ui/components/ui/card";
+import { Progress } from "@repo/react-ui/components/ui/progress";
 import {
   AlertCircle,
   Check,
@@ -33,7 +33,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Separator } from "@repo/ui/components/ui/separator";
+import { Separator } from "@repo/react-ui/components/ui/separator";
 import {
   BillingDetailsForm,
   type BillingDetailsInitial,

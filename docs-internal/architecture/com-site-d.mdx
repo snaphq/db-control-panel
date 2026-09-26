@@ -16,7 +16,7 @@ sharing the monorepo's single `DATABASE_URL` and owning its own tenant.
 | Framework | Next.js 16 App Router | SolidStart 2 + Vite 8 | Astro 7 |
 | Shared routes | `@repo/site-kit` | none, owns `src/routes` | none, owns `src/pages` |
 | API | Next route handlers | Hono, mounted at `/api` | Astro API route at `/api/auth/*` |
-| Styling | Tailwind 4 + `@repo/ui` | Tailwind 4 + Solid primitives | Tailwind 4 + React islands |
+| Styling | Tailwind 4 + `@repo/react-ui` | Tailwind 4 + Solid primitives | Tailwind 4 + React islands |
 | Node | 22 | **24+** | **22.12+** (Astro 7 requirement) |
 | Deploy output | `.next` | Nitro (`.output` locally) | `.vercel/output` via `@astrojs/vercel` |
 

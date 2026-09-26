@@ -1,5 +1,5 @@
 import { requireProjectMembership } from "@repo/core/auth/require-membership";
-import { ProjectSettingsForm } from "@repo/ui/components/projects/project-settings-form";
+import { ProjectSettingsForm } from "@repo/react-ui/components/projects/project-settings-form";
 
 interface PageProps {
   params: Promise<{ workspaceSlug: string; projectSlug: string }>;

@@ -1,5 +1,5 @@
 import { requireOrganizationMembership } from "@repo/core/auth/require-membership";
-import { WorkspaceSettingsForm } from "@repo/ui/components/workspaces/workspace-settings-form";
+import { WorkspaceSettingsForm } from "@repo/react-ui/components/workspaces/workspace-settings-form";
 
 interface PageProps {
   params: Promise<{ workspaceSlug: string }>;

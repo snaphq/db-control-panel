@@ -5,13 +5,13 @@ import {
 } from "@repo/database/dal/seo";
 import { countPagesByStatus } from "@repo/database/dal/seo";
 import { getLatestSnapshotsWithDelta } from "@repo/database/dal/seo";
-import { Badge } from "@repo/ui/components/ui/badge";
+import { Badge } from "@repo/react-ui/components/ui/badge";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@repo/ui/components/ui/card";
+} from "@repo/react-ui/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import type { Metadata } from "next";
 import Link from "next/link";

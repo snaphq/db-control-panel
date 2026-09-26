@@ -7,8 +7,8 @@ import {
   serializeOperatorDetail,
 } from "@repo/core/operators/detail";
 import { getCurrentTenant } from "@repo/core/tenant";
-import { ACTIVITY_LIMIT } from "@repo/ui/components/account/operators/format";
-import { OperatorDetail } from "@repo/ui/components/account/operators/operator-detail";
+import { ACTIVITY_LIMIT } from "@repo/react-ui/components/account/operators/format";
+import { OperatorDetail } from "@repo/react-ui/components/account/operators/operator-detail";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";

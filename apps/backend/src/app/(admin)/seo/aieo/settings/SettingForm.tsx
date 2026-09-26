@@ -1,9 +1,9 @@
 "use client";
 
 import { setSettingAction } from "@/app/(admin)/seo/aieo/settings/actions";
-import { Button } from "@repo/ui/components/ui/button";
-import { Input } from "@repo/ui/components/ui/input";
-import { Textarea } from "@repo/ui/components/ui/textarea";
+import { Button } from "@repo/react-ui/components/ui/button";
+import { Input } from "@repo/react-ui/components/ui/input";
+import { Textarea } from "@repo/react-ui/components/ui/textarea";
 import { useState, useTransition } from "react";
 
 interface Props {

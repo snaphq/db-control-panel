@@ -10,9 +10,9 @@
     "cssVariables": true
   },
   "aliases": {
-    "components": "@repo/ui/components",
-    "ui": "@repo/ui/components/ui",
-    "hooks": "@repo/ui/hooks",
-    "utils": "@repo/ui/lib/utils"
+    "components": "@repo/react-ui/components",
+    "ui": "@repo/react-ui/components/ui",
+    "hooks": "@repo/react-ui/hooks",
+    "utils": "@repo/react-ui/lib/utils"
   }
 }

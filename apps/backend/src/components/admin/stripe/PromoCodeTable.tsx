@@ -1,8 +1,8 @@
 "use client";
 
 import { ActionsMenu } from "@/components/admin/stripe/ActionsMenu";
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Input } from "@repo/ui/components/ui/input";
+import { Badge } from "@repo/react-ui/components/ui/badge";
+import { Input } from "@repo/react-ui/components/ui/input";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
