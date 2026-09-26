@@ -22,7 +22,7 @@ here.
   pre-commit hook fails on stale shims.
 - Keep `sites/com.site-a` and `sites/com.site-b` as placeholder names in the
   template; users rename them during setup with `rename-site.ts`.
-- Write docs, README, `env.example`, `AGENTS.md`, and `CLAUDE.md` for the
+- Write docs, README, `env.example`, and `AGENTS.md` for the
   **finished** project: Better Auth only, no setup steps, no "starter kit"
   wording. Setup knowledge belongs in `SETUP.md` and `setup*` skills only.
 - Use the placeholder names that `rename-project.ts` replaces (for example

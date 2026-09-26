@@ -1,11 +1,15 @@
 # Repository Guidelines
 
+This file is the single source of agent instructions for the repository
+(there is no `CLAUDE.md` or `GEMINI.md`; the pre-commit hook rejects them).
+
 <!-- setup:start -->
-> **This project has not been set up yet — `SETUP.md` exists.** Before any
-> other work, ask the user whether to set the project up now; if yes, follow
-> `SETUP.md`. If they are developing the template itself, load the
-> `setup-kit-development` skill instead and never run the setup finalize
-> script in the template repo.
+> **This is the starter template (`SETUP.md` exists).** Building features,
+> fixing bugs, and refactoring the template itself is the normal work here:
+> just do what the user asks, following the `setup-kit-development` skill. Do
+> not ask about, suggest, or start project setup unless the user explicitly
+> asks to set up a new project from this template — only then follow
+> `SETUP.md`. Never run the setup finalize script in this repository.
 <!-- setup:end -->
 
 ## Monorepo Structure
@@ -25,7 +29,7 @@ with TUI mode enabled.
 ├── packages/
 │   ├── site-kit/           # Shared site routes (src/app), proxy, root layout
 │   ├── core/               # Shared server logic (auth helpers, agent auth, operators, integrations)
-│   ├── ui/                 # Shared React components, hooks, providers, theme.css
+│   ├── react-ui/           # Shared React components, hooks, providers, theme.css (React hosts only)
 │   ├── database/           # Drizzle schema and data access (@repo/database)
 │   ├── auth/               # Better Auth wrapper for the sites (@repo/auth)
 │   ├── mcp-server/         # MCP tools and per-site toolsets
@@ -38,7 +42,7 @@ with TUI mode enabled.
 ```
 
 Dependency direction: `sites/*` and `apps/backend` depend on packages;
-`site-kit` depends on `ui` and `core`; `ui` depends on `core`; packages never
+`site-kit` depends on `react-ui` and `core`; `react-ui` depends on `core`; packages never
 import from apps or sites. Shared site routes reach site-owned modules only
 through the `@site/*` alias (`@site/site.config`, `@site/lib/source`,
 `@site/components/Container/PageWrapper`).
@@ -49,7 +53,8 @@ All commands use bun and are run from the monorepo root:
 
 - `bun install` - Install all dependencies across workspaces
 - `bun run dev` - Start all dev servers with the Turbo TUI
-- `bun run dev:backend` / `dev:site-a` / `dev:site-b` - Start one app
+- `bun run dev:backend` (port 8800) / `dev:site-a` (8801) / `dev:site-b` (8802)
+  / `dev:site-c` / `dev:site-d` - Start one app
 - `bun run build` - Production build (fails on type or lint errors)
 - `bun run start` - Serve the built apps locally
 - `bun run sites:sync` - Regenerate site route shims after changing
@@ -76,19 +81,54 @@ bun run --filter @repo/backend dev      # Run dev for the admin portal only
 bun run --filter @repo/database build   # Build database package only
 ```
 
+## Apps and Sites
+
+- `apps/backend` is the platform admin portal. It has its own sign-in
+  (`BACKEND_ADMIN_EMAILS` + emailed code) and hosts Stripe webhooks, Inngest,
+  and the admin MCP endpoint (`/mcp?tenant=<id>`).
+- `sites/*` are tenant sites. Next.js sites share routes from
+  `packages/site-kit/src/app`; each keeps generated one-line shims
+  (`bun run sites:sync`, checked by `bun run check:site-routes` in
+  pre-commit) plus its own `site.config.ts`, branding, and landing/legal
+  pages. Edit shared routes in site-kit, never the generated shims; a site
+  overrides a route by committing its own file there.
+- Shared server logic is in `packages/core`; shared React UI is in
+  `packages/react-ui` (React hosts only — non-React sites bring their own UI).
+- Auth for sites is Better Auth, wrapped by `@repo/auth` (`packages/auth/src`).
+
+## Repo Conventions
+
+- **Pre-commit hooks enforce**: catalog references for shared dependency
+  versions, 600-line max per code file (`scripts/check-max-lines.ts`),
+  staged-TS type-checking, no new dead code (`bun run check:dead-code`,
+  fallow + knip against shrink-only baselines), banned deps, no
+  `middleware.ts` in Next.js apps (Next.js 16 uses `proxy.ts`), allowed
+  root markdown files, skill symlinks, site route shims, and biome
+  formatting. Don't `--no-verify`.
+- **Skills** live in `.agents/skills/<name>/` and are symlinked as
+  `.claude/skills/<name>`; `bun run check:skill-links` enforces it.
+- **Environment**: keep variables minimal. Shared secrets go in the root
+  `.env.local`; each app's only local value is `NEXT_PUBLIC_APP_URL` in its
+  committed `.env.development` (it is also the auth base URL).
+
 ## Documentation policy
 
 - Put public, task-oriented guidance in `docs-public/`.
 - Put developer, agent, architecture, security, operations, and verification
   guidance in `docs-internal/`.
-- Keep `/auth.md` generated from its route as the machine-readable agent
-  contract; document its consumer and implementation views separately.
+- Keep `/auth.md` generated from `packages/site-kit/src/app/auth.md/route.ts`
+  as the machine-readable agent contract; document its consumer and
+  implementation views separately.
 - Do not add hand-maintained `docs/` or nested `*/docs/*` directories. The
   existing `packages/site-kit/src/app/docs/` route is an allowed generated mirror
   of `docs-public/`; staged-path checks also ignore `.agents/**` and
   `.claude/**`, which hold executable agent instructions.
-- `README.md`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, and `LICENCE.md` are the
-  root markdown policy exemptions.
+- `README.md`, `AGENTS.md`, and `LICENCE.md` are the only root markdown
+  files (plus `SETUP.md` in the template). Agent instructions go in
+  `AGENTS.md`; `CLAUDE.md` and `GEMINI.md` are rejected by
+  `bun run check:root-md`.
+- Use `.agents/tasks/` for planning artifacts and `.agents/skills/` for
+  executable agent instructions.
 - Preview with `bun run docs:public` or `bun run docs:internal`; validate with
   the corresponding `:validate` command and `bun run check:doc-coverage`.
 
@@ -133,7 +173,7 @@ TypeScript is required across the repo. Use two-space indentation, single quotes
 
 ## Testing Guidelines
 
-Vitest suites live in the packages and in `apps/backend` (`src/**/*.test.ts` or `src/__tests__/`); run them all with `bunx turbo run test --filter='./packages/*' --filter='./apps/*'` (the CI test job). Tests that touch tenancy must prove isolation between sites, for example that a credential from one site's tenant is rejected on another site's host (`packages/core/src/tenant-isolation.test.ts`). Keep test names declarative (`it('renders empty state when no invoices')`), document manual verification steps in each PR, and run `bun run build` before merging.
+Vitest suites live in the packages, `apps/backend`, and the standalone sites (`src/**/*.test.ts` or `src/__tests__/`); run them all with `bunx turbo run test --filter='./packages/*' --filter='./apps/*' --filter='./sites/*'`. Tests that touch tenancy must prove isolation between sites, for example that a credential from one site's tenant is rejected on another site's host (`packages/core/src/tenant-isolation.test.ts`). Keep test names declarative (`it('renders empty state when no invoices')`), document manual verification steps in each PR, and run `bun run build` before merging.
 
 ## Commit & Pull Request Guidelines
 

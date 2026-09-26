@@ -5,15 +5,15 @@
  *
  * Documentation belongs in docs-public/ or docs-internal/.
  * Only a curated allowlist of root-level markdown files is permitted.
+ * Agent instructions live in AGENTS.md only: tool-specific files such as
+ * CLAUDE.md and GEMINI.md are rejected anywhere in the repository.
  */
 
 import { execFileSync } from "node:child_process";
 
 const ALLOWED = new Set([
   "README.md",
-  "CLAUDE.md",
   "AGENTS.md",
-  "GEMINI.md",
   "LICENCE.md",
   // setup:start
   "SETUP.md",
@@ -35,7 +35,25 @@ function getStagedFiles(): string[] {
     .filter(Boolean);
 }
 
-const violations = getStagedFiles().filter((file) => {
+// Tool-specific agent instruction files, blocked at any depth in favor of
+// AGENTS.md.
+const AGENT_FILE_ALTERNATIVES = /(^|\/)(CLAUDE|GEMINI)\.md$/i;
+
+const stagedFiles = getStagedFiles();
+
+const agentFiles = stagedFiles.filter((file) =>
+  AGENT_FILE_ALTERNATIVES.test(file),
+);
+if (agentFiles.length > 0) {
+  console.error("\nCommit blocked: CLAUDE.md and GEMINI.md are not allowed.\n");
+  for (const file of agentFiles) {
+    console.error(`  x ${file}`);
+  }
+  console.error("\nPut agent instructions in AGENTS.md instead.\n");
+  process.exit(1);
+}
+
+const violations = stagedFiles.filter((file) => {
   const isRootMd = /^[^/]+\.md$/i.test(file);
   return isRootMd && !ALLOWED.has(file);
 });

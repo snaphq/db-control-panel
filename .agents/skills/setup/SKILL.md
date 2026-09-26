@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Core initial-setup skill for this project. Use when SETUP.md exists at the repo root (the project has not been set up yet) and you are following it, or when a setup-* skill points here for shared scripts and references.
+description: Core initial-setup skill for this project. Use only when the user explicitly asks to set up a new project from this template and you are following SETUP.md, or when a setup-* skill points here for shared scripts and references. Do not use it (or suggest setup) while the user is building features on the template.
 ---
 
 # Project setup

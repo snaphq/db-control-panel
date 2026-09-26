@@ -4,7 +4,10 @@ This file exists only until the project is set up. Its presence means setup
 has not been done. The last step deletes it, together with every other
 setup-only file, and checks that nothing stale is left.
 
-**For agents:** work through the steps in order. Ask the user for every value;
+**For agents:** follow this file only when the user explicitly asks to set
+up a new project from this template; while they build features on the
+template, ignore it (see the `setup-kit-development` skill). When following
+it, work through the steps in order. Ask the user for every value;
 never invent credentials. Scripts live in `.agents/skills/setup/scripts/` and
 are described in `.agents/skills/setup/SKILL.md`. Run commands from the repo
 root. Keep secrets out of chat summaries and commit messages.
@@ -215,7 +218,7 @@ bun .agents/skills/setup/scripts/finalize.ts
 ```
 
 It removes this file, every `setup*` skill, the setup pointer blocks in
-`AGENTS.md`, `CLAUDE.md`, and `README.md`, and other template-only files; then
+`AGENTS.md` and `README.md`, and other template-only files; then
 scans for leftovers, runs the dead-code gate and repo checks, and commits
 `chore: complete project setup`. If any check fails, fix the cause and
 re-run it. Ask the user before pushing.
