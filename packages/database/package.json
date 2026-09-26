@@ -16,7 +16,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:query": "bun src/query.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "test": "vitest run"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.0.2",
@@ -25,8 +26,9 @@
     "undici": "catalog:"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.7",
     "dotenv": "catalog:",
-    "typescript": "catalog:"
+    "drizzle-kit": "^0.31.7",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

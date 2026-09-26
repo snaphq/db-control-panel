@@ -40,6 +40,9 @@ vi.mock("mcp-handler", () => ({
 }));
 
 const { POST } = await import("@repo/site-kit/app/mcp/route");
+const { createMcpHandler } = await import("mcp-handler");
+const { registerSiteTools } = await import("@repo/mcp-server/site-tools");
+const { siteConfig } = await import("@site/site.config");
 const { verifyAgentAccessToken } = await import("@repo/core/agent-auth/tokens");
 const { isLegacyAccountToken, verifyOperatorToken } = await import(
   "@repo/core/auth/operator-token"
@@ -220,5 +223,41 @@ describe("MCP route authentication failures", () => {
         ],
       },
     });
+  });
+
+  it("serves the site's own MCP server name and toolsets", async () => {
+    vi.mocked(verifyOperatorToken).mockResolvedValueOnce({
+      credentialId: "cred_1",
+      operatorId: "op_1",
+      operatorName: "Claude",
+      userId: "user_1",
+      tenantId: "tenant-a",
+      scope: { mode: "all_owned" },
+      organizations: [],
+      scopes: ["api.read"],
+    });
+
+    await POST(
+      new Request("https://site-toolsets.example.test/mcp", {
+        method: "POST",
+        headers: {
+          host: "site-toolsets.example.test",
+          authorization: "Bearer opt_test",
+        },
+      }),
+    );
+
+    const [init, options] = vi.mocked(createMcpHandler).mock.calls.at(-1) ?? [];
+    expect(options).toMatchObject({
+      serverInfo: { name: siteConfig.mcp.serverName },
+    });
+    await (init as (server: unknown) => Promise<void>)({});
+    expect(registerSiteTools).toHaveBeenLastCalledWith(
+      {},
+      expect.objectContaining({
+        siteName: siteConfig.name,
+        toolsets: siteConfig.mcp.toolsets,
+      }),
+    );
   });
 });

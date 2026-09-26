@@ -166,6 +166,16 @@ export async function ensureDefaultTenant(input: TenantSeedInput = {}) {
   return row;
 }
 
+/**
+ * Tenant that local (localhost) requests resolve to during development. Each
+ * site build pins SITE_TENANT_ID (each site's next.config.ts), so two sites
+ * running on localhost resolve to their own tenants; scripts fall back to
+ * DEFAULT_TENANT_ID.
+ */
+export function getLocalTenantId(): string {
+  return process.env.SITE_TENANT_ID?.trim() || getDefaultTenantId();
+}
+
 export async function resolveTenantFromHost(host: string | null | undefined) {
   const normalized = normalizeTenantHost(host);
 
@@ -182,10 +192,7 @@ export async function resolveTenantFromHost(host: string | null | undefined) {
     // an arbitrary `*.localhost` Host must not select the default tenant or
     // become a server-side fetch target.
     if (production) return null;
-    // Each site build pins SITE_TENANT_ID (sites/*/next.config.ts) so two
-    // sites running on localhost resolve to their own tenants.
-    const localTenantId =
-      process.env.SITE_TENANT_ID?.trim() || getDefaultTenantId();
+    const localTenantId = getLocalTenantId();
     const [row] = await db()
       .select()
       .from(tenant)
