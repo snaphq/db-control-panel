@@ -13,25 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useEffect, useState } from "react";
+import {
+  DEFAULT_EXPIRATION,
+  ExpirationOptions,
+  SELECT_CLASS_NAME,
+} from "./expirations";
+import { readError } from "./format";
 import { type ScopeMode, ScopeSelector } from "./scope-selector";
 import type { OperatorOrganizationOption, OperatorView } from "./types";
-
-const EXPIRATIONS = [
-  { value: "1h", label: "1 hour" },
-  { value: "1d", label: "1 day" },
-  { value: "7d", label: "7 days" },
-  { value: "30d", label: "30 days" },
-  { value: "60d", label: "60 days" },
-  { value: "90d", label: "90 days" },
-  { value: "180d", label: "180 days" },
-  { value: "1y", label: "1 year" },
-  { value: "never", label: "Never" },
-] as const;
-
-async function readError(res: Response): Promise<string> {
-  const data = await res.json().catch(() => ({}));
-  return typeof data.error === "string" ? data.error : "Request failed";
-}
 
 type Props = {
   open: boolean;
@@ -40,7 +29,8 @@ type Props = {
   /** When set, the dialog edits this operator instead of creating one. */
   operator?: OperatorView | null;
   onSaved: () => Promise<void> | void;
-  onCreated: (plaintext: string) => void;
+  /** Create mode only: receives the first key and the new operator id. */
+  onCreated?: (plaintext: string, operatorId: string) => void;
 };
 
 export function OperatorFormDialog({
@@ -56,7 +46,7 @@ export function OperatorFormDialog({
   const [description, setDescription] = useState("");
   const [mode, setMode] = useState<ScopeMode>("all_owned");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [expiration, setExpiration] = useState<string>("30d");
+  const [expiration, setExpiration] = useState<string>(DEFAULT_EXPIRATION);
   const [label, setLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +62,7 @@ export function OperatorFormDialog({
       setMode("all_owned");
       setSelectedIds([]);
     }
-    setExpiration("30d");
+    setExpiration(DEFAULT_EXPIRATION);
     setLabel("");
     setSaving(false);
     setError(null);
@@ -124,10 +114,13 @@ export function OperatorFormDialog({
         setError(await readError(res));
         return;
       }
-      const data = (await res.json()) as { plaintext: string };
+      const data = (await res.json()) as {
+        plaintext: string;
+        operator: { id: string };
+      };
       await onSaved();
       onOpenChange(false);
-      onCreated(data.plaintext);
+      onCreated?.(data.plaintext, data.operator.id);
     } finally {
       setSaving(false);
     }
@@ -200,19 +193,15 @@ export function OperatorFormDialog({
                     htmlFor="operator-expiration"
                     className="text-xs uppercase text-muted-foreground"
                   >
-                    Token expiration
+                    Key expiration
                   </Label>
                   <select
                     id="operator-expiration"
                     value={expiration}
                     onChange={(e) => setExpiration(e.target.value)}
-                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className={SELECT_CLASS_NAME}
                   >
-                    {EXPIRATIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
+                    <ExpirationOptions />
                   </select>
                 </div>
                 <div>
@@ -220,7 +209,7 @@ export function OperatorFormDialog({
                     htmlFor="operator-label"
                     className="text-xs uppercase text-muted-foreground"
                   >
-                    Token label (optional)
+                    Key label (optional)
                   </Label>
                   <Input
                     id="operator-label"
