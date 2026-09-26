@@ -40,7 +40,7 @@ jobs:
             project_id_var: VERCEL_PROJECT_ID_SITE_A
             default_project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
             project_name: 'nexvio-ai'
-            alias_prefix: ${{ matrix.alias_prefix }}
+            alias_prefix: 'nexvio-ai'
           - app: site-b
             project_id_var: VERCEL_PROJECT_ID_SITE_B
             default_project_id: ''
