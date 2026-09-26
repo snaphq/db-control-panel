@@ -23,6 +23,6 @@ export const siteConfig: StandaloneSiteConfig = {
   tenantSlug: "site-c",
   name: "Site C",
   description: "Usage dashboard for the Site C tenant",
-  domain: "site-c.vercel.app",
+  domain: "starter-solid-stack.vercel.app",
   publicPaths: ["/"],
 };

@@ -50,8 +50,8 @@ jobs:
           # SolidStart 2 requires Node 24+, so this row must not inherit 22.
           - app: site-c
             project_id_var: VERCEL_PROJECT_ID_SITE_C
-            default_project_id: ''
-            project_name: 'com-site-c'
+            default_project_id: 'prj_Kyj2GxV8oZGiwweHbVasBwvtinqZ'
+            project_name: 'starter-solid-stack'
             node_version: '24'
     environment:
       name: ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')) && 'production' || 'preview' }}
