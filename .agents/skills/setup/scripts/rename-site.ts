@@ -21,7 +21,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { colors } from "../../../../scripts/lib/colors";
@@ -82,7 +82,8 @@ function replaceInTrackedFiles(from: string, to: string): string[] {
   const changed: string[] = [];
   for (const file of files) {
     const path = join(ROOT, file);
-    if (!existsSync(path)) continue;
+    // Skip symlinks (e.g. .claude/skills/* -> .agents/skills/*) and non-files.
+    if (!existsSync(path) || !lstatSync(path).isFile()) continue;
     const content = readFileSync(path, "utf8");
     if (content.includes("\u0000") || !token.test(content)) continue;
     token.lastIndex = 0;
