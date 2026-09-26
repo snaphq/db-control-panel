@@ -17,7 +17,6 @@
     "packages/*": {}
   },
   "ignore": [
-    ".setup/templates/**",
     "docs-public/**",
     "docs-internal/**",
     ".agents/tasks/**",

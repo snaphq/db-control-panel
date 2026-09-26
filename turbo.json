@@ -3,10 +3,7 @@
   "ui": "tui",
   "globalEnv": [
     "NEXT_PUBLIC_APP_URL",
-    "NEXT_PUBLIC_AUTH_PROVIDER",
     "NEXT_PUBLIC_GOOGLE_CLIENT_ID",
-    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
-    "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
     "INNGEST_EVENT_KEY",
     "INNGEST_SIGNING_KEY",
     "INNGEST_DEV"
@@ -17,7 +14,6 @@
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
       "env": [
         "NEXT_PUBLIC_APP_URL",
-        "NEXT_PUBLIC_AUTH_PROVIDER",
         "NEXT_PUBLIC_GOOGLE_CLIENT_ID",
         "INNGEST_EVENT_KEY",
         "INNGEST_SIGNING_KEY",
@@ -29,7 +25,6 @@
       "persistent": true,
       "env": [
         "NEXT_PUBLIC_APP_URL",
-        "NEXT_PUBLIC_AUTH_PROVIDER",
         "NEXT_PUBLIC_GOOGLE_CLIENT_ID",
         "INNGEST_EVENT_KEY",
         "INNGEST_SIGNING_KEY",

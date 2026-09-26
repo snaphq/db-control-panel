@@ -1,27 +1,18 @@
-# Next.js 16 Starter Project for Turborepo Monorepos
+# Next.js 16 SaaS Monorepo
 
-A production-ready starter for building full-stack Next.js apps with the App Router, TypeScript, authentication, PostgreSQL, and the shared `@repo/database` package.
-
-This repository gives you a solid starting point instead of starting from scratch. It is built as a Turborepo monorepo with bun workspaces, so you can start from a working foundation and customize it for your product, SaaS, admin dashboard, or internal tool.
+A full-stack Next.js app with the App Router, TypeScript, Better Auth, PostgreSQL, and the shared `@repo/database` package, organised as a Turborepo monorepo with Bun workspaces.
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-7.x-blue)](https://www.typescriptlang.org/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.x-38bdf8)](https://tailwindcss.com/)
 [![Turborepo](https://img.shields.io/badge/Turborepo-Monorepo-EF4444)](https://turbo.build/)
 
-## Why use this starter?
-
-- Start from a **working Next.js 16 starter** instead of scaffolding everything yourself
-- Ship with **authentication, database access, UI components, and developer tooling** already wired up
-- Use a **monorepo-friendly structure** with shared packages and room to grow
-- Customize the project for your own product without having to replace the core app architecture first
-
 ## Features
 
 - **Turborepo Monorepo** with Bun workspaces and a shared dependency catalog
   for consistent installs
 - **Next.js 16** with App Router for optimal performance
-- **Single Auth Provider Architecture** - Choose your auth provider once at project init (BetterAuth, NextAuth, AuthKit, or Clerk)
+- **Better Auth** with organizations, two-factor auth, passkeys, social sign-in, and an OIDC provider for MCP clients
 - **Shared Database Package** with PostgreSQL and Drizzle ORM for type-safe queries
 - **Beautiful UI** with Shadcn UI, TailwindCSS, and multiple component libraries
 - **Forms** with React Hook Form and Zod validation
@@ -29,13 +20,13 @@ This repository gives you a solid starting point instead of starting from scratc
 - **Rate Limiting & Caching** with Redis/Upstash
 - **Payment Integration** with Stripe (optional)
 - **ChatGPT Apps SDK** with Model Context Protocol (MCP) support for AI integration
-- **Docker Support** for easy local development
+- **Docker Support** for container builds
 - **TUI Mode** - Interactive terminal UI when running `bun run dev`
 
 ## Monorepo Structure
 
 ```
-nextjs16-starter-kit/
+.
 ├── apps/
 │   └── next-app/                 # Next.js 16 application
 │       ├── src/                  # App source code
@@ -53,26 +44,13 @@ nextjs16-starter-kit/
 ├── packages/
 │   ├── ai/                       # OpenAI-compatible model helpers
 │   ├── analytics/                # PostHog/Vercel analytics
-│   ├── auth/                     # Selected authentication provider
+│   ├── auth/                     # Better Auth wrapper (@repo/auth)
 │   ├── billing/                  # Stripe and billing domain logic
 │   ├── database/                 # Drizzle schemas and DALs
 │   ├── durable-exec/             # Inngest and SEO/AIEO jobs
 │   ├── mcp-chatgpt/              # MCP context and logging
 │   ├── mcp-server/               # MCP tool registration
 │   └── object-storage/            # Vercel Blob/S3 providers
-│
-├── .setup/                       # Initial-setup machinery (delete after first run)
-│   ├── setup.ts                  # Unified setup (auth provider init + .env.local)
-│   ├── setup-env/                # CLI args, auth phase, env helpers
-│   ├── auth-init/                # Template copy / package.json mutation ops
-│   ├── dev-guard.ts              # Blocks `bun run dev` until setup runs
-│   ├── setup-stripe.ts           # Stripe initial config
-│   ├── setup-posthog.ts          # PostHog initial config
-│   ├── setup-referral.ts         # Referral system initial config
-│   ├── link-env.ts               # Symlink .env.local across workspaces
-│   └── templates/                # Auth provider templates
-│       ├── auth/{better-auth,next-auth,authkit,clerk}/
-│       └── shared/
 │
 ├── scripts/                      # Ongoing scripts (seed, checks, integrations)
 │   ├── seed-admin.ts             # Seed admin user
@@ -93,7 +71,7 @@ nextjs16-starter-kit/
 | Language | TypeScript (strict mode) |
 | Styling | TailwindCSS |
 | UI Components | Shadcn UI, Radix UI, Tremor, Magic UI |
-| Authentication | Single Provider (BetterAuth, NextAuth, AuthKit/WorkOS, or Clerk) |
+| Authentication | Better Auth |
 | Database | PostgreSQL + Drizzle ORM (shared package) |
 | Forms | React Hook Form + Zod |
 | State Management | TanStack Query (React Query) |
@@ -104,77 +82,36 @@ nextjs16-starter-kit/
 
 ## Getting Started
 
-Follow the steps below to configure the starter and begin building your app.
-
 ### Prerequisites
 
-- **Bun** (recommended) or Node.js 18+
-- PostgreSQL database (local or remote)
+- **Bun** 1.3+
+- A PostgreSQL database (for example a free [Neon](https://neon.tech) database)
 
-### Quick Start
+### Run locally
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/W3Mirror/nextjs16-starter-kit.git
-   cd nextjs16-starter-kit
-   ```
-
-2. **Install dependencies**
+1. **Install dependencies**
    ```bash
    bun install
    ```
 
-3. **Run setup (auth provider + environment variables)**
-   ```bash
-   bun run setup
-   ```
+2. **Configure environment**
 
-   The unified wizard:
-   1. Initializes your auth provider (one-time, irreversible). You'll choose:
-      - `better-auth` (default) - Self-hosted, Organizations, Email/Password
-      - `next-auth` - Auth.js v5, JWT Sessions
-      - `authkit` - WorkOS, Enterprise SSO
-      - `clerk` - Managed, Pre-built UI
-   2. Configures `.env.local` for the chosen provider plus optional services
-      (Stripe, Upstash, Resend, admin user).
+   Copy `env.example` to `.env.local` at the repo root and fill in at least
+   `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, and
+   `BETTER_AUTH_URL`. See [Configure authentication](./docs-public/configure/authentication.mdx).
 
-   > **Warning**: The auth provider choice is permanent. Re-run with `--force` to switch (backup is restored first).
-
-   **Headless / CI:**
-   ```bash
-   bun run setup --yes --provider=better-auth
-   ```
-   In `--yes` mode, prompts accept their defaults and optional services are
-   skipped unless their env vars (e.g. `STRIPE_SECRET_KEY`, `ADMIN_EMAIL`) are
-   exported. See `bun run setup --help` for the full list.
-
-4. **Push database schema**
+3. **Push the database schema and seed the admin user**
    ```bash
    bun run db:push
-   ```
-
-5. **Seed admin user (optional)**
-   ```bash
    bun run db:seed
    ```
 
-6. **Start development server with TUI**
+4. **Start the dev server**
    ```bash
    bun run dev
    ```
 
-   This opens an interactive Terminal UI with a sidebar showing all running tasks.
-
-7. **Open your browser**
-   Navigate to http://localhost:8801
-
-### Docker Setup (Alternative)
-
-```bash
-docker compose up
-```
-
-This starts PostgreSQL and the Next.js app with auto-schema push.
+   Then open http://localhost:8801.
 
 ## Available Scripts
 
@@ -193,15 +130,13 @@ This starts PostgreSQL and the Next.js app with auto-schema push.
 | `bun run db:push` | Push schema to database |
 | `bun run db:studio` | Open Drizzle Studio GUI |
 | `bun run db:seed` | Seed admin user |
-| `bun run setup` | Unified setup: auth provider init + environment variables |
-| `bun run setup --yes --provider=<name>` | Headless setup for CI |
-| `bun run setup --force` | Re-initialize the auth provider (dangerous) |
 | `bun run docs:public` | Preview public Mintlify documentation |
 | `bun run docs:internal` | Preview internal Mintlify documentation |
 | `bun run docs:public:validate` | Validate public documentation links |
 | `bun run docs:internal:validate` | Validate internal documentation links |
 | `bun run check:doc-coverage` | Verify documented source roots and nav pages |
 | `bun run check:catalog-deps` | Verify staged manifests use catalog references |
+| `bun run check:dead-code` | Check for new dead code with fallow and knip |
 
 ### Filtering to specific packages
 
@@ -244,65 +179,13 @@ bun run db:migrate
 
 ## Environment Variables
 
-Create `.env.local` at the root (or use `bun run setup`):
+`env.example` lists every variable. The required ones are:
 
 ```env
-# Database (Required)
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nextjs_starter
-
-# App URL (Required)
+DATABASE_URL=postgresql://user:password@host/db
 NEXT_PUBLIC_APP_URL=http://localhost:8801
-
-# Provider-specific variables are configured during `bun run setup`
-# based on the auth provider chosen during the setup wizard
-```
-
-## Authentication
-
-This starter uses a **single auth provider architecture**. You choose your auth provider once during project initialization, and only that provider's code is included in your project.
-
-### Selecting Your Provider
-
-Run `bun run setup` (or pass `--provider=<name>`) to select from:
-
-| Provider | Features | Best For |
-|----------|----------|----------|
-| **BetterAuth** (default) | Self-hosted, Organizations, Email/Password, Social OAuth | Full control, privacy-focused apps |
-| **NextAuth** | Auth.js v5, JWT Sessions, Multiple providers | Existing Auth.js experience |
-| **AuthKit** | WorkOS integration, Enterprise SSO, SAML | B2B/Enterprise applications |
-| **Clerk** | Managed service, Pre-built UI, User management | Rapid development, managed auth |
-
-### What Happens During Init
-
-1. You select a provider (or use `--provider=<name>` flag)
-2. Existing auth files are backed up to `.auth-backup/`
-3. Template files for your provider are copied to the project
-4. Package dependencies are updated
-5. Unused provider code is removed
-6. A `.auth-provider.lock` file is created (do not commit this)
-
-### Switching Providers
-
-The auth provider choice is **intentionally permanent** to keep the codebase clean. If you need to switch:
-
-```bash
-# Option 1: Start fresh
-rm -rf .auth-provider.lock .auth-backup
-bun run setup
-
-# Option 2: Force re-init (restores from backup first)
-bun run setup --force
-```
-
-### Direct Provider Selection
-
-Skip the interactive prompt:
-
-```bash
-bun run setup --provider=better-auth
-bun run setup --provider=next-auth
-bun run setup --provider=authkit
-bun run setup --provider=clerk
+BETTER_AUTH_SECRET=   # openssl rand -base64 32
+BETTER_AUTH_URL=http://localhost:8801
 ```
 
 ## Development Guidelines
@@ -335,7 +218,7 @@ mkdir -p packages/my-package/src
 
 ## ChatGPT Apps SDK Integration
 
-This starter includes ChatGPT Apps SDK support for running inside ChatGPT.
+This project includes ChatGPT Apps SDK support for running inside ChatGPT.
 
 1. Deploy to Vercel
 2. Connect via MCP: `https://your-app.vercel.app/mcp`
@@ -362,25 +245,11 @@ The root [`vercel.json`](vercel.json) configures monorepo deployment (build/inst
 ### Docker
 
 ```bash
-docker build -t nextjs-starter .
-docker run -p 8801:8801 nextjs-starter
+docker build -t app .
+docker run -p 8801:8801 --env-file .env.local app
 ```
 
 ## Troubleshooting
-
-### Auth Provider Issues
-
-**"No auth provider lock file found"**
-```bash
-# Run setup — it initializes auth if .auth-provider.lock is missing
-bun run setup
-```
-
-**"Auth provider already initialized"**
-```bash
-# Use --force to re-initialize (will restore backup first)
-bun run setup --force
-```
 
 ### Dependency Issues
 ```bash
@@ -415,7 +284,3 @@ bun install
 ## License
 
 MIT License - see [LICENSE](LICENSE)
-
----
-
-**Made with love by the W3DevStarter team**

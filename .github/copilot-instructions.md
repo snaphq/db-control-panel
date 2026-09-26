@@ -1,4 +1,4 @@
-# Copilot Instructions for NextJS 16 Starter Kit
+# Copilot Instructions
 
 ## Project Overview
 
@@ -10,7 +10,7 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 - **Framework**: Next.js 16 with App Router
 - **Language**: TypeScript with strict mode enabled
 - **Styling**: TailwindCSS with Shadcn UI components
-- **Authentication**: Multi-provider (BetterAuth, NextAuth, AuthKit, Clerk)
+- **Authentication**: Better Auth (`@repo/auth`)
 - **Database**: PostgreSQL with Drizzle ORM (@repo/database package)
 - **Forms**: React Hook Form with Zod validation
 - **State Management**: TanStack Query (React Query)
@@ -41,7 +41,7 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 │       │   ├── client.ts   # Database connection (getDb)
 │       │   └── index.ts    # Re-exports
 │       └── drizzle.config.ts
-├── scripts/                # Root-level scripts (setup, seed, stripe)
+├── scripts/                # Root-level scripts (seed, checks, stripe)
 ├── turbo.json              # Turborepo config with TUI mode
 └── package.json            # Root workspace config
 ```
@@ -118,9 +118,8 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 
 ### Authentication
 
-- **Multi-Provider**: Supports BetterAuth, NextAuth, AuthKit, and Clerk via `AUTH_PROVIDER` env var.
-- **Configuration**: Auth configuration is in `apps/next-app/src/lib/auth/`.
-- **Middleware**: Authentication middleware is in `apps/next-app/src/middleware.ts`.
+- **Better Auth**: The auth instance lives in `packages/auth/src/auth-instance.ts`; app helpers are in `apps/next-app/src/lib/auth/`.
+- **Proxy**: Request gating is in `apps/next-app/src/proxy.ts` (Next.js 16 has no `middleware.ts`).
 - **Protected Routes**: Use the unified auth API for route protection.
 - **User Data**: Access user data via the auth client hooks.
 
@@ -128,7 +127,7 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 
 ### Environment Setup
 
-1. Copy `.env.example` to `.env.local` at the monorepo root
+1. Copy `env.example` to `.env.local` at the monorepo root
 2. Fill in required environment variables (auth secrets, database URL)
 3. Run `bun install` to install dependencies across all workspaces
 
@@ -136,10 +135,8 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 
 **Before running the dev server, you MUST follow this sequence:**
 
-1. **Start the database with Docker Compose** (if not already running):
-   ```bash
-   docker compose up -d postgres
-   ```
+1. **Check the database**: `DATABASE_URL` in `.env.local` must point to a
+   reachable PostgreSQL database (for example Neon).
 
 2. **Sync the database schema**:
    ```bash
@@ -176,11 +173,10 @@ bun run --filter @repo/next-app dev     # Run dev for Next.js app only
 bun run --filter @repo/database build   # Build database package only
 ```
 
-### Docker Development
+### Docker
 
-- **Start**: `docker compose up` - Start PostgreSQL and Next.js
-- **Stop**: `docker compose down` - Stop all services
-- **Rebuild**: `docker compose up --build` - Rebuild and start
+- **Build**: `docker build -t app .`
+- **Run**: `docker run -p 8801:8801 --env-file .env.local app`
 
 ## Best Practices for Issues and PRs
 
@@ -258,7 +254,7 @@ export async function GET() {
 - **Environment Variables**: Never commit `.env.local` or expose secrets.
 - **API Routes**: Always validate input and check authentication.
 - **Database Queries**: Use parameterized queries (Drizzle handles this).
-- **Auth Secrets**: Secure all auth provider secrets and never expose them publicly.
+- **Auth Secrets**: Keep `BETTER_AUTH_SECRET` and OAuth client secrets out of Git and client code.
 - **Rate Limiting**: Use Upstash rate limiting for public endpoints.
 
 ## Testing Guidelines

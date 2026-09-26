@@ -27,7 +27,7 @@ with TUI mode enabled.
 │       │   ├── client.ts   # Database connection (getDb)
 │       │   └── index.ts    # Re-exports
 │       └── drizzle.config.ts
-├── scripts/                # Root-level scripts (setup, seed, stripe)
+├── scripts/                # Root-level scripts (seed, checks, stripe)
 ├── turbo.json              # Turborepo config with TUI mode
 └── package.json            # Root workspace config
 ```
@@ -119,11 +119,11 @@ There is no formal automated test harness yet—document manual verification ste
 
 ## Commit & Pull Request Guidelines
 
-Git history currently uses short imperative descriptions (`next auth working`, `clerk provider working`). Keep following that style: one feature or fix per commit, 72-character subject, and optional body for context. PRs should include: concise summary, screenshots for UI changes, database migration notes if `packages/database/` changed, manual test steps, and linked issues. Ensure PRs pass `bun run lint` and any added tests, and note required environment variables when a feature depends on new secrets.
+Commits use Conventional Commits (`feat(auth): add passkey login`), enforced by the commit-msg hook: one feature or fix per commit, 72-character subject, and optional body for context. PRs should include: concise summary, screenshots for UI changes, database migration notes if `packages/database/` changed, manual test steps, and linked issues. Ensure PRs pass `bun run lint` and any added tests, and note required environment variables when a feature depends on new secrets.
 
 ## Security & Configuration Notes
 
-Secrets belong in `.env.local` (at the monorepo root) and never in Git; redact example values before attaching logs. Rotate `AUTH_PROVIDER` and related keys when switching between BetterAuth, NextAuth, AuthKit, and Clerk. Database migrations should be reviewed because `db:push` can overwrite dev data—prefer `db:migrate` for anything shared. When exposing MCP or webhook endpoints, confirm URLs through `baseUrl.js` to avoid leaking staging hosts.
+Secrets belong in `.env.local` (at the monorepo root) and never in Git; redact example values before attaching logs. Rotating `BETTER_AUTH_SECRET` signs every user out. Database migrations should be reviewed because `db:push` can overwrite dev data—prefer `db:migrate` for anything shared. When exposing MCP or webhook endpoints, confirm URLs through `baseUrl.js` to avoid leaking staging hosts.
 
 ## Adding New Packages
 

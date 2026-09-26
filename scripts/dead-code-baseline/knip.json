@@ -8,7 +8,6 @@
     "dependencies|packages/fumadocs/package.json|fumadocs-mdx",
     "dependencies|packages/mcp-server/package.json|mcp-handler",
     "devDependencies|apps/next-app/package.json|@types/bcryptjs",
-    "devDependencies|package.json|fallow",
     "devDependencies|package.json|tsx",
     "exports|apps/next-app/src/app/adminx/seo/aieo/prompts/actions.ts|snapshotAllPromptsNowAction",
     "exports|apps/next-app/src/app/adminx/seo/aieo/secrets/actions.ts|markValidationFailureAction",

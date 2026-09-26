@@ -1,0 +1,41 @@
+---
+title: Authentication architecture
+description: Better Auth package boundary, tenant binding, and session ownership.
+---
+
+# Authentication architecture
+
+## Package boundary
+
+`@repo/auth` (`packages/auth/src`) wraps Better Auth behind a stable surface:
+
+- `auth-instance.ts` builds the Better Auth instance: email and password,
+  optional Google/GitHub social providers, and the `organization`,
+  `twoFactor`, `passkey`, and `oidcProvider` plugins.
+- `tenant-binding.ts` resolves the request tenant from the host and exposes
+  `runWithAuthTenantContext` so every adapter call is tenant-scoped.
+- `server.ts` and `client.ts` are the server and browser entry points;
+  `session-mapper.ts` maps Better Auth sessions to the app's session types.
+- `config.ts` holds shared auth configuration.
+
+The app owns route composition under `apps/next-app/src/app/api/auth` (the
+Better Auth catch-all plus sign-in, sign-up, organization, and password-reset
+routes), UI flows under `apps/next-app/src/app/auth`, and request gating in
+`apps/next-app/src/proxy.ts`. App helpers in `apps/next-app/src/lib/auth`
+cover session cookies, membership checks, operator tokens, and OAuth route
+utilities. Consumers import from `@repo/auth`, never from `better-auth`
+directly, except for plugin types.
+
+## Security invariants
+
+- Secrets stay in `.env.local` or the deployment secret store.
+- Session and organization checks happen at the server boundary before a
+  protected mutation.
+- Better Auth is backed by a tenant-bound adapter. Core auth, organization,
+  OIDC, passkey, and two-factor reads and writes require the request tenant;
+  OIDC access-token and consent rows also require the exact protected-resource
+  context. Transactions wrap their adapter so plugin-direct writes cannot
+  bypass these predicates.
+- Passkey relying-party configuration must match the deployed domain.
+- Auth errors should carry enough context for diagnosis without exposing
+  credentials or sensitive user data.

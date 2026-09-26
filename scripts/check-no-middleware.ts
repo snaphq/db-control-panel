@@ -12,13 +12,6 @@ import { execSync } from "node:child_process";
 
 const MIDDLEWARE_PATTERN =
   /(?:^|\/)middleware\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/;
-const SKIP_PATH_PREFIXES = [".setup/templates/"];
-
-function isSkippedPath(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, "/");
-  return SKIP_PATH_PREFIXES.some((prefix) => normalized.startsWith(prefix));
-}
-
 function getStagedFiles(): string[] {
   const output = execSync("git diff --cached --name-only --diff-filter=ACMR", {
     encoding: "utf8",
@@ -32,8 +25,8 @@ function getStagedFiles(): string[] {
     .filter(Boolean);
 }
 
-const violations = getStagedFiles().filter(
-  (file) => MIDDLEWARE_PATTERN.test(file) && !isSkippedPath(file),
+const violations = getStagedFiles().filter((file) =>
+  MIDDLEWARE_PATTERN.test(file),
 );
 
 if (violations.length > 0) {

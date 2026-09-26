@@ -8,10 +8,14 @@
       "sources": ["apps/next-app/src", "apps/next-app/package.json"]
     },
     {
-      "id": "auth-and-setup",
-      "page": "architecture/auth-and-setup.mdx",
+      "id": "authentication",
+      "page": "architecture/authentication.mdx",
       "visibility": "internal",
-      "sources": ["packages/auth/src", ".setup"]
+      "sources": [
+        "packages/auth/src",
+        "apps/next-app/src/lib/auth",
+        "apps/next-app/src/proxy.ts"
+      ]
     },
     {
       "id": "data-and-tenancy",
@@ -122,7 +126,7 @@
       "id": "configuration-and-secrets",
       "page": "operations/configuration-and-secrets.mdx",
       "visibility": "internal",
-      "sources": ["env.example", ".setup/setup-env"]
+      "sources": ["env.example"]
     },
     {
       "id": "deployments",
@@ -191,7 +195,7 @@
       "site": "docs-public",
       "page": "configure/authentication.mdx",
       "visibility": "public",
-      "sources": ["packages/auth/src", ".setup/templates/auth"]
+      "sources": ["packages/auth/src", "env.example"]
     },
     {
       "id": "public-database",

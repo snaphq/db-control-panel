@@ -1,39 +1,44 @@
 ---
-title: Choose an authentication provider
-description: Select and configure the provider that the generated starter will use.
+title: Configure authentication
+description: Configure Better Auth secrets, social sign-in, passkeys, and admin access.
 ---
 
-# Choose an authentication provider
+# Configure authentication
 
-The starter generates one authentication implementation during setup. Choose
-the provider before building product features so the application and shared
-auth package stay consistent.
+The project uses [Better Auth](https://www.better-auth.com) for email and
+password sign-in, organizations, two-factor authentication, passkeys, and the
+OAuth/OIDC provider used by MCP clients.
 
-## Select a provider
+## Required values
 
-Run the wizard:
+Set these in `.env.local` and in your deployment environment:
 
-```bash
-bun run setup
-```
+| Variable | Purpose |
+| --- | --- |
+| `BETTER_AUTH_SECRET` | Signs sessions. Generate with `openssl rand -base64 32`. |
+| `BETTER_AUTH_URL` | Public base URL of the app, for example `http://localhost:8801`. |
+| `NEXT_PUBLIC_APP_URL` | Same base URL, exposed to the browser. |
 
-The supported choices are Better Auth, NextAuth, AuthKit/WorkOS, and Clerk.
-The non-interactive equivalent is:
+Rotating `BETTER_AUTH_SECRET` signs every user out.
 
-```bash
-bun run setup --yes --provider=better-auth
-```
+## Social sign-in (optional)
 
-## Configure provider values
+Google and GitHub sign-in turn on when both values of a pair are set:
 
-The wizard records the selected provider in the generated environment and
-copies the matching templates from `.setup/templates/auth/<provider>/`.
-Complete the provider-specific variables in `.env.local` and configure the
-same variables in the deployment environment.
+- Google: `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`. Redirect URI:
+  `<app-url>/api/auth/callback/google`.
+- GitHub: `NEXT_PUBLIC_GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`. Redirect URI:
+  `<app-url>/api/auth/callback/github`.
 
-## Switching later
+## Passkeys
 
-Provider switching rewrites generated files and dependencies. Commit feature
-work first, run the setup command with the provider you want, and review the
-resulting diff before continuing. Do not commit `.auth-provider.lock` or
-`.auth-backup/` artifacts.
+Set `PASSKEY_RP_ID` to the domain users sign in on (for example
+`app.example.com`). It must match the deployed domain or passkey registration
+fails.
+
+## Admin access
+
+- `ADMIN_EMAIL_DOMAINS`: comma-separated domains whose users become site
+  admins.
+- `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`: the initial admin created by
+  `bun run db:seed`.

@@ -16,7 +16,7 @@
           "index",
           "coverage",
           "architecture/system-overview",
-          "architecture/auth-and-setup",
+          "architecture/authentication",
           "architecture/data-and-tenancy",
           "architecture/search",
           "architecture/agent-auth",

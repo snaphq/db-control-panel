@@ -6,7 +6,6 @@
     "scripts/*.{ts,mjs,js}"
   ],
   "ignorePatterns": [
-    ".setup/templates/**",
     "docs-public/**",
     "docs-internal/**",
     ".agents/tasks/**",

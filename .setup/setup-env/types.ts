@@ -1,5 +1,3 @@
-export type AuthProvider = "better-auth" | "next-auth" | "authkit" | "clerk";
-
 export interface EnvVariable {
   key: string;
   value: string;

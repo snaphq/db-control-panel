@@ -1,11 +1,10 @@
 #!/usr/bin/env tsx
 /**
- * Unified setup script: initializes the auth provider AND configures .env.local.
+ * Setup script: configures .env.local for the Better Auth project.
  *
  * Run with:
  *   bun run setup                                       # Interactive
- *   bun run setup --yes --provider=better-auth          # Headless / CI
- *   bun run setup --force --provider=clerk --yes        # Re-init auth (dangerous)
+ *   bun run setup --yes                                 # Headless / CI
  *
  * See `bun run setup --help` for the full flag and env-var reference.
  */
@@ -23,13 +22,7 @@ import {
   select,
   setAutoMode,
 } from "../scripts/lib/prompts";
-import { readProviderLock, runAuthPhaseIfNeeded } from "./setup-env/auth-phase";
-import {
-  AUTH_PROVIDER_NAMES,
-  parseArgs,
-  printBanner,
-  printHelp,
-} from "./setup-env/cli";
+import { parseArgs, printBanner, printHelp } from "./setup-env/cli";
 import {
   ENV_OVERRIDE_KEYS,
   SECRET_KEYS,
@@ -43,7 +36,7 @@ import {
   syncDevPort,
 } from "./setup-env/env-helpers";
 import { configureOptionalAndAdminVariables } from "./setup-env/optional-config";
-import { configureProviderSpecificVariables } from "./setup-env/provider-config";
+import { configureBetterAuthVariables } from "./setup-env/provider-config";
 import type { ChangeInfo, EnvVariable } from "./setup-env/types";
 
 async function loadExistingEnv(envPath: string): Promise<{
@@ -179,10 +172,6 @@ async function main() {
   setAutoMode(flags.yes);
   printBanner();
 
-  // Phase 1: auth provider initialization
-  await runAuthPhaseIfNeeded(flags.provider, flags.force);
-
-  // Phase 2: .env.local configuration
   const envPath = resolve(process.cwd(), ".env.local");
   let { existingEnv, isUpdating } = await loadExistingEnv(envPath);
   const changes: ChangeInfo[] = [];
@@ -222,21 +211,7 @@ async function main() {
     section: "Database",
   });
 
-  printHeader("AUTHENTICATION PROVIDER");
-
-  const lockedProvider = readProviderLock()?.provider;
-  if (!lockedProvider) {
-    console.log(
-      `${colors.red}  No auth provider initialized (.auth-provider.lock missing)${colors.reset}`,
-    );
-    process.exit(1);
-  }
-
-  console.log(
-    `${colors.green}  ✓ Using: ${colors.bold}${AUTH_PROVIDER_NAMES[lockedProvider] || lockedProvider}${colors.reset}`,
-  );
-  console.log(`${colors.dim}  (Locked by .auth-provider.lock)${colors.reset}`);
-  console.log("");
+  printHeader("APPLICATION URL");
 
   const existingAppUrl = existingEnv.get("NEXT_PUBLIC_APP_URL");
   if (existingAppUrl && isUpdating)
@@ -257,7 +232,7 @@ async function main() {
   newVariables.push({
     key: "NEXT_PUBLIC_APP_URL",
     value: appUrl,
-    section: "Authentication Provider",
+    section: "Application",
   });
 
   printHeader("DEFAULT TENANT");
@@ -320,8 +295,7 @@ async function main() {
     newVariables.push({ key, value, section: "Default Tenant" });
   }
 
-  await configureProviderSpecificVariables({
-    authProvider: lockedProvider,
+  await configureBetterAuthVariables({
     appUrl,
     existingEnv,
     isUpdating,
