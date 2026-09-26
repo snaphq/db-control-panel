@@ -16,19 +16,29 @@ a retired token to `/mcp` returns an actionable `401` pointing here.
 
 ## Create an operator
 
-1. Open **Account → Settings → Operators** (`/account/settings/operators`).
+1. Open **Account → Settings → Operators** (`/account/settings/operators`) and
+   select **New operator**.
 2. Choose a name (for example `Claude`, `n8n pipeline`, or `CI`) and an optional
    description.
 3. Pick the scope:
    - **All organizations I own** — every organization where you currently have
      the `owner` role.
    - **Specific organizations** — only organizations you currently belong to.
-4. Pick a token expiration and create the operator. The plaintext token
-   (`opt_…`) is shown once; store it in your secret manager.
+4. Pick an expiration and optional label for the first key, then create the
+   operator. The plaintext key (`opt_…`) is shown once; store it in your secret
+   manager, then select **Open operator** to go to its page.
 
 An operator never exceeds its scope, and membership and roles are re-checked on
 every request. Removing yourself from an organization removes it from reachable
 scope immediately; write operations require `owner` or `admin`.
+
+## Find your operators
+
+The Operators list shows a summary of each operator: name, description, status
+(**Active** or **Suspended**), scope, how many active keys it has (and how many
+of those have expired), and when it was created. Select an operator to open its
+page at `/account/settings/operators/<id>`, where you manage its keys, settings,
+and activity.
 
 ## Use a token
 
@@ -50,14 +60,43 @@ Accept: application/json, text/event-stream
 See [Connect to MCP](/integrate/mcp) for the JSON-RPC flow. Agent-registered
 machine users can keep using [Agent authentication](/integrate/agent-auth).
 
-## Rotate and revoke
+## Manage keys
 
-- **Rotate**: add a second token to the same operator, switch your integration,
-  then revoke the old token. Tokens are independently revocable and expiring.
-- **Revoke a token**: it stops authenticating immediately.
-- **Suspend an operator**: pauses every token without losing the identity or
-  its history; resume at any time.
-- **Revoke an operator**: permanent. All of its tokens stop authenticating.
+An operator can hold several keys. Each key authenticates as the same operator,
+with the same scope, and can expire or be revoked independently. On the
+operator's page:
+
+- **Add a key**: select **Add key**, pick an expiration and optional label. The
+  plaintext key is shown once. Keys cannot be added while the operator is
+  suspended.
+- **Rename a key**: use the pencil action in the **Active keys** table to change
+  or clear its label. The key itself does not change.
+- **Revoke a key**: use the trash action and confirm. It stops authenticating
+  immediately.
+- **Rotate**: add a new key, switch your integration to it, then revoke the old
+  key.
+
+Expired keys stay in **Active keys** with an **Expired** badge until you revoke
+them. Revoked keys move to the collapsed **Revoked keys** history, which shows
+when each one was revoked.
+
+## Review activity
+
+**Recent activity** on the operator's page lists the latest requests made with
+its keys: time, which key was used (label and prefix), the event and tool or
+method, status, duration, and any error. Use the key filter to show activity for
+a single key, including revoked ones, or **All keys**.
+
+## Change, suspend, or revoke an operator
+
+From the operator's page:
+
+- **Edit**: change the name, description, or scope. Changes apply immediately
+  to every key.
+- **Suspend**: pauses every key without losing the identity or its history;
+  **Resume** at any time.
+- **Revoke**: permanent. The operator and all of its keys stop authenticating,
+  and you return to the Operators list.
 
 ## Errors
 

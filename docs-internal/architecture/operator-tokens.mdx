@@ -20,11 +20,12 @@ application continues to use Better Auth sessions exclusively.
 | Token format, scope parsing, verification | `apps/next-app/src/lib/auth/operator-token.ts` |
 | Organization-scoped authorization helper | `apps/next-app/src/lib/auth/operator-authorization.ts` |
 | Account-management helpers | `apps/next-app/src/lib/operators/management.ts` |
-| Database activity fallback sink | `apps/next-app/src/lib/operators/activity.ts` |
+| Database activity sink | `apps/next-app/src/lib/operators/activity.ts` |
+| Operator detail helpers (tokens incl. revoked, activity, label edits) | `apps/next-app/src/lib/operators/detail.ts` |
 | Management API | `apps/next-app/src/app/api/account/operators/**` |
 | Account UI | `apps/next-app/src/app/account/settings/operators/page.tsx`, `apps/next-app/src/components/account/operators/**` |
 | MCP authentication | `apps/next-app/src/app/mcp/route.ts` |
-| Context/logger/fallback | `packages/mcp-chatgpt/src/{request-context,logger}.ts` |
+| Context/logger/activity sink | `packages/mcp-chatgpt/src/{request-context,logger}.ts` |
 
 ## Data model
 
@@ -33,8 +34,9 @@ application continues to use Better Auth sessions exclusively.
 - `operator_token` — credential rows for an operator: `label`, `token_hash`
   (unique, SHA-256 hex), display `token_prefix`, `expires_at`, `last_used_at`,
   `revoked_at`. One operator may hold multiple independently revocable tokens.
-- `operator_activity` — fallback event sink used only when Axiom is not
-  configured or an ingest fails (see below).
+- `operator_activity` — per-event activity log for operator-attributed MCP
+  events, written for every event (see below) and shown on the operator
+  dashboard, filterable by `credential_id`.
 
 Scope JSON:
 
@@ -88,20 +90,39 @@ request context: `actorId = operator.id`, `actorType = "operator"`,
 `actorName`, `credentialId`, `authMethod = "operator_credential"`, and the owner
 `userId`.
 
-- **Primary sink:** the axiom.co dataset. Operator events are routed to
-  `AXIOM_OPERATOR_DATASET` when set, otherwise `AXIOM_DATASET`, and tagged with
-  `project.type: "operator"` so they can be filtered separately. Both names
-  require `AXIOM_TOKEN`.
-- **Fallback sink:** `apps/next-app/src/lib/operators/activity.ts` registers an
-  `McpLogFallback` with `@repo/mcp-chatgpt`. It runs when Axiom is not
-  configured or when an ingest request rejects or returns a non-2xx status, and
-  inserts `operator_activity` rows for operator-attributed events only. It is
-  fire-and-forget and idempotently registered.
+- **Database sink (always):** `apps/next-app/src/lib/operators/activity.ts`
+  registers an `McpActivitySink` via `registerMcpActivitySink` from
+  `@repo/mcp-chatgpt`. The logger invokes it synchronously, exactly once, for
+  every operator-attributed entry (non-operator entries never reach it), and it
+  inserts an `operator_activity` row fire-and-forget. It is idempotently
+  registered and loaded by `apps/next-app/src/app/mcp/route.ts`.
+- **Axiom (additional, optional):** when `AXIOM_TOKEN` is set, operator events
+  are also routed to `AXIOM_OPERATOR_DATASET` (or `AXIOM_DATASET` when unset or
+  empty) and tagged with `project.type: "operator"` so they can be filtered
+  separately. Ingest failures are swallowed and do not re-trigger the database
+  sink, so activity is never double-written.
 
 Both sinks are best-effort: logging never throws, never blocks a request, and
-never changes a response. Exactly one sink handles each event, so activity is
-not double-written. Non-operator events keep the previous no-op behavior when
-Axiom is off.
+never changes a response; a throwing sink does not prevent the Axiom send.
+Non-operator events only go to Axiom and are a no-op when Axiom is off.
+
+## Operator detail API
+
+Session-only routes backing `/account/settings/operators/[id]`:
+
+- `GET /api/account/operators/[id]` → `{ operator }` with all tokens, including
+  revoked keys (`revokedAt` set), ordered active first then revoked, newest
+  first within each group; 404 `operator_not_found` for missing, foreign, or
+  revoked operators.
+- `GET /api/account/operators/[id]/activity?credentialId=&limit=` →
+  `{ entries }` from `operator_activity`, newest first; `limit` defaults to 50
+  and is clamped to 1..200.
+- `PATCH /api/account/operators/[id]/tokens/[tokenId]` with
+  `{ label: string | null }` → `{ token }`. Labels are trimmed; empty clears.
+  Errors: 400 `invalid_label` / `label_too_long`, 404 `token_not_found`, 409
+  `token_revoked` (revoked keys are immutable history).
+
+Scopes remain on the operator; tokens carry no scope of their own.
 
 ## Security invariants
 
@@ -114,7 +135,8 @@ Axiom is off.
 - Management routes (`/api/account/operators/**`) are session-only. Operator
   credentials cannot create, edit, or revoke operators.
 - Revocation is soft (`revoked_at`) so historical attribution stays resolvable;
-  list endpoints exclude revoked rows.
+  list endpoints exclude revoked rows, while the operator detail endpoint
+  returns revoked tokens as read-only history.
 
 ## Cutover and operations
 
@@ -125,8 +147,8 @@ Axiom is off.
 - `/mcp` detects `cet_` credentials and returns an actionable 401 pointing at
   `/account/settings/operators`; agent-JWT and OAuth verifiers skip `opt_`
   values to avoid misparsing.
-- `operator_activity` is append-only per invocation; define pruning by age in
-  the target environment if Axiom is not used.
+- `operator_activity` is append-only and written for every operator event;
+  define pruning by age in every environment.
 
 ## Verification
 
@@ -139,4 +161,4 @@ bun run build
 Manual: create an operator, call `/mcp` with `opt_…`, confirm actor fields in
 logs; remove the owner from a scoped organization and confirm the next request
 loses that organization; suspend and revoke tokens/operators and confirm the
-generic 401; run with Axiom unset and confirm `operator_activity` rows.
+generic 401; confirm `operator_activity` rows with and without Axiom configured.
