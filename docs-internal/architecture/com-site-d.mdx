@@ -123,8 +123,8 @@ shared `DATABASE_URL` at runtime.
 The deploy matrix rows (`deploy-vercel.yml` and `deploy-vercel-preview.yml`)
 carry `project_name: 'starter-astro-stack'` and `node_version: '22'` — Astro 7
 requires Node ≥ 22.12, which the 22 line satisfies, so unlike site-c this row
-did not need Node 24. The rows skip until the `VERCEL_PROJECT_ID_SITE_D`
-repository variable and its Vercel project exist.
+did not need Node 24. The rows skip until the Vercel
+project exists and its id is set with `set-vercel-projects.ts`.
 
 ## Tests
 

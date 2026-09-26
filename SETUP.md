@@ -182,18 +182,29 @@ user asks you to.
 
 Deployment runs through the GitHub Actions Vercel workflow
 (`.github/workflows/deploy-vercel.yml`) on pushes to the deploy branch — never
-deploy by hand. Each app is its own Vercel project:
+deploy by hand. Each app is its own Vercel project, and the workflow matrix
+(also in `deploy-vercel-preview.yml`) has one row per app:
 
-| App | Vercel Root Directory | Repository variable with the project id |
+| Matrix `app` | Folder | Vercel Root Directory |
 | --- | --- | --- |
-| `sites/com.site-a` | repository root (uses `vercel.json`) | `VERCEL_PROJECT_ID_SITE_A` |
-| `sites/com.site-b` | `sites/com.site-b` | `VERCEL_PROJECT_ID_SITE_B` |
-| `apps/backend` | `apps/backend` | `VERCEL_PROJECT_ID_BACKEND` |
+| `backend` | `apps/backend` | `apps/backend` |
+| `site-a` | `sites/com.site-a` | repository root (uses the root `vercel.json`) |
+| `site-b`, `site-c`, `site-d` | `sites/com.site-b`, … | the site's folder |
 
-Tell the user to create the projects, set `VERCEL_ORG_ID` and the project-id
-variables plus the `VERCEL_TOKEN` secret in the repository, and add the env
-values (production URLs and live keys) to each project. Apps without a
-project id are skipped. Point the Stripe webhook at
+Ask the user to create a Vercel project for each app they want to deploy and
+for their Vercel org (team) id and each project id (`prj_…`, in the project's
+settings). Write them into both workflows; the ids are hard-coded there, not
+read from repository variables. Apps left with an empty id are skipped.
+
+```bash
+bun .agents/skills/setup/scripts/set-vercel-projects.ts --list
+bun .agents/skills/setup/scripts/set-vercel-projects.ts --org team_… \
+  --project backend=prj_… --project site-a=prj_… --project site-b=prj_…
+```
+
+Pass `--project <app>=` (empty) to disable an app that still carries the
+template's id. Tell the user to add the `VERCEL_TOKEN` repository secret and
+the env values (production URLs and live keys) to each project. Point the Stripe webhook at
 `https://<backend-domain>/api/webhooks/stripe` and Inngest at
 `https://<backend-domain>/api/inngest`: both run on the backend.
 

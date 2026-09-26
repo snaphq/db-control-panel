@@ -13,14 +13,16 @@ app. An entry is skipped until its project id is configured.
 
 ## Vercel
 
-| App | Root Directory | Config | Project id variable |
-| --- | --- | --- | --- |
-| `sites/com.site-a` | repository root | root `vercel.json` (`--filter=com.site-a`, output `sites/com.site-a/.next`) | `VERCEL_PROJECT_ID_SITE_A` |
-| `sites/com.site-b` | `sites/com.site-b` | `sites/com.site-b/vercel.json` | `VERCEL_PROJECT_ID_SITE_B` |
-| `apps/backend` | `apps/backend` | `apps/backend/vercel.json` | `VERCEL_PROJECT_ID_BACKEND` |
+| App | Root Directory | Config |
+| --- | --- | --- |
+| `sites/com.site-a` | repository root | root `vercel.json` (`--filter=com.site-a`, output `sites/com.site-a/.next`) |
+| `sites/com.site-b` | `sites/com.site-b` | `sites/com.site-b/vercel.json` |
+| `apps/backend` | `apps/backend` | `apps/backend/vercel.json` |
 
-`VERCEL_ORG_ID` and the project-id variables are repository variables;
-`VERCEL_TOKEN` is a secret. Each project needs its own runtime variables,
+The Vercel org id and every project id are hard-coded in the workflow matrix
+(`project_id` per row, `vercel_org_id` on the deploy step), written at setup by
+`set-vercel-projects.ts`; a row with an empty `project_id` is skipped.
+`VERCEL_TOKEN` is the only repository secret. Each project needs its own runtime variables,
 including its public URL (`NEXT_PUBLIC_APP_URL`) and each site's production domain (which must match
 `site.config.ts` → `tenant_domain`). Preview and production URLs feed the
 shared `site-config` base-URL helper used by discovery metadata and agent

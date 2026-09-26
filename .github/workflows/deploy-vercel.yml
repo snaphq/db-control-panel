@@ -27,38 +27,33 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # One Vercel project per app. Set VERCEL_PROJECT_ID_<APP> repository
-        # variables; apps without a project id are skipped. sites/com.site-a
-        # deploys from the repository root (root vercel.json); the others use
-        # the vercel.json in their own folder as the project Root Directory.
+        # One Vercel project per app. Project ids (and the org id below) are
+        # written during setup by .agents/skills/setup/scripts/set-vercel-projects.ts;
+        # rows with an empty project_id are skipped. sites/com.site-a deploys
+        # from the repository root (root vercel.json); the others use the
+        # vercel.json in their own folder as the project Root Directory.
         include:
           - app: site-a
-            project_id_var: VERCEL_PROJECT_ID_SITE_A
-            default_project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
+            project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
             project_name: 'nexvio-ai'
             node_version: '22'
           - app: site-b
-            project_id_var: VERCEL_PROJECT_ID_SITE_B
-            default_project_id: ''
+            project_id: ''
             project_name: 'site-b'
             node_version: '22'
           - app: backend
-            project_id_var: VERCEL_PROJECT_ID_BACKEND
-            default_project_id: ''
+            project_id: ''
             project_name: 'backend'
             node_version: '22'
           # SolidStart 2 requires Node 24+, so this row must not inherit 22.
           - app: site-c
-            project_id_var: VERCEL_PROJECT_ID_SITE_C
-            default_project_id: 'prj_Kyj2GxV8oZGiwweHbVasBwvtinqZ'
+            project_id: 'prj_Kyj2GxV8oZGiwweHbVasBwvtinqZ'
             project_name: 'starter-solid-stack'
             node_version: '24'
           # Astro 7 requires Node >= 22.12; the 22 line satisfies it. The row
-          # skips until the VERCEL_PROJECT_ID_SITE_D repository variable and
-          # its Vercel project exist.
+          # skips until its Vercel project id is set.
           - app: site-d
-            project_id_var: VERCEL_PROJECT_ID_SITE_D
-            default_project_id: ''
+            project_id: ''
             project_name: 'starter-astro-stack'
             node_version: '22'
     environment:
@@ -66,18 +61,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        if: ${{ vars[matrix.project_id_var] != '' || matrix.default_project_id != '' }}
+        if: ${{ matrix.project_id != '' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Deploy to Vercel
-        if: ${{ vars[matrix.project_id_var] != '' || matrix.default_project_id != '' }}
+        if: ${{ matrix.project_id != '' }}
         uses: W3Dev/vercel-deploy@main
         with:
           vercel_token: ${{ secrets.VERCEL_TOKEN }}
-          vercel_org_id: ${{ vars.VERCEL_ORG_ID || 'team_M1i3qUTW4i3A6mETy54E1Fy8' }}
-          vercel_project_id: ${{ vars[matrix.project_id_var] || matrix.default_project_id }}
+          vercel_org_id: 'team_M1i3qUTW4i3A6mETy54E1Fy8'
+          vercel_project_id: ${{ matrix.project_id }}
           vercel_project_name: ${{ matrix.project_name }}
           package_manager: 'bun'
           node_version: ${{ matrix.node_version }}
