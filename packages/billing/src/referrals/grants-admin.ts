@@ -5,7 +5,7 @@ import {
   db,
   desc,
   eq,
-  gt,
+  gte,
   isNotNull,
   sql,
 } from "@repo/database";
@@ -14,6 +14,7 @@ import {
   type ReferralCode,
   type ReferralConfig,
   type ReferralCreditGrant,
+  member,
   orgBilling,
   organization,
   planTier as planTierTable,
@@ -55,23 +56,17 @@ export async function isUserEligibleForReferralCode(
     .select({ orgId: orgBilling.organizationId })
     .from(orgBilling)
     .innerJoin(planTierTable, eq(planTierTable.key, orgBilling.planTier))
-    .innerJoin(organization, eq(organization.id, orgBilling.organizationId))
+    .innerJoin(member, eq(member.organizationId, orgBilling.organizationId))
     .where(
       and(
-        gt(planTierTable.sortOrder, minTier[0].sortOrder - 1),
+        eq(member.userId, userId),
+        gte(planTierTable.sortOrder, minTier[0].sortOrder),
         eq(orgBilling.planStatus, "active"),
       ),
     )
     .limit(1);
 
-  if (eligible.length === 0) return false;
-
-  const u = await db()
-    .select({ id: user.id })
-    .from(user)
-    .where(eq(user.id, userId))
-    .limit(1);
-  return u.length > 0;
+  return eligible.length > 0;
 }
 
 // ============================================================================
@@ -171,8 +166,14 @@ export async function applyCreditGrant(
       const referrerOrgs = await db()
         .select({ stripeCustomerId: organization.stripeCustomerId })
         .from(organization)
-        .innerJoin(orgBilling, eq(orgBilling.organizationId, organization.id))
-        .where(isNotNull(organization.stripeCustomerId))
+        .innerJoin(member, eq(member.organizationId, organization.id))
+        .where(
+          and(
+            eq(member.userId, grant.recipientUserId),
+            isNotNull(organization.stripeCustomerId),
+          ),
+        )
+        .orderBy(sql`CASE WHEN ${member.role} = 'owner' THEN 0 ELSE 1 END`)
         .limit(1);
       customerId = referrerOrgs[0]?.stripeCustomerId ?? null;
     }

@@ -348,6 +348,20 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
           await applyCreditGrant(grant.id);
         }
       }
+      if (cfg.enabled && cfg.refereeCreditAmount > 0) {
+        const grant = await recordCreditGrant({
+          referralId: referral.id,
+          recipientUserId: referral.refereeId,
+          recipientRole: "referee",
+          amountCents: cfg.refereeCreditAmount,
+          currency: cfg.currency,
+          stripeCustomerId: customerId,
+          stripeInvoiceId: invoice.id ?? undefined,
+        });
+        if (grant && cfg.autoApply) {
+          await applyCreditGrant(grant.id);
+        }
+      }
       console.log(`[Webhook] Referral ${referral.id} moved to refund_period`);
     }
   } catch (err) {

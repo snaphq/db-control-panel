@@ -248,7 +248,7 @@ async function configureReferralSettings(pool: pg.Pool): Promise<{
   });
 
   // Currency
-  const currency = await select({
+  const currency = await select<string>({
     message: "Select reward currency:",
     choices: [
       { name: "USD ($)", value: "usd" },
@@ -295,7 +295,7 @@ async function configureReferralSettings(pool: pg.Pool): Promise<{
   const refereeCreditAmount = dollarsToCents(refereeInput);
 
   // Minimum plan tier
-  const minPlanTier = await select({
+  const minPlanTier = await select<string>({
     message: "Minimum plan tier required to get a referral code:",
     choices: [
       {
@@ -478,7 +478,7 @@ function printSummary(result: SetupResult) {
     `    ${colors.dim}2. New users enter the code during checkout${colors.reset}`,
   );
   console.log(
-    `    ${colors.dim}3. Referee gets ${formatCents(result.refereeCreditAmount)} credit applied immediately${colors.reset}`,
+    `    ${colors.dim}3. Referee gets ${formatCents(result.refereeCreditAmount)} credit when they start a paid subscription${colors.reset}`,
   );
   console.log(
     `    ${colors.dim}4. Referrer gets ${formatCents(result.referrerCreditAmount)} credit when referee starts paid subscription${colors.reset}`,
