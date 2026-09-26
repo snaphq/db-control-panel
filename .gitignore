@@ -72,3 +72,6 @@ docker-compose.override.yml
 !.codex/**
 
 .claude/scheduled_tasks.lock
+
+# fallow analysis cache
+.fallow/

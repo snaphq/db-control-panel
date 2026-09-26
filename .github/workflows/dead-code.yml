@@ -1,0 +1,128 @@
+name: Dead code
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: dead-code-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fallow:
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --ignore-scripts
+
+      - name: Dead code vs baseline (fallow)
+        run: bun run check:dead-code --tool=fallow
+
+      - name: Annotate new findings on changed files
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: >-
+          ./node_modules/.bin/fallow audit
+          --base origin/${{ github.base_ref }}
+          --gate new-only
+          --format github-annotations
+
+      - name: SARIF report
+        if: always()
+        continue-on-error: true
+        run: ./node_modules/.bin/fallow dead-code --format sarif --quiet > fallow-results.sarif
+
+      - name: Upload SARIF
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: fallow-results.sarif
+
+      - name: Duplication and health reports (advisory)
+        if: always()
+        continue-on-error: true
+        run: |
+          ./node_modules/.bin/fallow dupes --format json --quiet > fallow-dupes.json || true
+          ./node_modules/.bin/fallow health --format json --quiet > fallow-health.json || true
+
+      - name: Upload advisory reports
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: fallow-reports
+          path: |
+            fallow-dupes.json
+            fallow-health.json
+
+  knip:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --ignore-scripts
+
+      - name: Dead code vs baseline (knip)
+        run: bun run check:dead-code --tool=knip
+
+  baseline-shrink:
+    if: github.event_name == 'pull_request'
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Baselines must not grow
+        run: bun run scripts/check-dead-code.ts --no-growth=origin/${{ github.base_ref }}

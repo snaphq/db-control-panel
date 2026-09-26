@@ -1,0 +1,26 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        ".setup/**/*.ts",
+        ".agents/skills/*/scripts/**/*.ts",
+        "scripts/*.{ts,mjs,js}"
+      ],
+      "project": [
+        ".setup/**/*.ts",
+        ".agents/skills/*/scripts/**/*.ts",
+        "scripts/**/*.{ts,mjs,js}"
+      ]
+    },
+    "apps/*": {},
+    "packages/*": {}
+  },
+  "ignore": [
+    ".setup/templates/**",
+    "docs-public/**",
+    "docs-internal/**",
+    ".agents/tasks/**",
+    "apps/next-app/src/.source/**"
+  ]
+}

@@ -156,6 +156,18 @@
       "sources": ["package.json", ".husky/pre-commit"]
     },
     {
+      "id": "dead-code",
+      "page": "testing/dead-code.mdx",
+      "visibility": "internal",
+      "sources": [
+        ".fallowrc.json",
+        "knip.json",
+        "scripts/check-dead-code.ts",
+        "scripts/dead-code-baseline",
+        ".github/workflows/dead-code.yml"
+      ]
+    },
+    {
       "id": "agent-auth-testing",
       "page": "testing/agent-auth.mdx",
       "visibility": "internal",

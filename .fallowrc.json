@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    ".setup/**/*.ts",
+    ".agents/skills/*/scripts/**/*.ts",
+    "scripts/*.{ts,mjs,js}"
+  ],
+  "ignorePatterns": [
+    ".setup/templates/**",
+    "docs-public/**",
+    "docs-internal/**",
+    ".agents/tasks/**",
+    "apps/next-app/src/.source/**"
+  ]
+}

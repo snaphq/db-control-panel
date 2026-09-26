@@ -1,0 +1,52 @@
+---
+title: Dead-code checks
+description: How fallow and knip gate unused code, dependencies, and exports.
+---
+
+# Dead-code checks
+
+Two analyzers look for unused files, exports, types, and dependencies:
+
+- **fallow** runs in the pre-commit hook and in CI. It is fast and also
+  reports circular dependencies and catalog problems.
+- **knip** runs in CI as a second opinion. When the two disagree, the usual
+  cause is a missing entry point in one config, not real dead code.
+
+Both are pinned as root devDependencies. Their configs are `.fallowrc.json`
+and `knip.json`, which must list the same entry points and ignores. Change
+both together.
+
+## Baselines
+
+Findings that existed when the checks were introduced are recorded in
+`scripts/dead-code-baseline/{fallow,knip}.json`. The gate fails only on
+findings missing from the baseline. The baseline can only shrink:
+
+- Fix the dead code, don't add it to the baseline.
+- After fixing findings, run `bun run check:dead-code --update-baseline` and
+  commit the smaller baseline.
+- CI (`baseline-shrink` job) fails a PR if either baseline gained entries.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `bun run check:dead-code` | Both tools vs baselines |
+| `bun run check:dead-code --staged` | fallow; fails only for staged files (pre-commit) |
+| `bun run check:dead-code --tool=knip` | One tool |
+| `bun run check:dead-code --strict` | Ignore baselines |
+| `bun run check:dead-code --update-baseline` | Rewrite baselines from the current state |
+| `bunx fallow dead-code --trace <file>:<export>` | Explain why an export is (un)used |
+
+## New entry points
+
+Files loaded by something static analysis cannot follow (a CLI script, a
+config file read by a tool) need an `entry` glob in both configs. Next.js
+routes, Drizzle config, Vitest, Biome, and package.json scripts are detected
+by the tools' plugins.
+
+## CI
+
+`.github/workflows/dead-code.yml` runs a blocking fallow job, a blocking knip
+job, and the `baseline-shrink` job on PRs. It also uploads SARIF plus
+advisory duplication and health reports as artifacts.

@@ -52,6 +52,7 @@
         "icon": "flask-conical",
         "pages": [
           "testing/verification-matrix",
+          "testing/dead-code",
           "testing/agent-auth",
           "testing/findings"
         ]

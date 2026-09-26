@@ -2,6 +2,7 @@ bun run check:max-lines
 bun run check:doc-paths
 bun run check:doc-coverage
 bun run check:staged-types
+bun run check:dead-code --staged
 bun run check:no-middleware
 bun run check:banned-deps
 bun run check:no-per-minute-cron
