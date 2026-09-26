@@ -47,13 +47,13 @@ the sign-in/sign-up/reset/organization param and result types.
 | `apps/next-app/src/app/api/auth/[...all]` | Better Auth catch-all handler |
 | `apps/next-app/src/app/api/auth/{sign-in,sign-up,sign-out,get-session,forgot-password,reset-password,organization}` | Wrappers over `baseServer` / Better Auth API |
 | `apps/next-app/src/app/auth/**` | Sign-in, sign-up, invitation, onboarding, reset, profile UI |
-| `apps/next-app/src/lib/auth/session-cookie.ts` | Hard-coded `better-auth.session_token` cookie names |
-| `apps/next-app/src/lib/auth/oauth-route-*.ts`, `oauth-token.ts` | Session-cookie detection and OIDC route helpers |
+| `packages/core/src/auth/session-cookie.ts` | Hard-coded `better-auth.session_token` cookie names |
+| `packages/core/src/auth/oauth-route-*.ts`, `oauth-token.ts` | Session-cookie detection and OIDC route helpers |
 | `apps/next-app/src/proxy.ts` | Session check via `auth.api.getSession` |
-| `apps/next-app/src/lib/auth-utils.ts` | `getSiteAdminStatus` (~55 importers) built on the session |
+| `packages/core/src/auth-utils.ts` | `getSiteAdminStatus` (~55 importers) built on the session |
 | `apps/next-app/src/app/oauth2/*`, `.well-known/{oauth-authorization-server,openid-configuration,jwks.json,oauth-protected-resource}` | MCP OAuth/OIDC authorization server built on `oidcProvider` |
-| `apps/next-app/src/lib/agent-auth/**`, `app/auth.md` | Agent registration protocol; uses the OIDC server above |
-| `apps/next-app/src/components/account/authentication/*` | Passkey, two-factor, sign-in-method cards |
+| `packages/core/src/agent-auth/**`, `app/auth.md` | Agent registration protocol; uses the OIDC server above |
+| `packages/ui/src/components/account/authentication/*` | Passkey, two-factor, sign-in-method cards |
 | `apps/next-app/src/lib/agent-readiness-protocol.test.ts` | Imports `better-auth` types |
 
 ## 3. Database tables owned by Better Auth

@@ -1,8 +1,13 @@
-import { InstallIntegrationForm } from "@/components/integrations/install-integration-form";
-import type { ConfigSchema } from "@/components/integrations/install-integration-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireOrganizationMembership } from "@/lib/auth/require-membership";
-import { findIntegrationBySlug } from "@/lib/integrations/queries";
+import { requireOrganizationMembership } from "@repo/core/auth/require-membership";
+import { findIntegrationBySlug } from "@repo/core/integrations/queries";
+import { InstallIntegrationForm } from "@repo/ui/components/integrations/install-integration-form";
+import type { ConfigSchema } from "@repo/ui/components/integrations/install-integration-form";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { notFound } from "next/navigation";
 
 interface PageProps {

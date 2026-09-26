@@ -1,5 +1,5 @@
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { db, eq, normalizeTenantDomain, or } from "@repo/database";
 import { tenant, tenantDomain } from "@repo/database/schema";
 import { nanoid } from "nanoid";

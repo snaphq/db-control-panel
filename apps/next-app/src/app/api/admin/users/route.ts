@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth, getBetterAuthServer } from "@repo/auth/server";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { buildTenantAuthEmail, db, eq } from "@repo/database";
 import { user } from "@repo/database/schema";
 import { headers } from "next/headers";

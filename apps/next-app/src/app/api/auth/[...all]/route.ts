@@ -1,17 +1,17 @@
-import { resourceUrlForRequest } from "@/lib/agent-auth/discovery";
-import { bindMcpOAuthResponse } from "@/lib/auth/oauth-route-binding";
+import { baseServer, runWithAuthTenantContext } from "@repo/auth/server";
+import { resourceUrlForRequest } from "@repo/core/agent-auth/discovery";
+import { bindMcpOAuthResponse } from "@repo/core/auth/oauth-route-binding";
 import {
   handleTenantBoundClient,
   handleTenantBoundEndSession,
   handleTenantBoundUserInfo,
-} from "@/lib/auth/oauth-route-interactive";
+} from "@repo/core/auth/oauth-route-interactive";
 import {
   normalizeBasicAuthorizationRequest,
   oauthError,
   parseOAuthForm,
-} from "@/lib/auth/oauth-route-utils";
-import { validateMcpOAuthRequest } from "@/lib/auth/oauth-route-validation";
-import { baseServer, runWithAuthTenantContext } from "@repo/auth/server";
+} from "@repo/core/auth/oauth-route-utils";
+import { validateMcpOAuthRequest } from "@repo/core/auth/oauth-route-validation";
 import { resolveTenantFromHost } from "@repo/database";
 
 export const runtime = "nodejs";

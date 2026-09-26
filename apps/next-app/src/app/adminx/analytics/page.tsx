@@ -1,7 +1,7 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { assertPosthogConfigured } from "@repo/analytics/posthog-query";
 import { asc, db } from "@repo/database";
 import { analyticsFunnel } from "@repo/database";
+import { Card, CardContent } from "@repo/ui/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 import { TrafficCharts } from "./(components)/TrafficCharts";
 

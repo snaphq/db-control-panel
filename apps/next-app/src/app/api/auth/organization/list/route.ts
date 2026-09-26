@@ -1,9 +1,9 @@
-import { resourceUrlForRequest } from "@/lib/agent-auth/discovery";
-import { filterOrganizationsForTenant } from "@/lib/auth/organizations";
 import {
   getBetterAuthServer,
   runWithAuthTenantContext,
 } from "@repo/auth/server";
+import { resourceUrlForRequest } from "@repo/core/agent-auth/discovery";
+import { filterOrganizationsForTenant } from "@repo/core/auth/organizations";
 import { resolveTenantFromHost } from "@repo/database";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";

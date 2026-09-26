@@ -1,6 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { organizationMethods, useSession } from "@repo/auth/client";
+import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,8 +9,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { organizationMethods, useSession } from "@repo/auth/client";
+} from "@repo/ui/components/ui/card";
 import { Check, Loader2, Mail, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";

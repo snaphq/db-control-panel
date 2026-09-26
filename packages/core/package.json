@@ -1,0 +1,32 @@
+{
+  "name": "@repo/core",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@repo/analytics": "workspace:*",
+    "@repo/auth": "workspace:*",
+    "@repo/database": "workspace:*",
+    "@repo/mcp-chatgpt": "workspace:*",
+    "@upstash/ratelimit": "^0.4.4",
+    "@upstash/redis": "^1.24.2",
+    "drizzle-orm": "^0.44.7",
+    "jose": "^6.1.0",
+    "nanoid": "catalog:",
+    "next": "catalog:",
+    "resend": "^6.9.1",
+    "server-only": "^0.0.1",
+    "undici": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

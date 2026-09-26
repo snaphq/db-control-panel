@@ -1,7 +1,7 @@
-import { createInstallation } from "@/lib/integrations/install";
-import { toSafeInstallation } from "@/lib/integrations/types";
-import { getCurrentTenant } from "@/lib/tenant";
 import { auth } from "@repo/auth/server";
+import { createInstallation } from "@repo/core/integrations/install";
+import { toSafeInstallation } from "@repo/core/integrations/types";
+import { getCurrentTenant } from "@repo/core/tenant";
 import { and, db, eq } from "@repo/database";
 import {
   integration,

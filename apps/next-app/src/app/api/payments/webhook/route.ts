@@ -1,5 +1,5 @@
-import { getErrorMessage } from "@/lib/error-utils";
 import { stripe } from "@repo/billing/stripe/client";
+import { getErrorMessage } from "@repo/core/error-utils";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {

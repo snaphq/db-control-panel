@@ -1,10 +1,10 @@
-import { recordAudit } from "@/lib/agent-auth/audit";
-import { resourceUrlForRequest } from "@/lib/agent-auth/discovery";
-import { requestOriginForRequest } from "@/lib/agent-auth/discovery";
+import { recordAudit } from "@repo/core/agent-auth/audit";
+import { resourceUrlForRequest } from "@repo/core/agent-auth/discovery";
+import { requestOriginForRequest } from "@repo/core/agent-auth/discovery";
 import {
   AgentAuthConfigurationError,
   getSigningKey,
-} from "@/lib/agent-auth/keys";
+} from "@repo/core/agent-auth/keys";
 import { db, resolveTenantFromHost } from "@repo/database";
 import { oauthAccessToken } from "@repo/database/schema";
 import { agentToken } from "@repo/database/schema-agent-auth";

@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { recordAudit } from "@/lib/agent-auth/audit";
-import { mintClaimAttempt } from "@/lib/agent-auth/claims";
+import { recordAudit } from "@repo/core/agent-auth/audit";
+import { mintClaimAttempt } from "@repo/core/agent-auth/claims";
 import {
   requestOriginForRequest,
   resourceUrlForRequest,
-} from "@/lib/agent-auth/discovery";
-import { registerIdentityAssertion } from "@/lib/agent-auth/identity-assertion";
-import { signIdentityAssertion } from "@/lib/agent-auth/keys";
-import { checkAgentIdentityRateLimit } from "@/lib/agent-auth/rate-limit";
+} from "@repo/core/agent-auth/discovery";
+import { registerIdentityAssertion } from "@repo/core/agent-auth/identity-assertion";
+import { signIdentityAssertion } from "@repo/core/agent-auth/keys";
+import { checkAgentIdentityRateLimit } from "@repo/core/agent-auth/rate-limit";
 import {
   CLAIM_TOKEN_TTL_MS,
   PRE_CLAIM_SCOPES,
@@ -16,7 +16,7 @@ import {
   expireStaleRegistrations,
   newClaimToken,
   newRegistrationId,
-} from "@/lib/agent-auth/registrations";
+} from "@repo/core/agent-auth/registrations";
 import { db, resolveTenantFromHost } from "@repo/database";
 import { agentRegistration } from "@repo/database/schema-agent-auth";
 import { NextResponse } from "next/server";

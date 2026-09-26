@@ -1,7 +1,7 @@
 import {
   isValidExpiration,
   parseOperatorScope,
-} from "@/lib/auth/operator-token";
+} from "@repo/core/auth/operator-token";
 import {
   MAX_OPERATOR_DESCRIPTION,
   MAX_OPERATOR_NAME,
@@ -10,7 +10,7 @@ import {
   getSessionAndTenant,
   listOperatorsForUser,
   validateOperatorScope,
-} from "@/lib/operators/management";
+} from "@repo/core/operators/management";
 import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";

@@ -1,6 +1,6 @@
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
 import { ORG_STATUS } from "@repo/billing/constants";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { db, eq } from "@repo/database";
 import { organization } from "@repo/database/schema";
 import { revalidatePath } from "next/cache";

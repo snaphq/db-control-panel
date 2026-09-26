@@ -1,8 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import type { SearchWarning } from "@repo/search";
+import { Button } from "@repo/ui/components/ui/button";
+import { cn } from "@repo/ui/lib/utils";
 import { FolderOpen, Plus } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useEffect, useState } from "react";

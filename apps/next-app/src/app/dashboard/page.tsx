@@ -1,5 +1,5 @@
-import { getCurrentTenant } from "@/lib/tenant";
 import { auth } from "@repo/auth/server";
+import { getCurrentTenant } from "@repo/core/tenant";
 import { db } from "@repo/database";
 import { and, eq, inArray } from "@repo/database";
 import { member, organization } from "@repo/database/schema";

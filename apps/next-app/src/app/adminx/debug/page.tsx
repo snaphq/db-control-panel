@@ -1,7 +1,12 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentUserRole, getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
+import { getCurrentUserRole, getSiteAdminStatus } from "@repo/core/auth-utils";
+import { Badge } from "@repo/ui/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { headers } from "next/headers";
 
 export default async function DebugPage() {

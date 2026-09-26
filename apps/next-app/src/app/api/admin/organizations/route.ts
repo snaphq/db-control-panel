@@ -1,6 +1,6 @@
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
 import { ORG_STATUS } from "@repo/billing/constants";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { and, db, eq, searchOrganizations } from "@repo/database";
 import { member, organization, project, user } from "@repo/database/schema";
 import { parseSearchQuery } from "@repo/search";

@@ -3,14 +3,14 @@ import {
   isMarkdownRequest,
   isPublicMarkdownPath,
 } from "@/lib/agent-discovery";
+import { auth } from "@repo/auth/server";
 /**
  * Proxy for Better Auth
  *
  * Simplified proxy with no provider switching.
  * ~120 lines vs 471 lines in the multi-provider version.
  */
-import { getSiteAdminStatus } from "@/lib/auth-utils";
-import { auth } from "@repo/auth/server";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 

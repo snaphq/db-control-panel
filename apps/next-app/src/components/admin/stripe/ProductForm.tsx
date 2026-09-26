@@ -1,12 +1,12 @@
 "use client";
 
+import type { Stripe } from "@repo/billing/stripe/client";
 import {
   type BillingInterval,
   type PriceType,
   useCreateProduct,
   useUpdateProduct,
-} from "@/hooks/stripe/useProducts";
-import type { Stripe } from "@repo/billing/stripe/client";
+} from "@repo/ui/hooks/stripe/useProducts";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";

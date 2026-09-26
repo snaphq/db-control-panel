@@ -1,7 +1,12 @@
 import { PromoCodeForm } from "@/components/admin/stripe/PromoCodeForm";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { stripe } from "@repo/billing/stripe/client";
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import Link from "next/link";
 
 async function getActiveCoupons() {

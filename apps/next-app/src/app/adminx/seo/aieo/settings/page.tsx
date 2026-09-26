@@ -1,6 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ensureSeoAccess } from "@/lib/seo-guard";
+import { ensureSeoAccess } from "@repo/core/seo-guard";
 import { listSettings } from "@repo/durable-exec";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import type { Metadata } from "next";
 import Link from "next/link";

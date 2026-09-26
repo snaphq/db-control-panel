@@ -1,6 +1,6 @@
-import { listTools } from "@/lib/integrations/mcp-proxy";
-import { loadMCPServers } from "@/lib/integrations/mcp-runtime";
 import { auth } from "@repo/auth/server";
+import { listTools } from "@repo/core/integrations/mcp-proxy";
+import { loadMCPServers } from "@repo/core/integrations/mcp-runtime";
 import { and, db, eq } from "@repo/database";
 import { resolveTenantFromHost } from "@repo/database";
 import { member, organization, project } from "@repo/database/schema";

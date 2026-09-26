@@ -2,17 +2,17 @@ import {
   bearerChallenge,
   requestOriginForRequest,
   resourceUrlForRequest,
-} from "@/lib/agent-auth/discovery";
-import { AgentAuthConfigurationError } from "@/lib/agent-auth/keys";
-import { verifyAgentAccessToken } from "@/lib/agent-auth/tokens";
-import { verifyOAuthMcpToken } from "@/lib/auth/oauth-token";
+} from "@repo/core/agent-auth/discovery";
+import { AgentAuthConfigurationError } from "@repo/core/agent-auth/keys";
+import { verifyAgentAccessToken } from "@repo/core/agent-auth/tokens";
+import { verifyOAuthMcpToken } from "@repo/core/auth/oauth-token";
 import {
   isLegacyAccountToken,
   verifyOperatorToken,
-} from "@/lib/auth/operator-token";
-import { MCP_SERVER_INFO } from "@/lib/mcp-server-info";
-import "@/lib/operators/activity";
-import { getSiteUrl } from "@/lib/site-config";
+} from "@repo/core/auth/operator-token";
+import { MCP_SERVER_INFO } from "@repo/core/mcp-server-info";
+import "@repo/core/operators/activity";
+import { getSiteUrl } from "@repo/core/site-config";
 import { resolveTenantFromHost } from "@repo/database";
 import {
   logMcpRequest,

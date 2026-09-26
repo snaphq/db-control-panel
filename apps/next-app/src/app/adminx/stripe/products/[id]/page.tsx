@@ -1,13 +1,18 @@
 import { ActionsMenu } from "@/components/admin/stripe/ActionsMenu";
 import { PriceList } from "@/components/admin/stripe/PriceList";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Stripe } from "@repo/billing/stripe/client";
 import {
   getStripePricesForProduct,
   getStripeProduct,
 } from "@repo/billing/stripe/queries";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";

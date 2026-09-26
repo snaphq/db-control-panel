@@ -1,20 +1,20 @@
 "use client";
 
-import { useSidebar } from "@/components/dashboard/sidebar-context";
-import { SidebarUserMenu } from "@/components/dashboard/sidebar-user-menu";
-import { Separator } from "@/components/ui/separator";
-import {
-  SidebarDrillDownButton,
-  SidebarGroupLabel,
-  SidebarNavLink,
-  resolveMostSpecificActiveHref,
-} from "@/components/ui/sidebar-nav";
 import {
   type AdminNavItem,
   type AdminNavSection,
   adminxNav,
 } from "@/lib/adminx-navigation";
-import { cn } from "@/lib/utils";
+import { useSidebar } from "@repo/ui/components/dashboard/sidebar-context";
+import { SidebarUserMenu } from "@repo/ui/components/dashboard/sidebar-user-menu";
+import { Separator } from "@repo/ui/components/ui/separator";
+import {
+  SidebarDrillDownButton,
+  SidebarGroupLabel,
+  SidebarNavLink,
+  resolveMostSpecificActiveHref,
+} from "@repo/ui/components/ui/sidebar-nav";
+import { cn } from "@repo/ui/lib/utils";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";

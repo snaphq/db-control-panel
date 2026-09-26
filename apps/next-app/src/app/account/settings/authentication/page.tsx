@@ -1,10 +1,10 @@
-import { ActiveSessionsCard } from "@/components/account/authentication/active-sessions-card";
-import { PasskeyCard } from "@/components/account/authentication/passkey-card";
-import { SignInMethodsCard } from "@/components/account/authentication/sign-in-methods-card";
-import { TwoFactorCard } from "@/components/account/authentication/two-factor-card";
-import { requireSession } from "@/lib/auth/require-membership";
+import { requireSession } from "@repo/core/auth/require-membership";
 import { db, eq } from "@repo/database";
 import { account, user as userTable } from "@repo/database/schema";
+import { ActiveSessionsCard } from "@repo/ui/components/account/authentication/active-sessions-card";
+import { PasskeyCard } from "@repo/ui/components/account/authentication/passkey-card";
+import { SignInMethodsCard } from "@repo/ui/components/account/authentication/sign-in-methods-card";
+import { TwoFactorCard } from "@repo/ui/components/account/authentication/two-factor-card";
 
 export const dynamic = "force-dynamic";
 

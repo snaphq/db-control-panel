@@ -1,12 +1,12 @@
 import {
+  publicDiscoveryOptions,
+  withPublicDiscoveryCors,
+} from "@repo/core/agent-auth/cors";
+import {
   MAX_WIDGET_HTML_BYTES,
   readLimitedResponseText,
 } from "@repo/mcp-server/widget";
 import { describe, expect, it } from "vitest";
-import {
-  publicDiscoveryOptions,
-  withPublicDiscoveryCors,
-} from "./agent-auth/cors";
 
 describe("public discovery CORS", () => {
   it("adds a browser-readable policy to discovery responses", async () => {

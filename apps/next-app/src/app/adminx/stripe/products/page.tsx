@@ -1,7 +1,7 @@
 import { ProductTable } from "@/components/admin/stripe/ProductTable";
-import { Button } from "@/components/ui/button";
 import type { Product } from "@repo/billing/stripe/client";
 import { getStripeProducts } from "@repo/billing/stripe/queries";
+import { Button } from "@repo/ui/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 

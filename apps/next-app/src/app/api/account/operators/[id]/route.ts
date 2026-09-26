@@ -1,15 +1,15 @@
-import { parseOperatorScope } from "@/lib/auth/operator-token";
+import { parseOperatorScope } from "@repo/core/auth/operator-token";
 import {
   getOwnedOperatorDetail,
   serializeOperatorDetail,
-} from "@/lib/operators/detail";
+} from "@repo/core/operators/detail";
 import {
   MAX_OPERATOR_DESCRIPTION,
   MAX_OPERATOR_NAME,
   findOwnedOperator,
   getSessionAndTenant,
   validateOperatorScope,
-} from "@/lib/operators/management";
+} from "@repo/core/operators/management";
 import { and, db, eq, isNull } from "@repo/database";
 import { operator } from "@repo/database/schema-operators";
 import { type NextRequest, NextResponse } from "next/server";

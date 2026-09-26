@@ -1,5 +1,5 @@
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { db, eq } from "@repo/database";
 import { user } from "@repo/database/schema";
 import { revalidatePath } from "next/cache";

@@ -1,8 +1,8 @@
-import { requestOriginForRequest } from "@/lib/agent-auth/discovery";
 import {
   getAgentDocument,
   getAgentDocumentationIndex,
 } from "@/lib/agent-discovery";
+import { requestOriginForRequest } from "@repo/core/agent-auth/discovery";
 import { resolveTenantFromHost } from "@repo/database";
 
 export async function GET(

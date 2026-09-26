@@ -1,6 +1,6 @@
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
 import { getOrgBilling } from "@repo/billing/get-org-billing";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { db, eq } from "@repo/database";
 import { orgBilling } from "@repo/database/schema";
 import { headers } from "next/headers";

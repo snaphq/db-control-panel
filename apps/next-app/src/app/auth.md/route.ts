@@ -2,7 +2,7 @@ import {
   AGENT_SCOPES_SUPPORTED,
   buildAgentAuthBlock,
   requestOriginForRequest,
-} from "@/lib/agent-auth/discovery";
+} from "@repo/core/agent-auth/discovery";
 import { resolveTenantFromHost } from "@repo/database";
 
 /**

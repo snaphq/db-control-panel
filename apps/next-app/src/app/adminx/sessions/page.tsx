@@ -1,6 +1,6 @@
 import { SessionTable } from "@/components/admin/SessionTable";
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { getSafeSessions, resolveTenantFromHost } from "@repo/database";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";

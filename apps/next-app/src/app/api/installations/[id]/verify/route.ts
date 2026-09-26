@@ -1,5 +1,5 @@
-import { loadAuthorizedInstallation } from "@/lib/integrations/access";
-import { reverifyInstallation } from "@/lib/integrations/install";
+import { loadAuthorizedInstallation } from "@repo/core/integrations/access";
+import { reverifyInstallation } from "@repo/core/integrations/install";
 import { NextResponse } from "next/server";
 
 interface RouteParams {

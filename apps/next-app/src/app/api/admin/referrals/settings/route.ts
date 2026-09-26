@@ -1,6 +1,6 @@
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
 import { getReferralConfig, updateReferralConfig } from "@repo/billing";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { ensureSeoAccess } from "@/lib/seo-guard";
+import { ensureSeoAccess } from "@repo/core/seo-guard";
 import {
   setCompetitorExcluded,
   setCompetitorPinned,

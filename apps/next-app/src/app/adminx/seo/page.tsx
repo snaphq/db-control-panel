@@ -1,12 +1,17 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ensureSeoAccess } from "@/lib/seo-guard";
+import { ensureSeoAccess } from "@repo/core/seo-guard";
 import {
   findKeywordsWithStaleSnapshots,
   listKeywords,
 } from "@repo/database/dal/seo";
 import { countPagesByStatus } from "@repo/database/dal/seo";
 import { getLatestSnapshotsWithDelta } from "@repo/database/dal/seo";
+import { Badge } from "@repo/ui/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import type { Metadata } from "next";
 import Link from "next/link";

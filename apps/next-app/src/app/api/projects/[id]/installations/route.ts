@@ -1,6 +1,6 @@
-import { createInstallation } from "@/lib/integrations/install";
-import { toSafeInstallation } from "@/lib/integrations/types";
 import { auth } from "@repo/auth/server";
+import { createInstallation } from "@repo/core/integrations/install";
+import { toSafeInstallation } from "@repo/core/integrations/types";
 import { and, db, eq, resolveTenantFromHost } from "@repo/database";
 import {
   integration,

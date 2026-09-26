@@ -1,10 +1,10 @@
-import { getOpenAIConfig } from "@/lib/ai-provider";
+import { auth } from "@repo/auth/server";
+import { getOpenAIConfig } from "@repo/core/ai-provider";
 import {
   fetchSafeAiProvider,
   limitResponseBody,
   readLimitedResponseText,
-} from "@/lib/integrations/mcp-proxy";
-import { auth } from "@repo/auth/server";
+} from "@repo/core/integrations/mcp-proxy";
 import {
   agent,
   agentInstallation,

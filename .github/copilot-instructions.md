@@ -118,7 +118,7 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 
 ### Authentication
 
-- **Better Auth**: The auth instance lives in `packages/auth/src/auth-instance.ts`; app helpers are in `apps/next-app/src/lib/auth/`.
+- **Better Auth**: The auth instance lives in `packages/auth/src/auth-instance.ts`; app helpers are in `packages/core/src/auth/`.
 - **Proxy**: Request gating is in `apps/next-app/src/proxy.ts` (Next.js 16 has no `middleware.ts`).
 - **Protected Routes**: Use the unified auth API for route protection.
 - **User Data**: Access user data via the auth client hooks.

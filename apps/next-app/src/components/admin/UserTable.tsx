@@ -2,11 +2,11 @@
 
 import { CreateUserDialog } from "@/components/admin/CreateUserDialog";
 import { RowActionsMenu } from "@/components/admin/RowActionsMenu";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import type { Tenant, User } from "@repo/database/schema";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Input } from "@repo/ui/components/ui/input";
+import { cn } from "@repo/ui/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

@@ -1,7 +1,7 @@
-import { listTools } from "@/lib/integrations/mcp-proxy";
-import { loadMCPServers } from "@/lib/integrations/mcp-runtime";
-import { getCurrentTenant } from "@/lib/tenant";
 import { auth } from "@repo/auth/server";
+import { listTools } from "@repo/core/integrations/mcp-proxy";
+import { loadMCPServers } from "@repo/core/integrations/mcp-runtime";
+import { getCurrentTenant } from "@repo/core/tenant";
 import { and, db, eq } from "@repo/database";
 import { member, organization } from "@repo/database/schema";
 import { headers } from "next/headers";

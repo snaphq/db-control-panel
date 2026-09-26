@@ -1,5 +1,5 @@
-import { absoluteUrl } from "@/lib/site-config";
 import { docsSource } from "@/lib/source";
+import { absoluteUrl } from "@repo/core/site-config";
 import type { TOCItemType } from "@repo/fumadocs";
 import {
   DocsBody,

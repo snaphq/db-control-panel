@@ -1,12 +1,12 @@
-import { loadAuthorizedInstallation } from "@/lib/integrations/access";
-import { encryptJson } from "@/lib/integrations/encryption";
-import { decryptJson } from "@/lib/integrations/encryption";
-import { assertSafeMcpEndpoint } from "@/lib/integrations/mcp-proxy";
-import { getProviderHandler } from "@/lib/integrations/provider-handlers";
+import { loadAuthorizedInstallation } from "@repo/core/integrations/access";
+import { encryptJson } from "@repo/core/integrations/encryption";
+import { decryptJson } from "@repo/core/integrations/encryption";
+import { assertSafeMcpEndpoint } from "@repo/core/integrations/mcp-proxy";
+import { getProviderHandler } from "@repo/core/integrations/provider-handlers";
 import {
   normalizeMcpHeaders,
   toSafeInstallation,
-} from "@/lib/integrations/types";
+} from "@repo/core/integrations/types";
 import { and, db, eq } from "@repo/database";
 import {
   type IntegrationInstallation,

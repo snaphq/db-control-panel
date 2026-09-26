@@ -1,5 +1,5 @@
-import { sessionTokenFromCookieHeader } from "@/lib/auth/session-cookie";
 import { auth } from "@repo/auth/server";
+import { sessionTokenFromCookieHeader } from "@repo/core/auth/session-cookie";
 import { and, db, desc, eq, resolveTenantFromHost } from "@repo/database";
 import { session } from "@repo/database/schema";
 import { headers } from "next/headers";

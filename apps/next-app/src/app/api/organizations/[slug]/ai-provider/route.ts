@@ -1,19 +1,19 @@
+import { auth } from "@repo/auth/server";
 import {
   deleteOrgOpenAIConfig,
   getOpenAIConfig,
   getOrgOpenAIConfigMasked,
   upsertOrgOpenAIConfig,
-} from "@/lib/ai-provider";
+} from "@repo/core/ai-provider";
 import {
   type AiProviderChangeFields,
   logOrgAiProviderChange,
-} from "@/lib/ai-provider-audit";
+} from "@repo/core/ai-provider-audit";
 import {
   assertSafeAiProviderEndpoint,
   fetchSafeAiProvider,
   readLimitedResponseText,
-} from "@/lib/integrations/mcp-proxy";
-import { auth } from "@repo/auth/server";
+} from "@repo/core/integrations/mcp-proxy";
 import { and, db, eq, resolveTenantFromHost } from "@repo/database";
 import { member, organization } from "@repo/database/schema";
 import { headers } from "next/headers";

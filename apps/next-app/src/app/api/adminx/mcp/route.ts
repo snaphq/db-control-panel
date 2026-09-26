@@ -1,6 +1,6 @@
-import { requestOriginForRequest } from "@/lib/agent-auth/discovery";
-import { MCP_ADMIN_SERVER_INFO } from "@/lib/mcp-server-info";
 import { auth } from "@repo/auth/server";
+import { requestOriginForRequest } from "@repo/core/agent-auth/discovery";
+import { MCP_ADMIN_SERVER_INFO } from "@repo/core/mcp-server-info";
 import { db, resolveTenantFromHost } from "@repo/database";
 import { user } from "@repo/database/schema";
 import {

@@ -1,4 +1,4 @@
-import { requireSession } from "@/lib/auth/require-membership";
+import { requireSession } from "@repo/core/auth/require-membership";
 import { db } from "@repo/database";
 import { integration } from "@repo/database/schema";
 import { NextResponse } from "next/server";

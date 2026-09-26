@@ -1,8 +1,13 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@repo/database";
 import { eq } from "@repo/database";
 import { member, organization, user } from "@repo/database/schema";
+import { Badge } from "@repo/ui/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 
 export const dynamic = "force-dynamic";
 

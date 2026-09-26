@@ -1,11 +1,11 @@
 import {
   publicDiscoveryOptions,
   withPublicDiscoveryCors,
-} from "@/lib/agent-auth/cors";
+} from "@repo/core/agent-auth/cors";
 import {
   AGENT_SCOPES_SUPPORTED,
   requestOriginForRequest,
-} from "@/lib/agent-auth/discovery";
+} from "@repo/core/agent-auth/discovery";
 import { resolveTenantFromHost } from "@repo/database";
 
 /**

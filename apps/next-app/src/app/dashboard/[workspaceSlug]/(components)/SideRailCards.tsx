@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Button } from "@repo/ui/components/ui/button";
+import { Card } from "@repo/ui/components/ui/card";
 import { formatDistanceToNowStrict } from "date-fns";
 import { BellRing } from "lucide-react";
 import Link from "next/link";

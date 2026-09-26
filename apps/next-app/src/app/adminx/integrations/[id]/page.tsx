@@ -1,7 +1,12 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db, eq } from "@repo/database";
 import { integration, integrationInstallation } from "@repo/database/schema";
+import { Badge } from "@repo/ui/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { notFound } from "next/navigation";
 import { IntegrationForm } from "../_components/integration-form";
 

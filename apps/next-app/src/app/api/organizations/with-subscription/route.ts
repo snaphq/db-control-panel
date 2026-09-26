@@ -1,4 +1,3 @@
-import { resourceUrlForRequest } from "@/lib/agent-auth/discovery";
 import {
   auth,
   getBetterAuthServer,
@@ -6,6 +5,7 @@ import {
 } from "@repo/auth/server";
 import { ORG_STATUS, TRIAL_DURATION_DAYS } from "@repo/billing/constants";
 import { stripe } from "@repo/billing/stripe/client";
+import { resourceUrlForRequest } from "@repo/core/agent-auth/discovery";
 import { and, db, eq, resolveTenantFromHost } from "@repo/database";
 import { orgBilling, organization } from "@repo/database/schema";
 import { headers } from "next/headers";

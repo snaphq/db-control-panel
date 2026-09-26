@@ -1,6 +1,6 @@
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
 import { removeTierFeature, setTierFeature } from "@repo/billing";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { db } from "@repo/database";
 import { eq } from "@repo/database";
 import { pricingTierFeatures } from "@repo/database/schema";

@@ -1,19 +1,19 @@
-import { Badge } from "@/components/ui/badge";
+import {
+  getOrgBilling,
+  getPlanTierDisplay,
+} from "@repo/billing/get-org-billing";
+import { requireSession } from "@repo/core/auth/require-membership";
+import { getCurrentTenant } from "@repo/core/tenant";
+import { and, db, eq } from "@repo/database";
+import { member, organization } from "@repo/database/schema";
+import { Badge } from "@repo/ui/components/ui/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { requireSession } from "@/lib/auth/require-membership";
-import { getCurrentTenant } from "@/lib/tenant";
-import {
-  getOrgBilling,
-  getPlanTierDisplay,
-} from "@repo/billing/get-org-billing";
-import { and, db, eq } from "@repo/database";
-import { member, organization } from "@repo/database/schema";
+} from "@repo/ui/components/ui/card";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 

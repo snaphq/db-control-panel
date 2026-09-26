@@ -1,6 +1,6 @@
-import { recordUserAudit } from "@/lib/audit/user-audit";
-import { sessionTokenFromCookieHeader } from "@/lib/auth/session-cookie";
 import { auth } from "@repo/auth/server";
+import { recordUserAudit } from "@repo/core/audit/user-audit";
+import { sessionTokenFromCookieHeader } from "@repo/core/auth/session-cookie";
 import { and, db, eq, inArray, resolveTenantFromHost } from "@repo/database";
 import { session } from "@repo/database/schema";
 import { headers } from "next/headers";

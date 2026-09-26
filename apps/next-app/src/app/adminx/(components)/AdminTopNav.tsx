@@ -1,17 +1,17 @@
 "use client";
 
-import { ModeToggle } from "@/components/ModeToggle";
-import { Profile } from "@/components/Profile";
 import { AdminCommandMenu } from "@/components/admin/admin-command-menu";
-import { Button } from "@/components/ui/button";
+import { HamburgerMenuIcon } from "@radix-ui/react-icons";
+import { ModeToggle } from "@repo/ui/components/ModeToggle";
+import { Profile } from "@repo/ui/components/Profile";
+import { Button } from "@repo/ui/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
-import { HamburgerMenuIcon } from "@radix-ui/react-icons";
+} from "@repo/ui/components/ui/sheet";
 import {
   Activity,
   Building2,

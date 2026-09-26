@@ -1,5 +1,5 @@
-import { resourceUrlForRequest } from "@/lib/agent-auth/discovery";
 import { baseServer, runWithAuthTenantContext } from "@repo/auth/server";
+import { resourceUrlForRequest } from "@repo/core/agent-auth/discovery";
 import { resolveTenantFromHost } from "@repo/database";
 import { NextResponse } from "next/server";
 

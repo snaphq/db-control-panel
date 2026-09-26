@@ -1,8 +1,8 @@
-import { requireOrganizationMembership } from "@/lib/auth/require-membership";
+import { requireOrganizationMembership } from "@repo/core/auth/require-membership";
 import {
   listAvailableIntegrations,
   listScopedInstallations,
-} from "@/lib/integrations/queries";
+} from "@repo/core/integrations/queries";
 import { ConsoleView } from "./(components)/ConsoleView";
 import { IntegrationsPageShell } from "./(components)/IntegrationsPageShell";
 

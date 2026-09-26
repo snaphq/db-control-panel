@@ -1,14 +1,14 @@
 import {
   publicDiscoveryOptions,
   withPublicDiscoveryCors,
-} from "@/lib/agent-auth/cors";
+} from "@repo/core/agent-auth/cors";
 import {
   AGENT_SCOPES_SUPPORTED,
   GRANT_CLAIM,
   GRANT_JWT_BEARER,
   buildAgentAuthBlock,
   requestOriginForRequest,
-} from "@/lib/agent-auth/discovery";
+} from "@repo/core/agent-auth/discovery";
 import { resolveTenantFromHost } from "@repo/database";
 
 export async function GET(request: Request): Promise<Response> {

@@ -1,6 +1,6 @@
-import { AccountSidebar } from "@/components/account/account-sidebar";
-import { SidebarProvider } from "@/components/dashboard/sidebar-context";
-import { requireSession } from "@/lib/auth/require-membership";
+import { requireSession } from "@repo/core/auth/require-membership";
+import { AccountSidebar } from "@repo/ui/components/account/account-sidebar";
+import { SidebarProvider } from "@repo/ui/components/dashboard/sidebar-context";
 import type { ReactNode } from "react";
 
 export default async function AccountLayout({

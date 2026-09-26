@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@repo/ui/components/ui/button";
 import { useTransition } from "react";
 import {
   archivePromptAction,

@@ -1,5 +1,7 @@
 "use client";
 
+import { adminxNav } from "@/lib/adminx-navigation";
+import { signOut } from "@repo/auth/client";
 import {
   CommandDialog,
   CommandEmpty,
@@ -10,9 +12,7 @@ import {
   CommandKbd,
   CommandList,
   CommandSeparator,
-} from "@/components/ui/command";
-import { adminxNav } from "@/lib/adminx-navigation";
-import { signOut } from "@repo/auth/client";
+} from "@repo/ui/components/ui/command";
 import {
   Home,
   LogOut,

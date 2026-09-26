@@ -1,11 +1,3 @@
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   agentRegistration,
   and,
@@ -18,6 +10,14 @@ import {
   lte,
   user,
 } from "@repo/database";
+import { Badge } from "@repo/ui/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";

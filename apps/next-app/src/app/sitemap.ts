@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
-import { absoluteUrl, getSitemapPaths } from "@/lib/site-config";
+import { getSitemapPaths } from "@/lib/site-content";
+import { absoluteUrl } from "@repo/core/site-config";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

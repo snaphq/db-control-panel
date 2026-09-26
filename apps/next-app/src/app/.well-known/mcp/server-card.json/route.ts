@@ -1,12 +1,12 @@
 import {
   publicDiscoveryOptions,
   withPublicDiscoveryCors,
-} from "@/lib/agent-auth/cors";
+} from "@repo/core/agent-auth/cors";
 import {
   AGENT_SCOPES_SUPPORTED,
   requestOriginForRequest,
-} from "@/lib/agent-auth/discovery";
-import { MCP_SERVER_INFO } from "@/lib/mcp-server-info";
+} from "@repo/core/agent-auth/discovery";
+import { MCP_SERVER_INFO } from "@repo/core/mcp-server-info";
 import { resolveTenantFromHost } from "@repo/database";
 
 export async function GET(request: Request): Promise<Response> {

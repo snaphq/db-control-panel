@@ -1,9 +1,9 @@
 "use client";
 
 import { ActionsMenu } from "@/components/admin/stripe/ActionsMenu";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Input } from "@repo/ui/components/ui/input";
 import { Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

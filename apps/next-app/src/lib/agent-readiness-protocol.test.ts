@@ -6,21 +6,23 @@ import { describe, expect, it, vi } from "vitest";
 // runner does not provide a Next.js server/client boundary, so replace the
 // marker before loading the modules under test.
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/site-config", () => ({
+vi.mock("@repo/core/site-config", () => ({
   absoluteUrl: (pathname: string) =>
     new URL(pathname, "https://test.invalid").toString(),
   getSiteUrl: () => "https://test.invalid",
 }));
 
-const { MCP_SERVER_INFO } = await import("./mcp-server-info");
-const { getProviderKeyResolver } = await import("./agent-auth/providers");
+const { MCP_SERVER_INFO } = await import("@repo/core/mcp-server-info");
+const { getProviderKeyResolver } = await import(
+  "@repo/core/agent-auth/providers"
+);
 const {
   boundResourceFromMetadata,
   isSafeRedirectUri,
   matchesS256CodeChallenge,
   parseBasicAuthorization,
   validateDynamicRegistration,
-} = await import("./agent-auth/oauth-policy");
+} = await import("@repo/core/agent-auth/oauth-policy");
 const { MCP_TOOL_METADATA } = await import("@repo/mcp-chatgpt");
 const { registerAdminTools } = await import("@repo/mcp-server/admin");
 const {

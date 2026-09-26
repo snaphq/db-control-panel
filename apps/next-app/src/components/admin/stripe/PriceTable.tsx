@@ -1,7 +1,7 @@
 "use client";
 
 import { ActionsMenu } from "@/components/admin/stripe/ActionsMenu";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@repo/ui/components/ui/badge";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 

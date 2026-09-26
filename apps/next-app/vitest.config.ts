@@ -6,6 +6,8 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "src"),
       "server-only": path.resolve(__dirname, "src/test-server-only.ts"),
+      "@repo/core": path.resolve(__dirname, "../../packages/core/src"),
+      "@repo/ui": path.resolve(__dirname, "../../packages/ui/src"),
       "@repo/database/schema-agent-auth": path.resolve(
         __dirname,
         "../../packages/database/src/schema-agent-auth.ts",

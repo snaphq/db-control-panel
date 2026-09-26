@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Shared components live in workspace packages outside this app. */
+@source "../../../../packages/ui/src";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

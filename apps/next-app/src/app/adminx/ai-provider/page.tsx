@@ -1,5 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getOpenAIConfigMasked } from "@/lib/ai-provider";
+import { getOpenAIConfigMasked } from "@repo/core/ai-provider";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { AiProviderForm } from "./_components/ai-provider-form";
 
 export const dynamic = "force-dynamic";

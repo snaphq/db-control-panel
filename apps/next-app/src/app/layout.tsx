@@ -1,12 +1,12 @@
 import { baseURL } from "@/../baseUrl";
 import Provider from "@/app/provider";
-import { NextChatSDKBootstrap } from "@/components/NextChatSDKBootstrap";
-import { WebMcpBootstrap } from "@/components/WebMcpBootstrap";
-import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "@/components/ui/sonner";
-import { absoluteUrl } from "@/lib/site-config";
 import { PostHogProvider } from "@repo/analytics";
 import { Analytics } from "@repo/analytics/vercel";
+import { absoluteUrl } from "@repo/core/site-config";
+import { NextChatSDKBootstrap } from "@repo/ui/components/NextChatSDKBootstrap";
+import { WebMcpBootstrap } from "@repo/ui/components/WebMcpBootstrap";
+import { ThemeProvider } from "@repo/ui/components/theme-provider";
+import { Toaster } from "@repo/ui/components/ui/sonner";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata } from "next";
 import "./globals.css";

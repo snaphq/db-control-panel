@@ -1,19 +1,19 @@
-import { recordAudit } from "@/lib/agent-auth/audit";
+import { recordAudit } from "@repo/core/agent-auth/audit";
 import {
   ClaimRegistrationUnavailableError,
   mintClaimAttempt,
-} from "@/lib/agent-auth/claims";
-import type { MintedClaimAttempt } from "@/lib/agent-auth/claims";
+} from "@repo/core/agent-auth/claims";
+import type { MintedClaimAttempt } from "@repo/core/agent-auth/claims";
 import {
   requestOriginForRequest,
   resourceUrlForRequest,
-} from "@/lib/agent-auth/discovery";
-import { sha256Hex } from "@/lib/agent-auth/keys";
+} from "@repo/core/agent-auth/discovery";
+import { sha256Hex } from "@repo/core/agent-auth/keys";
 import {
   clientIp,
   expireStaleRegistrations,
   isRegistrationUsable,
-} from "@/lib/agent-auth/registrations";
+} from "@repo/core/agent-auth/registrations";
 import { db, resolveTenantFromHost } from "@repo/database";
 import { agentRegistration } from "@repo/database/schema-agent-auth";
 import { and, eq, isNull, or } from "drizzle-orm";

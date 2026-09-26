@@ -1,11 +1,11 @@
+import { parseRange } from "@repo/analytics/admin-range";
 import {
   type SeriesResult,
   getRevenueSeries,
   getSessionsSeries,
   getSignupsSeries,
-} from "@/lib/admin/analytics";
-import { requireOrganizationMembership } from "@/lib/auth/require-membership";
-import { parseRange } from "@repo/analytics/admin-range";
+} from "@repo/core/admin/analytics";
+import { requireOrganizationMembership } from "@repo/core/auth/require-membership";
 import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";

@@ -1,10 +1,10 @@
-import { completeClaim } from "@/lib/agent-auth/claims";
+import { auth } from "@repo/auth/server";
+import { completeClaim } from "@repo/core/agent-auth/claims";
 import {
   requestOriginForRequest,
   resourceUrlForRequest,
-} from "@/lib/agent-auth/discovery";
-import { clientIp } from "@/lib/agent-auth/registrations";
-import { auth } from "@repo/auth/server";
+} from "@repo/core/agent-auth/discovery";
+import { clientIp } from "@repo/core/agent-auth/registrations";
 import { resolveTenantFromHost } from "@repo/database";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";

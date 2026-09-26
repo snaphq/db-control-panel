@@ -1,4 +1,4 @@
-// import { Button } from "@/components/ui/button";
+// import { Button } from "@repo/ui/components/ui/button";
 // import Link from "next/link";
 // import { Plus } from "lucide-react";
 import { PriceTable } from "@/components/admin/stripe/PriceTable";

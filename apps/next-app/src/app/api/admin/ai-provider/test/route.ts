@@ -1,11 +1,11 @@
-import { getOpenAIConfig } from "@/lib/ai-provider";
-import { getSiteAdminStatus } from "@/lib/auth-utils";
+import { auth } from "@repo/auth/server";
+import { getOpenAIConfig } from "@repo/core/ai-provider";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import {
   assertSafeAiProviderEndpoint,
   fetchSafeAiProvider,
   readLimitedResponseText,
-} from "@/lib/integrations/mcp-proxy";
-import { auth } from "@repo/auth/server";
+} from "@repo/core/integrations/mcp-proxy";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 

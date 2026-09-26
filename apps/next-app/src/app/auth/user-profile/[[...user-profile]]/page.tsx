@@ -1,15 +1,19 @@
 "use client";
 import PageWrapper from "@/components/Container/PageWrapper";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useSession } from "@repo/auth/client";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@repo/ui/components/ui/avatar";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { useSession } from "@repo/auth/client";
+} from "@repo/ui/components/ui/card";
+import { Label } from "@repo/ui/components/ui/label";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 

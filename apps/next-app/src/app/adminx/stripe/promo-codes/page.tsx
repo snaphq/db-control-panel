@@ -1,6 +1,6 @@
 import { PromoCodeTable } from "@/components/admin/stripe/PromoCodeTable";
-import { Button } from "@/components/ui/button";
 import { getStripePromotionCodes } from "@repo/billing/stripe/queries";
+import { Button } from "@repo/ui/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 

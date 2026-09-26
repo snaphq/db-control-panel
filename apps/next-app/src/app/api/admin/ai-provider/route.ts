@@ -1,15 +1,15 @@
+import { auth } from "@repo/auth/server";
 import {
   OPENAI_SETTING_KEYS,
   encryptOpenAIApiKey,
   getOpenAIConfigMasked,
-} from "@/lib/ai-provider";
+} from "@repo/core/ai-provider";
 import {
   type AiProviderChangeFields,
   logAdminAiProviderChange,
-} from "@/lib/ai-provider-audit";
-import { getSiteAdminStatus } from "@/lib/auth-utils";
-import { assertSafeAiProviderEndpoint } from "@/lib/integrations/mcp-proxy";
-import { auth } from "@repo/auth/server";
+} from "@repo/core/ai-provider-audit";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
+import { assertSafeAiProviderEndpoint } from "@repo/core/integrations/mcp-proxy";
 import { db, eq } from "@repo/database";
 import { appSettings } from "@repo/database/schema";
 import { nanoid } from "nanoid";

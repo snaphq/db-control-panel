@@ -6,8 +6,8 @@ import {
   AiProviderDefaultModelField,
   type AiProviderTestResult,
   AiProviderTestResultPanel,
-} from "@/components/shared/ai-provider-form-fields";
-import { Button } from "@/components/ui/button";
+} from "@repo/ui/components/shared/ai-provider-form-fields";
+import { Button } from "@repo/ui/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

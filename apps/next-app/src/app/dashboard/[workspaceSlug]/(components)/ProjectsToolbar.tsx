@@ -1,6 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { organizationMethods } from "@repo/auth/client";
+import { Button } from "@repo/ui/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,24 +9,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@repo/ui/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@repo/ui/components/ui/dropdown-menu";
+import { Input } from "@repo/ui/components/ui/input";
+import { Label } from "@repo/ui/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { organizationMethods } from "@repo/auth/client";
+} from "@repo/ui/components/ui/select";
+import { cn } from "@repo/ui/lib/utils";
 import {
   ChevronDown,
   FolderPlus,

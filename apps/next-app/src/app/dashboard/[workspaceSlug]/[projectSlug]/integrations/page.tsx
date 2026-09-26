@@ -1,10 +1,10 @@
-import { AvailableIntegrationsList } from "@/components/integrations/available-integrations-list";
-import { InstalledIntegrationsList } from "@/components/integrations/installed-integrations-list";
-import { requireProjectMembership } from "@/lib/auth/require-membership";
+import { requireProjectMembership } from "@repo/core/auth/require-membership";
 import {
   listAvailableIntegrations,
   listScopedInstallations,
-} from "@/lib/integrations/queries";
+} from "@repo/core/integrations/queries";
+import { AvailableIntegrationsList } from "@repo/ui/components/integrations/available-integrations-list";
+import { InstalledIntegrationsList } from "@repo/ui/components/integrations/installed-integrations-list";
 
 interface PageProps {
   params: Promise<{ workspaceSlug: string; projectSlug: string }>;

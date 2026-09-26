@@ -90,7 +90,6 @@
     ]
   },
   "dependencies": {
-    "@stripe/react-stripe-js": "^6.8.0",
     "stripe": "catalog:",
     "stripe-sync-engine": "catalog:"
   }

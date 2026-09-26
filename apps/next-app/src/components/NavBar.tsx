@@ -1,4 +1,8 @@
 "use client";
+import { useSession } from "@repo/auth/client";
+import { ModeToggle } from "@repo/ui/components/ModeToggle";
+import { Profile } from "@repo/ui/components/Profile";
+import { Button } from "@repo/ui/components/ui/button";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -6,16 +10,7 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
-import { cn } from "@/lib/utils";
-import { useSession } from "@repo/auth/client";
-import { BlocksIcon } from "lucide-react";
-import Link from "next/link";
-import * as React from "react";
-import { GiHamburgerMenu } from "react-icons/gi";
-import { ModeToggle } from "./ModeToggle";
-import { Profile } from "./Profile";
-import { Button } from "./ui/button";
+} from "@repo/ui/components/ui/navigation-menu";
 import {
   Sheet,
   SheetClose,
@@ -23,7 +18,12 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "./ui/sheet";
+} from "@repo/ui/components/ui/sheet";
+import { cn } from "@repo/ui/lib/utils";
+import { BlocksIcon } from "lucide-react";
+import Link from "next/link";
+import * as React from "react";
+import { GiHamburgerMenu } from "react-icons/gi";
 
 const components: { title: string; href: string; description: string }[] = [
   {

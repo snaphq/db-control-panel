@@ -15,13 +15,13 @@ application continues to use Better Auth sessions exclusively.
 | Concern | Location |
 | --- | --- |
 | Tables | `packages/database/src/schema-operators.ts` (`operator`, `operator_token`, `operator_activity`) |
-| Token format, scope parsing, verification | `apps/next-app/src/lib/auth/operator-token.ts` |
-| Organization-scoped authorization helper | `apps/next-app/src/lib/auth/operator-authorization.ts` |
-| Account-management helpers | `apps/next-app/src/lib/operators/management.ts` |
-| Database activity sink | `apps/next-app/src/lib/operators/activity.ts` |
-| Operator detail helpers (tokens incl. revoked, activity, label edits) | `apps/next-app/src/lib/operators/detail.ts` |
+| Token format, scope parsing, verification | `packages/core/src/auth/operator-token.ts` |
+| Organization-scoped authorization helper | `packages/core/src/auth/operator-authorization.ts` |
+| Account-management helpers | `packages/core/src/operators/management.ts` |
+| Database activity sink | `packages/core/src/operators/activity.ts` |
+| Operator detail helpers (tokens incl. revoked, activity, label edits) | `packages/core/src/operators/detail.ts` |
 | Management API | `apps/next-app/src/app/api/account/operators/**` |
-| Account UI | `apps/next-app/src/app/account/settings/operators/page.tsx`, `apps/next-app/src/components/account/operators/**` |
+| Account UI | `apps/next-app/src/app/account/settings/operators/page.tsx`, `packages/ui/src/components/account/operators/**` |
 | MCP authentication | `apps/next-app/src/app/mcp/route.ts` |
 | Context/logger/activity sink | `packages/mcp-chatgpt/src/{request-context,logger}.ts` |
 
@@ -88,7 +88,7 @@ request context: `actorId = operator.id`, `actorType = "operator"`,
 `actorName`, `credentialId`, `authMethod = "operator_credential"`, and the owner
 `userId`.
 
-- **Database sink (always):** `apps/next-app/src/lib/operators/activity.ts`
+- **Database sink (always):** `packages/core/src/operators/activity.ts`
   registers an `McpActivitySink` via `registerMcpActivitySink` from
   `@repo/mcp-chatgpt`. The logger invokes it synchronously, exactly once, for
   every operator-attributed entry (non-operator entries never reach it), and it

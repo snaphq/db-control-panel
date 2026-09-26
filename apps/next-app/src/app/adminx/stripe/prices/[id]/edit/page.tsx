@@ -1,7 +1,7 @@
 import { PriceEditForm } from "@/components/admin/stripe/PriceEditForm";
-import { Button } from "@/components/ui/button";
 import type { Stripe } from "@repo/billing/stripe/client";
 import { getStripePrice, getStripeProduct } from "@repo/billing/stripe/queries";
+import { Button } from "@repo/ui/components/ui/button";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";

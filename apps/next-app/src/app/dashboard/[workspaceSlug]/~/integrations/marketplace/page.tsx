@@ -1,5 +1,5 @@
-import { requireOrganizationMembership } from "@/lib/auth/require-membership";
-import { listAvailableIntegrations } from "@/lib/integrations/queries";
+import { requireOrganizationMembership } from "@repo/core/auth/require-membership";
+import { listAvailableIntegrations } from "@repo/core/integrations/queries";
 import { IntegrationsPageShell } from "../(components)/IntegrationsPageShell";
 import { MarketplaceView } from "../(components)/MarketplaceView";
 

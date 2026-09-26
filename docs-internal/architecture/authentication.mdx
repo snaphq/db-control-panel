@@ -21,7 +21,7 @@ description: Better Auth package boundary, tenant binding, and session ownership
 The app owns route composition under `apps/next-app/src/app/api/auth` (the
 Better Auth catch-all plus sign-in, sign-up, organization, and password-reset
 routes), UI flows under `apps/next-app/src/app/auth`, and request gating in
-`apps/next-app/src/proxy.ts`. App helpers in `apps/next-app/src/lib/auth`
+`apps/next-app/src/proxy.ts`. App helpers in `packages/core/src/auth`
 cover session cookies, membership checks, operator tokens, and OAuth route
 utilities. Consumers import from `@repo/auth`, never from `better-auth`
 directly, except for plugin types.

@@ -1,4 +1,4 @@
-import { absoluteUrl } from "@/lib/site-config";
+import { absoluteUrl } from "@repo/core/site-config";
 
 export async function GET(): Promise<Response> {
   return Response.json(

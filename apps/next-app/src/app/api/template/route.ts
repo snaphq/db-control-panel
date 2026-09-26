@@ -1,4 +1,4 @@
-import { ratelimit } from "@/lib/ratelimiter";
+import { ratelimit } from "@repo/core/ratelimiter";
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {

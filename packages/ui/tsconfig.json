@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "types": ["node"],
+    "paths": {
+      "@repo/database": ["../database/src"],
+      "@repo/database/dal/seo": ["../database/src/dal/seo/index.ts"],
+      "@repo/database/*": ["../database/src/*"],
+      "@repo/auth": ["../auth/src"],
+      "@repo/auth/*": ["../auth/src/*"],
+      "@repo/analytics": ["../analytics/src"],
+      "@repo/analytics/client": ["../analytics/src/client-entry.ts"],
+      "@repo/analytics/*": ["../analytics/src/*"],
+      "@repo/billing": ["../billing/src"],
+      "@repo/billing/*": ["../billing/src/*"],
+      "@repo/object-storage": ["../object-storage/src"],
+      "@repo/object-storage/*": ["../object-storage/src/*"],
+      "@repo/core/*": ["../core/src/*"],
+      "@repo/ui/*": ["../ui/src/*"]
+    },
+    "jsx": "react-jsx"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}

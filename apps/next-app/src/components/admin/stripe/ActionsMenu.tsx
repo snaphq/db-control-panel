@@ -1,5 +1,6 @@
 "use client";
 
+import { getErrorMessage } from "@repo/core/error-utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,16 +10,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+} from "@repo/ui/components/ui/alert-dialog";
+import { Button } from "@repo/ui/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { getErrorMessage } from "@/lib/error-utils";
+} from "@repo/ui/components/ui/dropdown-menu";
 import {
   Archive,
   Copy,

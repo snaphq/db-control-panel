@@ -1,16 +1,16 @@
 "use client";
 
-import { useSidebar } from "@/components/dashboard/sidebar-context";
-import { SidebarFinder } from "@/components/dashboard/sidebar-finder";
-import { SidebarUserMenu } from "@/components/dashboard/sidebar-user-menu";
-import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
-import { Separator } from "@/components/ui/separator";
+import { useSidebar } from "@repo/ui/components/dashboard/sidebar-context";
+import { SidebarFinder } from "@repo/ui/components/dashboard/sidebar-finder";
+import { SidebarUserMenu } from "@repo/ui/components/dashboard/sidebar-user-menu";
+import { WorkspaceSwitcher } from "@repo/ui/components/dashboard/workspace-switcher";
+import { Separator } from "@repo/ui/components/ui/separator";
 import {
   SidebarDrillDownButton,
   SidebarGroupLabel,
   SidebarNavLink,
   resolveMostSpecificActiveHref,
-} from "@/components/ui/sidebar-nav";
+} from "@repo/ui/components/ui/sidebar-nav";
 import {
   type NavConfig,
   type NavItem,
@@ -18,8 +18,8 @@ import {
   buildHref,
   projectNav,
   workspaceNav,
-} from "@/lib/navigation";
-import { cn } from "@/lib/utils";
+} from "@repo/ui/lib/navigation";
+import { cn } from "@repo/ui/lib/utils";
 import { ChevronLeft } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";

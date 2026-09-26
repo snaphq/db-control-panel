@@ -1,11 +1,3 @@
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   agentAuthAudit,
   agentClaimAttempt,
@@ -18,6 +10,14 @@ import {
   organization,
   user,
 } from "@repo/database";
+import { Badge } from "@repo/ui/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RegistrationActions } from "./_components/registration-actions";

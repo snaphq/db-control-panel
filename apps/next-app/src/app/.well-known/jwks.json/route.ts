@@ -1,8 +1,8 @@
 import {
   publicDiscoveryOptions,
   withPublicDiscoveryCors,
-} from "@/lib/agent-auth/cors";
-import { exportPublicKeyJwks } from "@/lib/agent-auth/keys";
+} from "@repo/core/agent-auth/cors";
+import { exportPublicKeyJwks } from "@repo/core/agent-auth/keys";
 
 /** Public key set for the agent-auth signing key (identity_assertions, access tokens). */
 export async function GET(): Promise<Response> {

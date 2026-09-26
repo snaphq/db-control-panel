@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import { requestOriginForRequest } from "@/lib/agent-auth/discovery";
-import { sendPasswordResetEmail } from "@/lib/email";
-import { checkPasswordResetRateLimit } from "@/lib/rate-limit";
+import { requestOriginForRequest } from "@repo/core/agent-auth/discovery";
+import { sendPasswordResetEmail } from "@repo/core/email";
+import { checkPasswordResetRateLimit } from "@repo/core/rate-limit";
 import {
   buildTenantAuthEmail,
   db,

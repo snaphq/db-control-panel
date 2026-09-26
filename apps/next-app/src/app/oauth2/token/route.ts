@@ -1,11 +1,11 @@
-import { recordAudit } from "@/lib/agent-auth/audit";
-import { POLL_INTERVAL_SECONDS } from "@/lib/agent-auth/claims";
+import { recordAudit } from "@repo/core/agent-auth/audit";
+import { POLL_INTERVAL_SECONDS } from "@repo/core/agent-auth/claims";
 import {
   GRANT_CLAIM,
   GRANT_JWT_BEARER,
   requestOriginForRequest,
   resourceUrlForRequest,
-} from "@/lib/agent-auth/discovery";
+} from "@repo/core/agent-auth/discovery";
 import {
   AgentAuthConfigurationError,
   getSigningKey,
@@ -13,14 +13,14 @@ import {
   sha256Hex,
   signAccessToken,
   signIdentityAssertion,
-} from "@/lib/agent-auth/keys";
-import { boundResourceFromMetadata } from "@/lib/agent-auth/oauth-policy";
+} from "@repo/core/agent-auth/keys";
+import { boundResourceFromMetadata } from "@repo/core/agent-auth/oauth-policy";
 import {
   expireStaleRegistrations,
   getRegistration,
   isRegistrationUsable,
   resolveScopes,
-} from "@/lib/agent-auth/registrations";
+} from "@repo/core/agent-auth/registrations";
 import { db, resolveTenantFromHost, withDbTransaction } from "@repo/database";
 import {
   agentClaimAttempt,

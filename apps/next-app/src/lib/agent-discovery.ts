@@ -1,11 +1,6 @@
-import {
-  absoluteUrl,
-  getPublicBlogPaths,
-  getPublicDocsPaths,
-  normalizePathname,
-  sha256,
-} from "@/lib/site-config";
+import { getPublicBlogPaths, getPublicDocsPaths } from "@/lib/site-content";
 import { blog, docsSource } from "@/lib/source";
+import { absoluteUrl, normalizePathname, sha256 } from "@repo/core/site-config";
 
 export function isMarkdownRequest(request: Request): boolean {
   return request.headers.get("accept")?.includes("text/markdown") ?? false;

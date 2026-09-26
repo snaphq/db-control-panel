@@ -1,6 +1,4 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ensureSeoAccess } from "@/lib/seo-guard";
+import { ensureSeoAccess } from "@repo/core/seo-guard";
 import { listEngines } from "@repo/database/dal/seo";
 import { getShareOfVoice, getWeeklySpendCents } from "@repo/database/dal/seo";
 import {
@@ -8,6 +6,13 @@ import {
   listPrompts,
 } from "@repo/database/dal/seo";
 import { getSetting } from "@repo/durable-exec";
+import { Badge } from "@repo/ui/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import type { Metadata } from "next";
 import Link from "next/link";
 

@@ -1,5 +1,5 @@
-import { absoluteUrl } from "@/lib/site-config";
 import { blog } from "@/lib/source";
+import { absoluteUrl } from "@repo/core/site-config";
 import { defaultMdxComponents } from "@repo/fumadocs/components";
 import Image from "next/image";
 import { notFound } from "next/navigation";

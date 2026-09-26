@@ -1,4 +1,3 @@
-import { getCurrentTenant } from "@/lib/tenant";
 import { auth } from "@repo/auth/server";
 import {
   APP_SETTINGS_KEYS,
@@ -19,6 +18,7 @@ import type {
   BillingUsageResponse,
   MemberRole,
 } from "@repo/billing/types";
+import { getCurrentTenant } from "@repo/core/tenant";
 import { db } from "@repo/database";
 import { and, eq } from "@repo/database";
 import { member, organization } from "@repo/database/schema";

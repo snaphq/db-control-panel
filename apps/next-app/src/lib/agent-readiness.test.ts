@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 // runner does not provide a Next.js server/client boundary, so replace the
 // marker before loading the modules under test.
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/site-config", () => ({
+vi.mock("@repo/core/site-config", () => ({
   absoluteUrl: (pathname: string) =>
     new URL(pathname, "https://test.invalid").toString(),
   getSiteUrl: () => "https://test.invalid",
@@ -15,22 +15,26 @@ const {
   assertSafeMcpEndpoint,
   isPrivateAddress,
   safeMcpHeaders,
-} = await import("./integrations/mcp-proxy");
-const { decryptJson, encryptJson } = await import("./integrations/encryption");
+} = await import("@repo/core/integrations/mcp-proxy");
+const { decryptJson, encryptJson } = await import(
+  "@repo/core/integrations/encryption"
+);
 const { normalizeMcpHeaders, publicMcpHeaders, toSafeInstallation } =
-  await import("./integrations/types");
-const { getProviderHandler } = await import("./integrations/provider-handlers");
-const { verificationUriFor } = await import("./agent-auth/claim-uri");
+  await import("@repo/core/integrations/types");
+const { getProviderHandler } = await import(
+  "@repo/core/integrations/provider-handlers"
+);
+const { verificationUriFor } = await import("@repo/core/agent-auth/claim-uri");
 const { selectPrimaryOrganizationMembership } = await import(
-  "./agent-auth/claims"
+  "@repo/core/agent-auth/claims"
 );
 const { eventNotificationUrlForRequest, requestOriginForRequest } =
-  await import("./agent-auth/discovery");
+  await import("@repo/core/agent-auth/discovery");
 const { isClaimAttemptUsable, MAX_CODE_ATTEMPTS } = await import(
-  "./agent-auth/claim-policy"
+  "@repo/core/agent-auth/claim-policy"
 );
 const { isRegistrationUsable } = await import(
-  "./agent-auth/registration-policy"
+  "@repo/core/agent-auth/registration-policy"
 );
 const { isLocalTenantHost, normalizeTenantDomain, normalizeTenantHost } =
   await import("@repo/database");

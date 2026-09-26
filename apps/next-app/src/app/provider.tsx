@@ -1,5 +1,5 @@
 "use client";
-import { AuthProviderWrapper } from "@/components/AuthProviderWrapper";
+import { AuthProviderWrapper } from "@repo/ui/components/AuthProviderWrapper";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { type ReactNode, useState } from "react";

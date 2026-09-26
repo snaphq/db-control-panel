@@ -1,5 +1,5 @@
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { getSafeSessions, resolveTenantFromHost } from "@repo/database";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";

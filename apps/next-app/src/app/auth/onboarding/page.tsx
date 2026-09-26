@@ -1,5 +1,5 @@
-import { getWorkspaceCount } from "@/lib/auth";
 import { auth } from "@repo/auth/server";
+import { getWorkspaceCount } from "@repo/core/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import OnboardingForm from "./OnboardingForm";

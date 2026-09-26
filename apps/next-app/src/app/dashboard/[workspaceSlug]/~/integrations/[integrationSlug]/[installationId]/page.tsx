@@ -1,10 +1,10 @@
-import { InstallationManager } from "@/components/integrations/installation-manager";
-import { requireOrganizationMembership } from "@/lib/auth/require-membership";
+import { requireOrganizationMembership } from "@repo/core/auth/require-membership";
 import {
   findInstallationById,
   findIntegrationBySlug,
-} from "@/lib/integrations/queries";
-import { toSafeInstallation } from "@/lib/integrations/types";
+} from "@repo/core/integrations/queries";
+import { toSafeInstallation } from "@repo/core/integrations/types";
+import { InstallationManager } from "@repo/ui/components/integrations/installation-manager";
 import { notFound } from "next/navigation";
 
 interface PageProps {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@repo/ui/components/ui/button";
 import { useState, useTransition } from "react";
 import { validateAllSecretsAction } from "./actions";
 

@@ -22,7 +22,7 @@ internal.
 | `POST /agent/event/notify` | Trusted-provider Security Event Token revocation push |
 | `GET /.well-known/jwks.json` | Public key set for service-signed assertions/tokens |
 
-Shared flow logic lives in `apps/next-app/src/lib/agent-auth/`: registration
+Shared flow logic lives in `packages/core/src/agent-auth/`: registration
 expiry/scope resolution, claim attempts, ID-JAG verification, trusted-provider
 JWKS resolution, key signing, token checks, rate limiting, and audit writes.
 

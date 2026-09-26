@@ -1,4 +1,4 @@
-import { requireOrganizationMembership } from "@/lib/auth/require-membership";
+import { requireOrganizationMembership } from "@repo/core/auth/require-membership";
 import { StoragePage } from "./(components)/StoragePage";
 
 interface PageProps {

@@ -1,8 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@repo/ui/components/ui/button";
+import { Input } from "@repo/ui/components/ui/input";
+import { Textarea } from "@repo/ui/components/ui/textarea";
 import { useState, useTransition } from "react";
 import { setSettingAction } from "./actions";
 

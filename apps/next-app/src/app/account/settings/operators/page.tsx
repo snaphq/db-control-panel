@@ -1,12 +1,12 @@
-import { OperatorsManager } from "@/components/account/operators/operators-manager";
-import type { OperatorView } from "@/components/account/operators/types";
 import {
   listUserOrganizations,
   parseOperatorScope,
-} from "@/lib/auth/operator-token";
-import { requireSession } from "@/lib/auth/require-membership";
-import { listOperatorsForUser } from "@/lib/operators/management";
-import { getCurrentTenant } from "@/lib/tenant";
+} from "@repo/core/auth/operator-token";
+import { requireSession } from "@repo/core/auth/require-membership";
+import { listOperatorsForUser } from "@repo/core/operators/management";
+import type { OperatorView } from "@repo/core/operators/view-types";
+import { getCurrentTenant } from "@repo/core/tenant";
+import { OperatorsManager } from "@repo/ui/components/account/operators/operators-manager";
 
 export const dynamic = "force-dynamic";
 

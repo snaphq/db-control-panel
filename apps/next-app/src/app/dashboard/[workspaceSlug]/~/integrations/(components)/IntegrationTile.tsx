@@ -1,6 +1,6 @@
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import type { Integration } from "@repo/database/schema";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Card } from "@repo/ui/components/ui/card";
 import Link from "next/link";
 import { IntegrationLogo } from "./IntegrationLogo";
 

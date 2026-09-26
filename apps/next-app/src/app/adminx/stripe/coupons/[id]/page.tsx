@@ -1,12 +1,17 @@
 import { ActionsMenu } from "@/components/admin/stripe/ActionsMenu";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-// import { ProductTable } from "@/components/admin/stripe/ProductTable";
-// import type { Product } from "@repo/billing/stripe/client";
-import { Label } from "@/components/ui/label";
 // import { getStripeCoupon, getStripeProduct } from "@repo/billing/stripe/queries";
 import { getStripeCoupon } from "@repo/billing/stripe/queries";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+// import { ProductTable } from "@/components/admin/stripe/ProductTable";
+// import type { Product } from "@repo/billing/stripe/client";
+import { Label } from "@repo/ui/components/ui/label";
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";

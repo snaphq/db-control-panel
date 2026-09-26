@@ -1,10 +1,10 @@
-import { isValidExpiration } from "@/lib/auth/operator-token";
+import { isValidExpiration } from "@repo/core/auth/operator-token";
 import {
   MAX_OPERATOR_TOKEN_LABEL,
   findOwnedOperator,
   getSessionAndTenant,
   issueOperatorToken,
-} from "@/lib/operators/management";
+} from "@repo/core/operators/management";
 import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";

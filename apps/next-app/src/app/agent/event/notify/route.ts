@@ -1,12 +1,12 @@
-import { recordAudit } from "@/lib/agent-auth/audit";
+import { recordAudit } from "@repo/core/agent-auth/audit";
 import {
   REVOKED_EVENT_SCHEMA,
   eventNotificationUrlForRequest,
-} from "@/lib/agent-auth/discovery";
+} from "@repo/core/agent-auth/discovery";
 import {
   findTrustedProvider,
   getProviderKeyResolver,
-} from "@/lib/agent-auth/providers";
+} from "@repo/core/agent-auth/providers";
 import { db, resolveTenantFromHost } from "@repo/database";
 import {
   agentJtiSeen,

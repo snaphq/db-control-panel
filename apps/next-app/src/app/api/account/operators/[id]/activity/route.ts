@@ -1,11 +1,11 @@
 import {
   listOperatorActivity,
   serializeOperatorActivity,
-} from "@/lib/operators/detail";
+} from "@repo/core/operators/detail";
 import {
   findOwnedOperator,
   getSessionAndTenant,
-} from "@/lib/operators/management";
+} from "@repo/core/operators/management";
 import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";

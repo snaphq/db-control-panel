@@ -1,6 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { sha256Hex } from "@/lib/agent-auth/keys";
 import { auth } from "@repo/auth/server";
+import { sha256Hex } from "@repo/core/agent-auth/keys";
 import { db, resolveTenantFromHost } from "@repo/database";
 import { user } from "@repo/database/schema";
 import {
@@ -8,6 +7,12 @@ import {
   agentProvider,
   agentRegistration,
 } from "@repo/database/schema-agent-auth";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { and, eq, isNull } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";

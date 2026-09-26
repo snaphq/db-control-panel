@@ -4,21 +4,21 @@ const contexts: Array<Record<string, unknown>> = [];
 const logRequest = vi.fn();
 const logResponse = vi.fn();
 
-vi.mock("@/lib/site-config", () => ({
+vi.mock("@repo/core/site-config", () => ({
   getSiteUrl: () => "https://test.invalid",
 }));
-vi.mock("@/lib/agent-auth/tokens", () => ({
+vi.mock("@repo/core/agent-auth/tokens", () => ({
   verifyAgentAccessToken: vi.fn(async () => null),
 }));
-vi.mock("@/lib/auth/operator-token", () => ({
+vi.mock("@repo/core/auth/operator-token", () => ({
   verifyOperatorToken: vi.fn(async () => null),
   isLegacyAccountToken: vi.fn(() => false),
 }));
-vi.mock("@/lib/auth/oauth-token", () => ({
+vi.mock("@repo/core/auth/oauth-token", () => ({
   verifyOAuthMcpToken: vi.fn(async () => null),
 }));
-vi.mock("@/lib/operators/activity", () => ({}));
-vi.mock("@/lib/agent-auth/keys", () => ({
+vi.mock("@repo/core/operators/activity", () => ({}));
+vi.mock("@repo/core/agent-auth/keys", () => ({
   AgentAuthConfigurationError: class AgentAuthConfigurationError extends Error {},
 }));
 vi.mock("@repo/database", () => ({
@@ -40,9 +40,9 @@ vi.mock("mcp-handler", () => ({
 }));
 
 const { POST } = await import("../app/mcp/route");
-const { verifyAgentAccessToken } = await import("@/lib/agent-auth/tokens");
+const { verifyAgentAccessToken } = await import("@repo/core/agent-auth/tokens");
 const { isLegacyAccountToken, verifyOperatorToken } = await import(
-  "@/lib/auth/operator-token"
+  "@repo/core/auth/operator-token"
 );
 
 describe("MCP route authentication failures", () => {

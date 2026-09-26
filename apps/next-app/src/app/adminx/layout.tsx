@@ -1,5 +1,5 @@
-import { SidebarProvider } from "@/components/dashboard/sidebar-context";
-import { ReactQueryProvider } from "@/providers/react-query-provider";
+import { SidebarProvider } from "@repo/ui/components/dashboard/sidebar-context";
+import { ReactQueryProvider } from "@repo/ui/providers/react-query-provider";
 import type { ReactNode } from "react";
 import AdminSidebar from "./(components)/AdminSidebar";
 import AdminTopNav from "./(components)/AdminTopNav";

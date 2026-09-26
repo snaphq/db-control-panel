@@ -1,5 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { agent, db, eq } from "@repo/database";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
 import { notFound } from "next/navigation";
 import { AgentForm } from "../_components/agent-form";
 

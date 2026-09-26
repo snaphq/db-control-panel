@@ -1,7 +1,7 @@
-import { AccountSettingsForm } from "@/components/account/account-settings-form";
-import { requireSession } from "@/lib/auth/require-membership";
+import { requireSession } from "@repo/core/auth/require-membership";
 import { db, eq } from "@repo/database";
 import { user } from "@repo/database/schema";
+import { AccountSettingsForm } from "@repo/ui/components/account/account-settings-form";
 import { notFound } from "next/navigation";
 
 export default async function AccountSettingsPage() {

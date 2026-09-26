@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@repo/ui/components/ui/badge";
 import { Crown, Shield, Users } from "lucide-react";
 
 export interface MemberData {

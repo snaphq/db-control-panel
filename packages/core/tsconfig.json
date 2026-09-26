@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "paths": {
+      "@repo/database": ["../database/src"],
+      "@repo/database/dal/seo": ["../database/src/dal/seo/index.ts"],
+      "@repo/database/*": ["../database/src/*"],
+      "@repo/auth": ["../auth/src"],
+      "@repo/auth/*": ["../auth/src/*"],
+      "@repo/analytics": ["../analytics/src"],
+      "@repo/analytics/client": ["../analytics/src/client-entry.ts"],
+      "@repo/analytics/*": ["../analytics/src/*"],
+      "@repo/mcp-chatgpt": ["../mcp-chatgpt/src"],
+      "@repo/mcp-chatgpt/*": ["../mcp-chatgpt/src/*"],
+      "@repo/core/*": ["../core/src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}

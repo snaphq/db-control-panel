@@ -1,14 +1,14 @@
-import { ACTIVITY_LIMIT } from "@/components/account/operators/format";
-import { OperatorDetail } from "@/components/account/operators/operator-detail";
-import { listUserOrganizations } from "@/lib/auth/operator-token";
-import { requireSession } from "@/lib/auth/require-membership";
+import { listUserOrganizations } from "@repo/core/auth/operator-token";
+import { requireSession } from "@repo/core/auth/require-membership";
 import {
   getOwnedOperatorDetail,
   listOperatorActivity,
   serializeOperatorActivity,
   serializeOperatorDetail,
-} from "@/lib/operators/detail";
-import { getCurrentTenant } from "@/lib/tenant";
+} from "@repo/core/operators/detail";
+import { getCurrentTenant } from "@repo/core/tenant";
+import { ACTIVITY_LIMIT } from "@repo/ui/components/account/operators/format";
+import { OperatorDetail } from "@repo/ui/components/account/operators/operator-detail";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";

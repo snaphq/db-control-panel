@@ -1,10 +1,10 @@
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { parseRange } from "@repo/analytics/admin-range";
 import {
   assertPosthogConfigured,
   getPageFlowFunnel,
 } from "@repo/analytics/posthog-query";
 import { auth } from "@repo/auth/server";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { db, eq } from "@repo/database";
 import { analyticsFunnel } from "@repo/database";
 import { headers } from "next/headers";

@@ -1,7 +1,7 @@
-import { getCurrentTenant } from "@/lib/tenant";
 import { auth } from "@repo/auth/server";
 import { BILLING_MANAGEMENT_ROLES } from "@repo/billing";
 import { stripe } from "@repo/billing/stripe/client";
+import { getCurrentTenant } from "@repo/core/tenant";
 import { and, db, eq, ne } from "@repo/database";
 import { member, organization } from "@repo/database/schema";
 import { headers } from "next/headers";

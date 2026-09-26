@@ -1,17 +1,5 @@
 "use client";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { ANALYTICS_EVENTS } from "@repo/analytics/client";
 import { useTrackEvent } from "@repo/analytics/client";
 import type { PricingTier } from "@repo/billing/types";
@@ -19,6 +7,18 @@ import type {
   BillingSubscriptionResponse,
   BillingUsageResponse,
 } from "@repo/billing/types";
+import { Alert, AlertDescription } from "@repo/ui/components/ui/alert";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/ui/card";
+import { Progress } from "@repo/ui/components/ui/progress";
 import {
   AlertCircle,
   Check,
@@ -33,7 +33,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "@repo/ui/components/ui/separator";
 import {
   BillingDetailsForm,
   type BillingDetailsInitial,

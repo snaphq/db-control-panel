@@ -1,10 +1,10 @@
-import { getSiteAdminStatus } from "@/lib/auth-utils";
 import { auth } from "@repo/auth/server";
 import {
   deletePricingPlan,
   getPricingPlan,
   updatePricingPlan,
 } from "@repo/billing";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";

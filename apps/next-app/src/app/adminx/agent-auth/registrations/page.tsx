@@ -1,6 +1,3 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   agentRegistration,
   and,
@@ -10,6 +7,9 @@ import {
   organization,
   user,
 } from "@repo/database";
+import { Badge } from "@repo/ui/components/ui/badge";
+import { Button } from "@repo/ui/components/ui/button";
+import { Label } from "@repo/ui/components/ui/label";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";

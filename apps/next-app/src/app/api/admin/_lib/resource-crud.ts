@@ -1,4 +1,4 @@
-import { isSiteAdmin } from "@/lib/auth-utils";
+import { isSiteAdmin } from "@repo/core/auth-utils";
 import { NextResponse } from "next/server";
 
 /**

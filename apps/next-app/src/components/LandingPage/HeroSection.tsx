@@ -1,9 +1,9 @@
 "use client";
 import { useSession } from "@repo/auth/client";
+import { Button } from "@repo/ui/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { BorderBeam } from "../magicui/border-beam";
-import { Button } from "../ui/button";
 import { AnimatedGradientTextComponent } from "./AnimatedGradientComponent";
 export default function HeroSection() {
   const { data: session } = useSession();

@@ -1,5 +1,4 @@
-import { AgentsBrowser } from "@/components/agents/agents-browser";
-import { requireProjectMembership } from "@/lib/auth/require-membership";
+import { requireProjectMembership } from "@repo/core/auth/require-membership";
 import {
   agent,
   agentInstallation,
@@ -9,6 +8,7 @@ import {
   inArray,
   ne,
 } from "@repo/database";
+import { AgentsBrowser } from "@repo/ui/components/agents/agents-browser";
 
 interface PageProps {
   params: Promise<{ workspaceSlug: string; projectSlug: string }>;

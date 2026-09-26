@@ -1,8 +1,8 @@
 import {
   publicDiscoveryOptions,
   withPublicDiscoveryCors,
-} from "@/lib/agent-auth/cors";
-import { requestOriginForRequest } from "@/lib/agent-auth/discovery";
+} from "@repo/core/agent-auth/cors";
+import { requestOriginForRequest } from "@repo/core/agent-auth/discovery";
 import { resolveTenantFromHost } from "@repo/database";
 
 export async function GET(request: Request): Promise<Response> {

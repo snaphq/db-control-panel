@@ -1,11 +1,11 @@
+import { parseRange } from "@repo/analytics/admin-range";
+import { auth } from "@repo/auth/server";
 import {
   getOrgStatusBreakdown,
   getPlanDistribution,
   getTopOrgsByRevenue,
-} from "@/lib/admin/analytics";
-import { getSiteAdminStatus } from "@/lib/auth-utils";
-import { parseRange } from "@repo/analytics/admin-range";
-import { auth } from "@repo/auth/server";
+} from "@repo/core/admin/analytics";
+import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 
