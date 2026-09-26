@@ -24,9 +24,10 @@ through package subpaths.
 ## Event changes
 
 Add event names and property types in `packages/analytics/src/events.ts`, then
-update all producers and the PostHog setup/workflow scripts. Keep user context
-minimal and avoid sensitive values. The setup and test utilities are under
-`.setup/setup-posthog.ts` and `scripts/posthog*`.
+update all producers and the PostHog workflow definitions in
+`scripts/posthog-workflows.ts`. Keep user context minimal and avoid sensitive
+values. Test utilities are `scripts/test-posthog-event.ts` and
+`scripts/test-posthog-workflow.ts`.
 
 ## Verification
 

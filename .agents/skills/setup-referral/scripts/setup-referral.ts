@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Interactive Referral System setup script
- * Run with: bun run setup:referral
+ * Run with: bun .agents/skills/setup-referral/scripts/setup-referral.ts
  *
  * This script helps you:
  * 1. Verify database connection
@@ -12,7 +12,6 @@
 import { resolve } from "node:path";
 import { confirm, input, select } from "@inquirer/prompts";
 import { config } from "dotenv";
-import pg from "pg";
 
 // Load environment variables from .env.local
 config({ path: resolve(process.cwd(), ".env.local") });
@@ -82,10 +81,7 @@ function dollarsToCents(dollars: string): number {
 }
 
 // Step 1: Verify Database Connection
-async function verifyDatabaseConnection(): Promise<{
-  connected: boolean;
-  pool: pg.Pool | null;
-}> {
+async function verifyDatabaseConnection(): Promise<boolean> {
   printHeader("STEP 1: VERIFY DATABASE CONNECTION");
 
   const databaseUrl = process.env.DATABASE_URL;
@@ -96,7 +92,7 @@ async function verifyDatabaseConnection(): Promise<{
     console.log(
       `  ${colors.dim}Add to .env.local: DATABASE_URL=postgres://user:pass@host:5432/db${colors.reset}`,
     );
-    return { connected: false, pool: null };
+    return false;
   }
 
   // Mask credentials in display
@@ -105,68 +101,29 @@ async function verifyDatabaseConnection(): Promise<{
     : "***";
   printInfo(`Database host: ${dbHost}`);
 
-  // Test connection
   console.log("");
-  printInfo("Testing database connection...");
-
-  const pool = new pg.Pool({
-    connectionString: databaseUrl,
-    max: 5,
-  });
+  printInfo("Checking the referral_config table...");
 
   try {
-    const client = await pool.connect();
-    await client.query("SELECT 1");
-    client.release();
-
-    printSuccess("Database connection successful!");
-
-    // Check if referral tables exist
-    const result = await pool.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' 
-      AND table_name IN ('referral_config', 'referral_codes', 'referrals')
-    `);
-
-    const existingTables = result.rows.map((r) => r.table_name);
-
-    if (existingTables.length === 3) {
-      printSuccess("All referral tables exist");
-    } else if (existingTables.length > 0) {
-      printWarning(`Some referral tables found: ${existingTables.join(", ")}`);
-      printInfo("Run 'bun run db:push' to create missing tables");
-    } else {
-      printWarning("Referral tables not found in database");
-      printInfo("Run 'bun run db:push' to create the tables");
-
-      const proceed = await confirm({
-        message: "Continue with setup anyway? (You can apply schema later)",
-        default: true,
-      });
-
-      if (!proceed) {
-        return { connected: false, pool: null };
-      }
-    }
-
-    return { connected: true, pool };
+    const { db } = await import("@repo/database");
+    const { referralConfig } = await import("@repo/database/schema");
+    await db().select({ id: referralConfig.id }).from(referralConfig).limit(1);
+    printSuccess("Database connection successful and referral tables exist");
+    return true;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    printError(`Database connection failed: ${errorMessage}`);
-
-    if (errorMessage.includes("ECONNREFUSED")) {
-      printInfo("Ensure your database server is running");
-    } else if (errorMessage.includes("authentication")) {
-      printInfo("Check your database credentials");
+    printError(`Database check failed: ${errorMessage}`);
+    if (errorMessage.includes("does not exist")) {
+      printInfo("Run 'bun run db:push' to create the tables, then try again");
+    } else {
+      printInfo("Check DATABASE_URL and that the database is reachable");
     }
-
-    return { connected: false, pool: null };
+    return false;
   }
 }
 
 // Step 2: Configure Referral Settings
-async function configureReferralSettings(pool: pg.Pool): Promise<{
+async function configureReferralSettings(): Promise<{
   enabled: boolean;
   referrerCreditAmount: number;
   refereeCreditAmount: number;
@@ -177,25 +134,13 @@ async function configureReferralSettings(pool: pg.Pool): Promise<{
 
   // Check for existing configuration
 
-  let existingConfig: {
-    id: string;
-    enabled: boolean;
-    referrer_credit_amount: number;
-    referee_credit_amount: number;
-    currency: string;
-    min_plan_tier: string | null;
-  } | null = null;
-
-  try {
-    const result = await pool.query(
-      "SELECT * FROM referral_config WHERE id = 'default' LIMIT 1",
-    );
-    if (result.rows.length > 0) {
-      existingConfig = result.rows[0];
-    }
-  } catch {
-    // Table might not exist yet
-  }
+  const { db, eq } = await import("@repo/database");
+  const { referralConfig } = await import("@repo/database/schema");
+  const [existingConfig] = await db()
+    .select()
+    .from(referralConfig)
+    .where(eq(referralConfig.id, "default"))
+    .limit(1);
 
   if (existingConfig) {
     printInfo("Existing referral configuration found:");
@@ -204,13 +149,13 @@ async function configureReferralSettings(pool: pg.Pool): Promise<{
       `    ${colors.dim}Enabled:${colors.reset} ${existingConfig.enabled ? `${colors.green}Yes${colors.reset}` : `${colors.yellow}No${colors.reset}`}`,
     );
     console.log(
-      `    ${colors.dim}Referrer reward:${colors.reset} ${formatCents(existingConfig.referrer_credit_amount)} ${existingConfig.currency.toUpperCase()}`,
+      `    ${colors.dim}Referrer reward:${colors.reset} ${formatCents(existingConfig.referrerCreditAmount)} ${existingConfig.currency.toUpperCase()}`,
     );
     console.log(
-      `    ${colors.dim}Referee reward:${colors.reset} ${formatCents(existingConfig.referee_credit_amount)} ${existingConfig.currency.toUpperCase()}`,
+      `    ${colors.dim}Referee reward:${colors.reset} ${formatCents(existingConfig.refereeCreditAmount)} ${existingConfig.currency.toUpperCase()}`,
     );
     console.log(
-      `    ${colors.dim}Min plan tier:${colors.reset} ${existingConfig.min_plan_tier || "tier_1"}`,
+      `    ${colors.dim}Min plan tier:${colors.reset} ${existingConfig.minPlanTier || "tier1"}`,
     );
     console.log("");
 
@@ -223,10 +168,10 @@ async function configureReferralSettings(pool: pg.Pool): Promise<{
       printSuccess("Keeping existing configuration");
       return {
         enabled: existingConfig.enabled,
-        referrerCreditAmount: existingConfig.referrer_credit_amount,
-        refereeCreditAmount: existingConfig.referee_credit_amount,
+        referrerCreditAmount: existingConfig.referrerCreditAmount,
+        refereeCreditAmount: existingConfig.refereeCreditAmount,
         currency: existingConfig.currency,
-        minPlanTier: existingConfig.min_plan_tier || "tier_1",
+        minPlanTier: existingConfig.minPlanTier || "tier1",
       };
     }
   }
@@ -260,7 +205,7 @@ async function configureReferralSettings(pool: pg.Pool): Promise<{
 
   // Referrer reward amount
   const referrerDefault = existingConfig
-    ? (existingConfig.referrer_credit_amount / 100).toFixed(2)
+    ? (existingConfig.referrerCreditAmount / 100).toFixed(2)
     : "10.00";
 
   const referrerInput = await input({
@@ -278,7 +223,7 @@ async function configureReferralSettings(pool: pg.Pool): Promise<{
 
   // Referee reward amount
   const refereeDefault = existingConfig
-    ? (existingConfig.referee_credit_amount / 100).toFixed(2)
+    ? (existingConfig.refereeCreditAmount / 100).toFixed(2)
     : "10.00";
 
   const refereeInput = await input({
@@ -300,7 +245,7 @@ async function configureReferralSettings(pool: pg.Pool): Promise<{
     choices: [
       {
         name: "Tier 1 (Entry-level paid plan)",
-        value: "tier_1",
+        value: "tier1",
       },
       {
         name: "Tier 2 (Mid-tier plan)",
@@ -315,7 +260,7 @@ async function configureReferralSettings(pool: pg.Pool): Promise<{
         value: "any_paid",
       },
     ],
-    default: existingConfig?.min_plan_tier ?? "tier_1",
+    default: existingConfig?.minPlanTier ?? "tier1",
   });
 
   console.log("");
@@ -353,59 +298,31 @@ async function configureReferralSettings(pool: pg.Pool): Promise<{
 }
 
 // Step 3: Save Configuration to Database
-async function saveConfiguration(
-  pool: pg.Pool,
-  config: {
-    enabled: boolean;
-    referrerCreditAmount: number;
-    refereeCreditAmount: number;
-    currency: string;
-    minPlanTier: string;
-  },
-): Promise<boolean> {
+async function saveConfiguration(config: {
+  enabled: boolean;
+  referrerCreditAmount: number;
+  refereeCreditAmount: number;
+  currency: string;
+  minPlanTier: string;
+}): Promise<boolean> {
   printHeader("STEP 3: SAVE CONFIGURATION");
 
   try {
     printInfo("Saving configuration to database...");
 
-    // Use upsert (INSERT ... ON CONFLICT DO UPDATE)
-    await pool.query(
-      `
-      INSERT INTO referral_config (
-        id, 
-        enabled, 
-        referrer_credit_amount, 
-        referee_credit_amount, 
-        currency, 
-        min_plan_tier,
-        created_at,
-        updated_at
-      ) VALUES (
-        'default',
-        $1,
-        $2,
-        $3,
-        $4,
-        $5,
-        NOW(),
-        NOW()
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        enabled = EXCLUDED.enabled,
-        referrer_credit_amount = EXCLUDED.referrer_credit_amount,
-        referee_credit_amount = EXCLUDED.referee_credit_amount,
-        currency = EXCLUDED.currency,
-        min_plan_tier = EXCLUDED.min_plan_tier,
-        updated_at = NOW()
-      `,
-      [
-        config.enabled,
-        config.referrerCreditAmount,
-        config.refereeCreditAmount,
-        config.currency,
-        config.minPlanTier,
-      ],
-    );
+    const { db } = await import("@repo/database");
+    const { referralConfig } = await import("@repo/database/schema");
+    const values = {
+      enabled: config.enabled,
+      referrerCreditAmount: config.referrerCreditAmount,
+      refereeCreditAmount: config.refereeCreditAmount,
+      currency: config.currency,
+      minPlanTier: config.minPlanTier,
+    };
+    await db()
+      .insert(referralConfig)
+      .values({ id: "default", ...values })
+      .onConflictDoUpdate({ target: referralConfig.id, set: values });
 
     printSuccess("Configuration saved successfully!");
     return true;
@@ -513,14 +430,14 @@ async function main() {
     referrerCreditAmount: 1000,
     refereeCreditAmount: 1000,
     currency: "usd",
-    minPlanTier: "tier_1",
+    minPlanTier: "tier1",
   };
 
   // Step 1: Verify Database
-  const { connected, pool } = await verifyDatabaseConnection();
+  const connected = await verifyDatabaseConnection();
   result.databaseConnected = connected;
 
-  if (!connected || !pool) {
+  if (!connected) {
     console.log("");
     printError("Cannot proceed without database connection.");
     console.log(
@@ -530,7 +447,7 @@ async function main() {
   }
 
   // Step 2: Configure Settings
-  const settings = await configureReferralSettings(pool);
+  const settings = await configureReferralSettings();
 
   if (settings) {
     result.enabled = settings.enabled;
@@ -540,11 +457,8 @@ async function main() {
     result.minPlanTier = settings.minPlanTier;
 
     // Step 3: Save Configuration
-    result.configSaved = await saveConfiguration(pool, settings);
+    result.configSaved = await saveConfiguration(settings);
   }
-
-  // Cleanup
-  await pool.end();
 
   // Print summary
   printSummary(result);

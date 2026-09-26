@@ -1,13 +1,13 @@
 import { confirm, input } from "@inquirer/prompts";
-import { updateEnvFile } from "../../.agents/skills/setup/scripts/lib/env";
-import { colors } from "../lib/colors";
+import { colors } from "../../../../../scripts/lib/colors";
+import { updateEnvFile } from "../../../setup/scripts/lib/env";
 import {
   printError,
   printHeader,
   printInfo,
   printSuccess,
   printWarning,
-} from "../lib/log";
+} from "../../../setup/scripts/lib/log";
 import { getProjectInfo } from "./api";
 import type { VerifyCredentialsResult } from "./types";
 

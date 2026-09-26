@@ -26,11 +26,11 @@
   "dependencies": {
     "@repo/database": "workspace:*",
     "nanoid": "catalog:",
-    "stripe": "^14.16.0",
-    "stripe-sync-engine": "^0.1.0"
+    "stripe": "catalog:",
+    "stripe-sync-engine": "catalog:"
   },
   "devDependencies": {
     "typescript": "catalog:",
-    "vitest": "^3.2.1"
+    "vitest": "catalog:"
   }
 }

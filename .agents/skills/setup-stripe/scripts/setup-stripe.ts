@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Interactive Stripe setup script
- * Run with: bun run setup:stripe
+ * Run with: bun .agents/skills/setup-stripe/scripts/setup-stripe.ts
  *
  * This script helps you:
  * 1. Verify Stripe API keys
@@ -13,15 +13,15 @@
 
 import { resolve } from "node:path";
 import { config } from "dotenv";
-import { colors } from "../scripts/lib/colors";
-import { printError, printWarning } from "../scripts/lib/log";
-import { runDatabaseMigrations } from "../scripts/stripe/migrations";
-import { createDefaultProducts } from "../scripts/stripe/products";
-import { printSummary, printWelcomeBanner } from "../scripts/stripe/summary";
-import { syncExistingData } from "../scripts/stripe/sync";
-import type { SetupResult } from "../scripts/stripe/types";
-import { verifyApiKeys } from "../scripts/stripe/verify";
-import { configureWebhook } from "../scripts/stripe/webhook";
+import { colors } from "../../../../scripts/lib/colors";
+import { printError, printWarning } from "../../setup/scripts/lib/log";
+import { runDatabaseMigrations } from "./lib/migrations";
+import { createDefaultProducts } from "./lib/products";
+import { printSummary, printWelcomeBanner } from "./lib/summary";
+import { syncExistingData } from "./lib/sync";
+import type { SetupResult } from "./lib/types";
+import { verifyApiKeys } from "./lib/verify";
+import { configureWebhook } from "./lib/webhook";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 

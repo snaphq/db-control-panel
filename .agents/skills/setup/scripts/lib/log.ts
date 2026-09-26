@@ -1,4 +1,4 @@
-import { colors } from "./colors";
+import { colors } from "../../../../../scripts/lib/colors";
 
 export function printHeader(text: string) {
   console.log("");

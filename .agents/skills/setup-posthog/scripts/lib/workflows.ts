@@ -1,15 +1,18 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { confirm } from "@inquirer/prompts";
-import { colors } from "../lib/colors";
+import { colors } from "../../../../../scripts/lib/colors";
+import {
+  EMAIL_TEMPLATES,
+  WORKFLOW_DEFINITIONS,
+} from "../../../../../scripts/posthog-workflows";
 import {
   printError,
   printHeader,
   printInfo,
   printSuccess,
   printWarning,
-} from "../lib/log";
-import { EMAIL_TEMPLATES, WORKFLOW_DEFINITIONS } from "../posthog-workflows";
+} from "../../../setup/scripts/lib/log";
 
 export function getEmailTemplateIds(): string[] {
   return EMAIL_TEMPLATES.map((template) => template.id);

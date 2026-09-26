@@ -101,7 +101,7 @@ async function main() {
       `${colors.red}✗${colors.reset} NEXT_PUBLIC_POSTHOG_KEY not found in .env.local`,
     );
     console.log(
-      `  ${colors.dim}Run 'bun run setup:posthog' to configure PostHog${colors.reset}`,
+      `  ${colors.dim}Set NEXT_PUBLIC_POSTHOG_KEY in .env.local (see env.example)${colors.reset}`,
     );
     process.exit(1);
   }

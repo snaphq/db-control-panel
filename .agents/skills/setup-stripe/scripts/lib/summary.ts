@@ -1,10 +1,10 @@
-import { colors } from "../lib/colors";
+import { colors } from "../../../../../scripts/lib/colors";
 import {
   printError,
   printHeader,
   printSuccess,
   printWarning,
-} from "../lib/log";
+} from "../../../setup/scripts/lib/log";
 import type { SetupResult } from "./types";
 
 export function printWelcomeBanner() {

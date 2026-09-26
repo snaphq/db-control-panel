@@ -22,6 +22,8 @@
     "posthog-node": "^5.45.2",
     "react": "19.2.5",
     "react-dom": "19.2.5",
+    "stripe": "^14.16.0",
+    "stripe-sync-engine": "^0.1.0",
     "typescript": "7.0.2",
     "undici": "^6.25.0",
     "vitest": "^3.2.1",
@@ -48,9 +50,6 @@
     "seed:seo:engines": "bun run scripts/seed-seo-engines.ts",
     "seed:seo:settings": "bun run scripts/seed-seo-settings.ts",
     "seed:seo:prompts": "bun run scripts/seed-seo-prompts.ts",
-    "setup:stripe": "bun run .setup/setup-stripe.ts",
-    "setup:posthog": "bun run .setup/setup-posthog.ts",
-    "setup:referral": "bun run .setup/setup-referral.ts",
     "stripe:verify": "node scripts/verify-stripe-keys.js",
     "stripe:migrate": "bun run scripts/migrate-stripe-schema.ts",
     "stripe:backfill": "bun run scripts/backfill-stripe-data.ts",
@@ -93,6 +92,8 @@
     ]
   },
   "dependencies": {
-    "@stripe/react-stripe-js": "^6.8.0"
+    "@stripe/react-stripe-js": "^6.8.0",
+    "stripe": "catalog:",
+    "stripe-sync-engine": "catalog:"
   }
 }

@@ -93,7 +93,6 @@
     "exports|scripts/lib/dead-code.ts|BASELINE_DIR",
     "exports|scripts/lib/dead-code.ts|normalizeFallow",
     "exports|scripts/lib/dead-code.ts|normalizeKnip",
-    "exports|scripts/posthog/api.ts|fetchPostHog",
     "files|apps/next-app/src/hooks/stripe/index.ts|apps/next-app/src/hooks/stripe/index.ts",
     "files|apps/next-app/src/lib/auth/operator-authorization.ts|apps/next-app/src/lib/auth/operator-authorization.ts",
     "files|apps/next-app/src/test-server-only.ts|apps/next-app/src/test-server-only.ts",
@@ -123,7 +122,6 @@
     "types|apps/next-app/src/lib/integrations/types.ts|IntegrationMetadata",
     "types|apps/next-app/src/lib/integrations/types.ts|IntegrationStatus",
     "types|apps/next-app/src/lib/integrations/types.ts|IntegrationWithInstallations",
-    "unlisted|.setup/setup-referral.ts|pg",
     "unlisted|apps/next-app/src/app/agent/event/notify/route.ts|drizzle-orm",
     "unlisted|apps/next-app/src/app/agent/identity/claim/route.ts|drizzle-orm",
     "unlisted|apps/next-app/src/app/api/adminx/mcp/route.ts|drizzle-orm",
@@ -165,17 +163,9 @@
     "unlisted|apps/next-app/src/lib/operators/detail.ts|server-only",
     "unlisted|apps/next-app/src/lib/operators/management.ts|server-only",
     "unlisted|packages/analytics/src/posthog-query.ts|server-only",
-    "unlisted|scripts/migrate-stripe-schema.ts|stripe-sync-engine",
     "unlisted|scripts/seed-admin.ts|bcryptjs",
     "unlisted|scripts/seed-admin.ts|nanoid",
     "unlisted|scripts/seed-billing.ts|nanoid",
-    "unlisted|scripts/seed-integrations.ts|nanoid",
-    "unlisted|scripts/stripe/constants.ts|stripe",
-    "unlisted|scripts/stripe/migrations.ts|stripe-sync-engine",
-    "unlisted|scripts/stripe/products.ts|stripe",
-    "unlisted|scripts/stripe/sync.ts|stripe-sync-engine",
-    "unlisted|scripts/stripe/types.ts|stripe",
-    "unlisted|scripts/stripe/verify.ts|stripe",
-    "unlisted|scripts/stripe/webhook.ts|stripe"
+    "unlisted|scripts/seed-integrations.ts|nanoid"
   ]
 }

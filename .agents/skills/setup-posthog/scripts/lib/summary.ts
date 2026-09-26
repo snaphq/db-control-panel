@@ -1,13 +1,13 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { colors } from "../lib/colors";
+import { colors } from "../../../../../scripts/lib/colors";
 import {
   printError,
   printHeader,
   printInfo,
   printSuccess,
   printWarning,
-} from "../lib/log";
+} from "../../../setup/scripts/lib/log";
 import type { SetupResult } from "./types";
 
 export function printSummary(result: SetupResult) {

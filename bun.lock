@@ -6,6 +6,8 @@
       "name": "nextjs-starter-monorepo",
       "dependencies": {
         "@stripe/react-stripe-js": "^6.8.0",
+        "stripe": "catalog:",
+        "stripe-sync-engine": "catalog:",
       },
       "devDependencies": {
         "@biomejs/biome": "^1.9.4",
@@ -158,12 +160,12 @@
       "dependencies": {
         "@repo/database": "workspace:*",
         "nanoid": "catalog:",
-        "stripe": "^14.16.0",
-        "stripe-sync-engine": "^0.1.0",
+        "stripe": "catalog:",
+        "stripe-sync-engine": "catalog:",
       },
       "devDependencies": {
         "typescript": "catalog:",
-        "vitest": "^3.2.1",
+        "vitest": "catalog:",
       },
     },
     "packages/database": {
@@ -279,6 +281,8 @@
     "posthog-node": "^5.45.2",
     "react": "19.2.5",
     "react-dom": "19.2.5",
+    "stripe": "^14.16.0",
+    "stripe-sync-engine": "^0.1.0",
     "typescript": "7.0.2",
     "undici": "^6.25.0",
     "vitest": "^3.2.1",

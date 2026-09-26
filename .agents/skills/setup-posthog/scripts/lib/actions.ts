@@ -1,5 +1,5 @@
 import { confirm } from "@inquirer/prompts";
-import { colors } from "../lib/colors";
+import { colors } from "../../../../../scripts/lib/colors";
 import {
   printError,
   printHeader,
@@ -7,7 +7,7 @@ import {
   printStep,
   printSuccess,
   printWarning,
-} from "../lib/log";
+} from "../../../setup/scripts/lib/log";
 import { createAction, getExistingActions } from "./api";
 
 const EVENT_DEFINITIONS = [

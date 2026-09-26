@@ -13,8 +13,6 @@
     "unlisted_dependencies|-|bcryptjs",
     "unlisted_dependencies|-|better-auth",
     "unlisted_dependencies|-|nanoid",
-    "unlisted_dependencies|-|stripe",
-    "unlisted_dependencies|-|stripe-sync-engine",
     "unused_class_members|apps/next-app/src/lib/agent-auth/keys.ts|AgentAuthConfigurationError.code",
     "unused_dependencies|apps/next-app/package.json|@radix-ui/react-toast",
     "unused_dependencies|apps/next-app/package.json|google-auth-library",

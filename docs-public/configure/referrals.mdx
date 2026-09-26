@@ -5,7 +5,7 @@ description: Enable referral codes, fixed credit rewards, and conversion trackin
 
 # Run a referral program
 
-The starter includes a first-party referral program. Eligible users get a
+The project includes a first-party referral program. Eligible users get a
 unique code, share it, and receive a fixed credit when the referred
 organization starts paying. Rewards are issued as Stripe customer balance
 credits that reduce future invoices. There is no cash payout, percentage
@@ -14,22 +14,16 @@ commission, or affiliate/partner tracking.
 ## Before you start
 
 - `DATABASE_URL` and Stripe keys are set in `.env.local`.
-- The Stripe webhook endpoint is configured (`bun run setup:stripe`), because
-  referral state changes come from invoice and subscription events.
+- A Stripe webhook points at `<app-url>/api/webhooks/stripe` and its signing
+  secret is in `STRIPE_WEBHOOK_SECRET`, because referral state changes come
+  from invoice and subscription events.
 - Plan tiers exist. `bun run db:seed:billing` seeds the default tiers
   (`free`, `tier1`, `tier2`, `tier3`) and a disabled `referral_config` row.
   The config row is also created on demand with the same defaults.
 
 ## Configure rewards
 
-Run the interactive wizard:
-
-```bash
-bun run setup:referral
-```
-
-Or edit the same settings in the admin UI at `/adminx/referrals` under
-**Settings**.
+Edit the settings in the admin UI at `/adminx/referrals` under **Settings**.
 
 | Setting | Default | Purpose |
 | --- | --- | --- |

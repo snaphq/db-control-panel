@@ -13,8 +13,9 @@ Two analyzers look for unused files, exports, types, and dependencies:
   cause is a missing entry point in one config, not real dead code.
 
 Both are pinned as root devDependencies. Their configs are `.fallowrc.json`
-and `knip.json`, which must list the same entry points and ignores. Change
-both together.
+and `knip.json`, which list the same entry points and ignores; change both
+together. fallow does not scan hidden directories, so scripts inside
+`.agents/skills/*/scripts/` are covered by knip only.
 
 ## Baselines
 

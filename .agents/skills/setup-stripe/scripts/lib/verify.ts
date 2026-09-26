@@ -1,13 +1,13 @@
 import { confirm } from "@inquirer/prompts";
 import Stripe from "stripe";
-import { colors } from "../lib/colors";
+import { colors } from "../../../../../scripts/lib/colors";
 import {
   printError,
   printHeader,
   printInfo,
   printSuccess,
   printWarning,
-} from "../lib/log";
+} from "../../../setup/scripts/lib/log";
 import type { VerifyApiKeysResult } from "./types";
 
 export async function verifyApiKeys(): Promise<VerifyApiKeysResult> {

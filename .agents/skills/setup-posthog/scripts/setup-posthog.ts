@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Interactive PostHog Setup Script
- * Run with: bun run setup:posthog
+ * Run with: bun .agents/skills/setup-posthog/scripts/setup-posthog.ts
  *
  * This script helps you:
  * 1. Verify PostHog API credentials
@@ -13,20 +13,17 @@
 
 import { resolve } from "node:path";
 import { config } from "dotenv";
-import { colors } from "../scripts/lib/colors";
-import { printError } from "../scripts/lib/log";
-import { createEventActions } from "../scripts/posthog/actions";
-import {
-  configureAppSettings,
-  verifyCredentials,
-} from "../scripts/posthog/credentials";
-import { printSummary, saveSetupSummary } from "../scripts/posthog/summary";
-import type { SetupResult } from "../scripts/posthog/types";
+import { colors } from "../../../../scripts/lib/colors";
+import { printError } from "../../setup/scripts/lib/log";
+import { createEventActions } from "./lib/actions";
+import { configureAppSettings, verifyCredentials } from "./lib/credentials";
+import { printSummary, saveSetupSummary } from "./lib/summary";
+import type { SetupResult } from "./lib/types";
 import {
   getEmailTemplateIds,
   setupEmailWorkflows,
   testIntegration,
-} from "../scripts/posthog/workflows";
+} from "./lib/workflows";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 
