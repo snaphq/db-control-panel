@@ -5,8 +5,7 @@ description: Named, organization-scoped machine identities for programmatic auth
 
 # Operator tokens
 
-Operator tokens replaced the personal account token model (`account_api_token`,
-`cet_…`). Programmatic requests (today `/mcp`; future public APIs) authenticate
+Operator tokens replaced the retired personal account token model (`cet_…`). Programmatic requests (today `/mcp`; future public APIs) authenticate
 as a named **operator** owned by a user, so requests are attributed to the
 specific machine identity instead of an anonymous account credential. The web
 application continues to use Better Auth sessions exclusively.
@@ -16,7 +15,6 @@ application continues to use Better Auth sessions exclusively.
 | Concern | Location |
 | --- | --- |
 | Tables | `packages/database/src/schema-operators.ts` (`operator`, `operator_token`, `operator_activity`) |
-| Migration | `packages/database/migrations-manual/operator_tokens.sql` |
 | Token format, scope parsing, verification | `apps/next-app/src/lib/auth/operator-token.ts` |
 | Organization-scoped authorization helper | `apps/next-app/src/lib/auth/operator-authorization.ts` |
 | Account-management helpers | `apps/next-app/src/lib/operators/management.ts` |
@@ -140,10 +138,8 @@ Scopes remain on the operator; tokens carry no scope of their own.
 
 ## Cutover and operations
 
-- The manual migration creates the three tables and renames
-  `account_api_token` to `account_api_token_archive`. Apply it before deploying
-  the application release: the app no longer references the old table, so all
-  `cet_` credentials stop authenticating.
+- The three tables are part of the Drizzle schema and are created by
+  `bun run db:push` (see [Database migrations](/operations/migrations)).
 - `/mcp` detects `cet_` credentials and returns an actionable 401 pointing at
   `/account/settings/operators`; agent-JWT and OAuth verifiers skip `opt_`
   values to avoid misparsing.

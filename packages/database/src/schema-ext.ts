@@ -37,42 +37,54 @@ export const oauthApplication = pgTable("oauth_application", {
   updatedAt: timestamp("updated_at"),
 });
 
-export const oauthAccessToken = pgTable("oauth_access_token", {
-  id: text("id").primaryKey(),
-  tenantId: text("tenant_id")
-    .notNull()
-    .default("default")
-    .references(() => tenant.id, { onDelete: "cascade" }),
-  accessToken: text("access_token").unique(),
-  refreshToken: text("refresh_token").unique(),
-  accessTokenExpiresAt: timestamp("access_token_expires_at"),
-  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
-  clientId: text("client_id"),
-  userId: text("user_id"),
-  scopes: text("scopes"),
-  /** Canonical protected resource this token was minted for. */
-  resource: text("resource"),
-  /** RFC 7009 revocation marker; null means the token is active. */
-  revokedAt: timestamp("revoked_at"),
-  createdAt: timestamp("created_at"),
-  updatedAt: timestamp("updated_at"),
-});
+export const oauthAccessToken = pgTable(
+  "oauth_access_token",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .default("default")
+      .references(() => tenant.id, { onDelete: "cascade" }),
+    accessToken: text("access_token").unique(),
+    refreshToken: text("refresh_token").unique(),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    clientId: text("client_id"),
+    userId: text("user_id"),
+    scopes: text("scopes"),
+    /** Canonical protected resource this token was minted for. */
+    resource: text("resource"),
+    /** RFC 7009 revocation marker; null means the token is active. */
+    revokedAt: timestamp("revoked_at"),
+    createdAt: timestamp("created_at"),
+    updatedAt: timestamp("updated_at"),
+  },
+  (table) => [
+    index("oauth_access_token_resource_idx").on(table.tenantId, table.resource),
+  ],
+);
 
-export const oauthConsent = pgTable("oauth_consent", {
-  id: text("id").primaryKey(),
-  tenantId: text("tenant_id")
-    .notNull()
-    .default("default")
-    .references(() => tenant.id, { onDelete: "cascade" }),
-  clientId: text("client_id"),
-  userId: text("user_id"),
-  scopes: text("scopes"),
-  /** Exact MCP resource for which consent was recorded. */
-  resource: text("resource"),
-  createdAt: timestamp("created_at"),
-  updatedAt: timestamp("updated_at"),
-  consentGiven: boolean("consent_given"),
-});
+export const oauthConsent = pgTable(
+  "oauth_consent",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .default("default")
+      .references(() => tenant.id, { onDelete: "cascade" }),
+    clientId: text("client_id"),
+    userId: text("user_id"),
+    scopes: text("scopes"),
+    /** Exact MCP resource for which consent was recorded. */
+    resource: text("resource"),
+    createdAt: timestamp("created_at"),
+    updatedAt: timestamp("updated_at"),
+    consentGiven: boolean("consent_given"),
+  },
+  (table) => [
+    index("oauth_consent_resource_idx").on(table.tenantId, table.resource),
+  ],
+);
 
 export type OAuthApplication = typeof oauthApplication.$inferSelect;
 export type OAuthAccessToken = typeof oauthAccessToken.$inferSelect;

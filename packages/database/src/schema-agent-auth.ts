@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -7,6 +8,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { organization, user } from "./schema";
 import { tenant } from "./schema-tenant";
@@ -138,6 +140,10 @@ export const agentClaimAttempt = pgTable(
   (table) => [
     unique("agent_claim_attempt_token_unique").on(table.attemptTokenHash),
     index("agent_claim_attempt_registration_idx").on(table.registrationId),
+    // A registration may have only one live user-code ceremony.
+    uniqueIndex("agent_claim_attempt_live_unique")
+      .on(table.registrationId)
+      .where(sql`${table.status} = 'initiated'`),
   ],
 );
 
@@ -165,6 +171,7 @@ export const agentToken = pgTable(
     unique("agent_token_jti_unique").on(table.jti),
     index("agent_token_registration_idx").on(table.registrationId),
     index("agent_token_expires_idx").on(table.expiresAt),
+    index("agent_token_resource_idx").on(table.tenantId, table.resource),
   ],
 );
 

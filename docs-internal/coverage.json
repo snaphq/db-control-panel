@@ -57,7 +57,6 @@
       "visibility": "internal",
       "sources": [
         "packages/database/src/schema-operators.ts",
-        "packages/database/migrations-manual/operator_tokens.sql",
         "apps/next-app/src/lib/auth/operator-token.ts",
         "apps/next-app/src/lib/auth/operator-authorization.ts",
         "apps/next-app/src/lib/operators",
@@ -136,7 +135,7 @@
       "page": "operations/migrations.mdx",
       "visibility": "internal",
       "sources": [
-        "packages/database/migrations-manual",
+        "packages/database/package.json",
         "packages/database/drizzle.config.ts"
       ]
     },

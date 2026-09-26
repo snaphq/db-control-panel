@@ -10,6 +10,7 @@ export default defineConfig({
     "./src/schema.ts",
     "./src/schema-agent-auth.ts",
     "./src/schema-agents.ts",
+    "./src/schema-analytics.ts",
     "./src/schema-ext.ts",
     "./src/schema-operators.ts",
     "./src/schema-seo.ts",
