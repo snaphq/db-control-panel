@@ -19,6 +19,8 @@
   "dependencies": {
     "@astrojs/react": "catalog:",
     "@astrojs/vercel": "catalog:",
+    "@repo/auth": "workspace:*",
+    "@repo/core": "workspace:*",
     "@repo/database": "workspace:*",
     "astro": "catalog:",
     "react": "catalog:",

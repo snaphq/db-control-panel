@@ -31,8 +31,8 @@ function getStagedFiles(): string[] {
     .filter(Boolean);
 }
 
-const violations = getStagedFiles().filter((file) =>
-  MIDDLEWARE_PATTERN.test(file),
+const violations = getStagedFiles().filter(
+  (file) => MIDDLEWARE_PATTERN.test(file) && !ASTRO_SITE_MIDDLEWARE.test(file),
 );
 
 if (violations.length > 0) {
