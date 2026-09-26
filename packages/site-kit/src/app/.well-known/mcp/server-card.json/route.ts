@@ -6,8 +6,8 @@ import {
   AGENT_SCOPES_SUPPORTED,
   requestOriginForRequest,
 } from "@repo/core/agent-auth/discovery";
-import { MCP_SERVER_INFO } from "@repo/core/mcp-server-info";
 import { resolveTenantFromHost } from "@repo/database";
+import { siteMcpServerInfo } from "../../../../lib/mcp";
 
 export async function GET(request: Request): Promise<Response> {
   const tenant = await resolveTenantFromHost(request.headers.get("host"));
@@ -20,7 +20,7 @@ export async function GET(request: Request): Promise<Response> {
   return withPublicDiscoveryCors(
     Response.json(
       {
-        serverInfo: MCP_SERVER_INFO,
+        serverInfo: siteMcpServerInfo(),
         resource,
         transport: {
           type: "http",

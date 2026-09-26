@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./admin": "./src/admin-tools.ts",
-    "./widget": "./src/widget-tools.ts"
+    "./widget": "./src/widget-tools.ts",
+    "./site-tools": "./src/site-tools.ts"
   },
   "dependencies": {
     "@repo/database": "workspace:*",
@@ -19,6 +20,10 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "scripts": {
+    "test": "vitest run"
   }
 }

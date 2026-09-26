@@ -32,8 +32,8 @@ vi.mock("@repo/mcp-chatgpt", () => ({
     return fn();
   }),
 }));
-vi.mock("@repo/mcp-server/widget", () => ({
-  registerWidgetTools: vi.fn(),
+vi.mock("@repo/mcp-server/site-tools", () => ({
+  registerSiteTools: vi.fn(),
 }));
 vi.mock("mcp-handler", () => ({
   createMcpHandler: vi.fn(() => vi.fn(async () => new Response("ok"))),

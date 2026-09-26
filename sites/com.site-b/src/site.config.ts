@@ -23,4 +23,8 @@ export const siteConfig: SiteConfig = {
     "/privacy": "# Privacy Policy\n\nHow Site B handles your data.",
     "/terms": "# Terms\n\nTerms of service for Site B.",
   },
+  mcp: {
+    serverName: "site-b-mcp",
+    toolsets: ["account"],
+  },
 };

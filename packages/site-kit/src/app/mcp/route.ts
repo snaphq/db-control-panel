@@ -10,7 +10,6 @@ import {
   isLegacyAccountToken,
   verifyOperatorToken,
 } from "@repo/core/auth/operator-token";
-import { MCP_SERVER_INFO } from "@repo/core/mcp-server-info";
 import "@repo/core/operators/activity";
 import { getSiteUrl } from "@repo/core/site-config";
 import { resolveTenantFromHost } from "@repo/database";
@@ -20,9 +19,11 @@ import {
   runWithMcpContext,
 } from "@repo/mcp-chatgpt";
 import type { McpRequestContext } from "@repo/mcp-chatgpt";
-import { registerWidgetTools } from "@repo/mcp-server/widget";
+import { registerSiteTools } from "@repo/mcp-server/site-tools";
+import { siteConfig } from "@site/site.config";
 import { createMcpHandler } from "mcp-handler";
 import { NextResponse } from "next/server";
+import { siteMcpServerInfo } from "../../lib/mcp";
 
 type McpHandler = ReturnType<typeof createMcpHandler>;
 type McpAuthContext = Omit<McpRequestContext, "requestId">;
@@ -144,13 +145,15 @@ function handlerForOrigin(origin: string): McpHandler {
       // HTML snapshot only from the configured application URL. The request
       // Host is tenant input and may be a local alias that must not become an
       // arbitrary server-side fetch target.
-      await registerWidgetTools(server, {
-        baseURL: origin,
-        contentURL: getSiteUrl(),
+      await registerSiteTools(server, {
+        siteName: siteConfig.name,
+        toolsets: siteConfig.mcp.toolsets,
+        readOnly: siteConfig.mcp.readOnly,
+        widget: { baseURL: origin, contentURL: getSiteUrl() },
       });
     },
     {
-      serverInfo: MCP_SERVER_INFO,
+      serverInfo: siteMcpServerInfo(),
       instructions:
         "Use the authenticated tools; every request is tenant-bound.",
     },

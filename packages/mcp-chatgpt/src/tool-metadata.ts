@@ -30,6 +30,8 @@ export interface McpToolMetadata {
 export type McpToolName =
   // Widget tools (ChatGPT-facing)
   | "show_content"
+  // Account tools (site MCP)
+  | "whoami"
   // Admin tools
   | "get_admin_stats"
   | "search_records"
@@ -56,6 +58,26 @@ export const MCP_TOOL_METADATA: Record<McpToolName, McpToolMetadata> = {
         "Only fetches and renders the homepage content from the Next.js app for the given user name. No data is written.",
       open_world_justification:
         "Does not create, publish, or transmit content to external services beyond the app itself.",
+      destructive_justification:
+        "Does not delete, overwrite, revoke access, or perform any irreversible actions.",
+    },
+  },
+
+  // ─── Account tools ────────────────────────────────────────────────────────
+
+  whoami: {
+    annotations: {
+      title: "Who Am I",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    justifications: {
+      read_only_justification:
+        "Only echoes the authenticated caller's site, tenant, and credential context from the current request. No data is read from or written to storage.",
+      open_world_justification:
+        "Does not contact external systems or change any public-facing state.",
       destructive_justification:
         "Does not delete, overwrite, revoke access, or perform any irreversible actions.",
     },

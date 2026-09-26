@@ -227,6 +227,7 @@
       "devDependencies": {
         "@types/node": "catalog:",
         "typescript": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "packages/object-storage": {

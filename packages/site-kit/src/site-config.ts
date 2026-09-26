@@ -1,3 +1,5 @@
+import type { SiteMcpToolset } from "@repo/mcp-server/site-tools";
+
 /**
  * Identity and behavior of one tenant site in sites/*. Each site exports a
  * `siteConfig` from `src/site.config.ts`; shared routes read it through the
@@ -23,4 +25,12 @@ export interface SiteConfig {
    * "/" is the site summary; links to docs, blog, and sign-in are appended.
    */
   markdown: Readonly<Record<string, string>>;
+  /** What this site's /mcp endpoint exposes to agents. */
+  mcp: {
+    /** MCP `serverInfo.name`, also shown on /.well-known/mcp/server-card.json. */
+    serverName: string;
+    toolsets: readonly SiteMcpToolset[];
+    /** Expose only read-only tools, e.g. for a public demo tenant. */
+    readOnly?: boolean;
+  };
 }

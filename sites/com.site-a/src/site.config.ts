@@ -36,4 +36,8 @@ export const siteConfig: SiteConfig = {
     "/changelog": "# Changelog\n\nRecent product changes.",
     "/marketing-page": "# Marketing Page\n\nAlternative public marketing page.",
   },
+  mcp: {
+    serverName: "nextjs-starter-kit-mcp",
+    toolsets: ["content", "account"],
+  },
 };
