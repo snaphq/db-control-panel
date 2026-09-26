@@ -27,7 +27,12 @@
     "skills/setup/",
     ".auth-provider.lock",
     "starter kit",
-    "starter-kit"
+    "starter-kit",
+    "starter template",
+    "next starter",
+    "nextjs starter",
+    "nextjs-starter",
+    "nextjs_starter"
   ],
   "residueIgnore": ["bun.lock", "scripts/dead-code-baseline/*"]
 }

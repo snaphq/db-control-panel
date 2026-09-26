@@ -1,6 +1,6 @@
 ---
 title: Find the code you need to change
-description: Locate application, package, setup, and documentation code.
+description: Locate application, package, and documentation code.
 ---
 
 # Find the code you need to change
@@ -18,7 +18,7 @@ consumer:
 
 | Package | Responsibility |
 | --- | --- |
-| `@repo/auth` | Selected authentication implementation and session helpers |
+| `@repo/auth` | Better Auth instance, tenant binding, and session helpers |
 | `@repo/database` | Drizzle client, schemas, tenancy, and DALs |
 | `@repo/billing` | Stripe, subscriptions, pricing, usage, and referrals |
 | `@repo/analytics` | PostHog/Vercel analytics and event contracts |
@@ -26,11 +26,6 @@ consumer:
 | `@repo/mcp-chatgpt` / `@repo/mcp-server` | MCP context, tools, metadata, and logging |
 | `@repo/ai` | OpenAI-compatible model helpers |
 | `@repo/object-storage` | Vercel Blob and S3 storage providers |
-
-## Setup-generated code
-
-Initial setup machinery belongs in `.setup/`. Edit provider templates there;
-do not hand-edit generated provider files and expect setup to preserve them.
 
 For maintainer architecture and module contracts, see the internal
 documentation site rather than adding a nested `docs/` directory.

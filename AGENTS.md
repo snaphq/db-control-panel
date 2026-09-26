@@ -1,5 +1,13 @@
 # Repository Guidelines
 
+<!-- setup:start -->
+> **This project has not been set up yet — `SETUP.md` exists.** Before any
+> other work, ask the user whether to set the project up now; if yes, follow
+> `SETUP.md`. If they are developing the template itself, load the
+> `setup-kit-development` skill instead and never run the setup finalize
+> script in the template repo.
+<!-- setup:end -->
+
 ## Monorepo Structure
 
 This is a Turborepo monorepo using Bun workspaces and a root dependency catalog
@@ -37,7 +45,7 @@ with TUI mode enabled.
 All commands use bun and are run from the monorepo root:
 
 - `bun install` - Install all dependencies across workspaces
-- `bun run dev` - Start Next.js dev server with Turbo TUI
+- `bun run dev` - Start all dev servers with the Turbo TUI
 - `bun run build` - Production build (fails on type or lint errors)
 - `bun run start` - Serve the built app locally
 - `bun run lint` / `bun run lint:fix` - Biome static analysis

@@ -23,8 +23,8 @@ interface covers upload, list, signed access, metadata, and ACL options.
 
 App routes under `apps/next-app/src/app/api/storage` and integration code should
 not depend on provider-specific return shapes. Provider selection and keys are
-configuration concerns; the setup workflow may remove object-storage values
-when a provider is disabled.
+configuration concerns: with no `OBJECT_STORAGE_PROVIDER` set, the storage
+page shows a "not configured" state and the routes return errors.
 
 ## Change and verification rules
 

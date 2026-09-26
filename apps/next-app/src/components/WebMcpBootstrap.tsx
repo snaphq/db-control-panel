@@ -16,7 +16,7 @@ export function WebMcpBootstrap() {
             tools: [
               {
                 name: 'search_docs',
-                description: 'Navigate to the public documentation for this starter template.',
+                description: 'Navigate to the public documentation for this site.',
                 inputSchema: {
                   type: 'object',
                   properties: {
@@ -35,7 +35,7 @@ export function WebMcpBootstrap() {
               },
               {
                 name: 'open_blog',
-                description: 'Open the public blog index for this starter template.',
+                description: 'Open the public blog index for this site.',
                 inputSchema: {
                   type: 'object',
                   properties: {}

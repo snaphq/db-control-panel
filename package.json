@@ -30,9 +30,7 @@
     "zod": "^3.23.5"
   },
   "scripts": {
-    "dev": "bun run .setup/dev-guard.ts",
-    "dev:all": "turbo run dev",
-    "dev:ws": "turbo run dev",
+    "dev": "turbo run dev",
     "build": "turbo run build",
     "start": "turbo run start",
     "lint": "turbo run lint",

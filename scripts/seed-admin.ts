@@ -41,7 +41,7 @@ async function main() {
       `${colors.yellow}  No admin credentials found in .env.local${colors.reset}`,
     );
     console.log(
-      `${colors.dim}  Run 'bun run setup' to configure an admin user.${colors.reset}`,
+      `${colors.dim}  Set ADMIN_NAME, ADMIN_EMAIL, and ADMIN_PASSWORD in .env.local.${colors.reset}`,
     );
     console.log("");
     process.exit(0);

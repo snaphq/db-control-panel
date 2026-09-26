@@ -230,9 +230,9 @@
       "sources": ["apps/next-app/src", "packages"]
     },
     {
-      "id": "public-extend-starter",
+      "id": "public-extend-project",
       "site": "docs-public",
-      "page": "customize/extend-the-starter.mdx",
+      "page": "customize/extend-the-project.mdx",
       "visibility": "public",
       "sources": ["apps/next-app/src", "packages"]
     },

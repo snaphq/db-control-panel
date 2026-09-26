@@ -1,6 +1,6 @@
 ---
 title: System overview
-description: How the Next.js app, workspace packages, setup workflow, and external services fit together.
+description: How the Next.js app, workspace packages, and external services fit together.
 ---
 
 # System overview
@@ -30,7 +30,6 @@ and consumed through workspace exports.
 | App routes/UI | URL contracts, auth gates, composition | `apps/next-app/src/app`, `src/components` |
 | App libraries | request adapters and app-specific policy | `src/lib`, `src/providers` |
 | Shared packages | reusable domain and integration contracts | `packages/auth`, `billing`, `database`, `analytics` |
-| Setup | one-time generated provider/environment workflow | `.setup/` |
 | Scripts | seeds, checks, migration/integration utilities | `scripts/` |
 
 Use the separately published `docs-public/customize/project-structure` page

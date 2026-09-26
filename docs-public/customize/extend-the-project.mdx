@@ -1,14 +1,9 @@
 ---
-title: Extend the starter safely
-description: Add product behavior while preserving setup and package boundaries.
+title: Extend the project safely
+description: Add product behavior while preserving package boundaries.
 ---
 
-# Extend the starter safely
-
-## Finish initialization first
-
-Run `bun run setup` before normal development. The generated auth provider and
-`.env.local` configuration are prerequisites for the regular dev command.
+# Extend the project safely
 
 ## Put behavior at the right boundary
 
@@ -26,6 +21,7 @@ Run the focused app build and the relevant package checks:
 bun run --filter @repo/next-app build
 bun run lint
 bun run format:check
+bun run check:dead-code
 ```
 
 If the change adds a schema, use the database migration workflow. If it adds a

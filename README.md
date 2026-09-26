@@ -1,5 +1,10 @@
 # Next.js 16 SaaS Monorepo
 
+<!-- setup:start -->
+> **New project from this template?** Follow [SETUP.md](./SETUP.md), or ask
+> your coding agent to — it removes itself and all setup-only files when done.
+<!-- setup:end -->
+
 A full-stack Next.js app with the App Router, TypeScript, Better Auth, PostgreSQL, and the shared `@repo/database` package, organised as a Turborepo monorepo with Bun workspaces.
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)

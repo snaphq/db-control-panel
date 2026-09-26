@@ -1,18 +1,12 @@
 ---
-title: Run the starter locally
-description: Start a configured project and verify its local services.
+title: Run locally
+description: Start the project and verify its local services.
 ---
 
-# Run the starter locally
+# Run locally
 
-Install dependencies and complete setup first:
-
-```bash
-bun install
-bun run setup
-```
-
-Start the full workspace TUI:
+With dependencies installed and `.env.local` filled in (see
+[Getting started](../start/getting-started)), start the full workspace TUI:
 
 ```bash
 bun run dev
@@ -25,5 +19,5 @@ bun run --filter @repo/next-app dev
 ```
 
 The app uses port `8801` by default. Run the Inngest CLI separately when
-testing durable jobs, and ensure the database and any selected provider
-variables are available in the root `.env.local`.
+testing durable jobs, and make sure the database and auth variables are set in
+the root `.env.local`.

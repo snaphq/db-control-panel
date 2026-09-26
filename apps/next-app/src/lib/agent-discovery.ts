@@ -66,7 +66,7 @@ export function getMarkdownContent(pathname: string): string | null {
     return [
       "# Blog",
       "",
-      "Explore the latest blog posts available in this starter template.",
+      "Explore the latest blog posts on this site.",
       "",
       ...blog
         .slice()
@@ -128,13 +128,11 @@ export function getMarkdownContent(pathname: string): string | null {
   }
 
   const staticPages: Record<string, string> = {
-    "/help":
-      "# Help\n\nSupport and self-serve guidance for the starter template.",
+    "/help": "# Help\n\nSupport and self-serve guidance.",
     "/privacy": "# Privacy Policy\n\nPrivacy and data handling information.",
     "/terms": "# Terms\n\nTerms and conditions for the product.",
-    "/changelog": "# Changelog\n\nRecent product and template changes.",
-    "/marketing-page":
-      "# Marketing Page\n\nAlternative public marketing page for the starter template.",
+    "/changelog": "# Changelog\n\nRecent product changes.",
+    "/marketing-page": "# Marketing Page\n\nAlternative public marketing page.",
   };
 
   return staticPages[normalized] ?? null;

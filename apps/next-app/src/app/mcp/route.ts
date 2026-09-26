@@ -152,7 +152,7 @@ function handlerForOrigin(origin: string): McpHandler {
     {
       serverInfo: MCP_SERVER_INFO,
       instructions:
-        "Use the authenticated starter-kit tools; every request is tenant-bound.",
+        "Use the authenticated tools; every request is tenant-bound.",
     },
     // The public surface is Streamable HTTP. Keep the legacy SSE route disabled
     // so discovery, deployment, and runtime transport behavior agree.

@@ -52,7 +52,7 @@ export interface ChatGPTSubmission {
 }
 
 /**
- * Default test cases for the starter kit's `show_content` widget tool.
+ * Default test cases for the `show_content` widget tool.
  */
 const DEFAULT_TEST_CASES: ChatGPTTestCase[] = [
   {
@@ -61,7 +61,7 @@ const DEFAULT_TEST_CASES: ChatGPTTestCase[] = [
     file_attachment_urls: null,
     tools_triggered: "show_content",
     expected_output:
-      "Returns the rendered homepage content from the Next.js 16 starter kit with the user's name embedded.",
+      "Returns the rendered homepage content with the user's name embedded.",
     expected_output_url: null,
   },
   {

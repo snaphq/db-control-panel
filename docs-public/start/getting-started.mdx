@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Configure and run the Next.js 16 Starter Kit locally.
+description: Install dependencies, configure the environment, and run the app locally.
 ---
 
 # Getting started
@@ -8,33 +8,25 @@ description: Configure and run the Next.js 16 Starter Kit locally.
 ## Prerequisites
 
 - Bun matching the version in the root `package.json`.
-- Node.js 18 or newer for tools that require it.
-- PostgreSQL, local or hosted.
+- A PostgreSQL database, for example a free [Neon](https://neon.tech) project.
 
 ## Install and configure
 
 ```bash
 git clone <your-repository-url>
-cd nextjs16-starter-kit
+cd <your-repository>
 bun install
-bun run setup
+cp env.example .env.local
 ```
 
-The setup wizard selects one authentication provider and writes the provider
-configuration into the working tree. It then collects values for the database
-and optional integrations. Use `bun run setup --help` for non-interactive
-options, for example:
-
-```bash
-bun run setup --yes --provider=better-auth
-```
-
-Keep credentials in the root `.env.local`; use `env.example` as the variable
-name reference and never commit real values.
+Fill in at least `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`,
+and `BETTER_AUTH_URL` in the root `.env.local`. `env.example` lists every
+variable; see [Configure authentication](../configure/authentication) for the
+auth values. Never commit real values.
 
 ## Prepare the database
 
-For local development, push the schema and optionally create the admin seed:
+For local development, push the schema and create the admin user:
 
 ```bash
 bun run db:push
@@ -50,8 +42,8 @@ Use reviewed migrations (`bun run db:generate` followed by
 bun run dev
 ```
 
-The development guard permits this command after setup. The Next.js app listens
-on port `8801` by default. To run only the app without the root TUI, use:
+The Next.js app listens on port `8801` by default. To run only the app without
+the Turborepo TUI, use:
 
 ```bash
 bun run --filter @repo/next-app dev

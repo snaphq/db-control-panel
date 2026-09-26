@@ -1,20 +1,9 @@
 ---
-title: Troubleshoot local setup
-description: Resolve setup, database, dependency, and provider problems.
+title: Troubleshoot local development
+description: Resolve database, dependency, and authentication problems.
 ---
 
-# Troubleshoot local setup
-
-## The dev command says setup is required
-
-Run the initialization workflow:
-
-```bash
-bun run setup
-```
-
-The root `dev` command is intentionally guarded until an auth provider and
-local environment have been selected.
+# Troubleshoot local development
 
 ## The app cannot connect to PostgreSQL
 
@@ -22,11 +11,11 @@ Check `DATABASE_URL` in the root `.env.local`, confirm the server is reachable,
 then run `bun run db:push` for a disposable local database. Use migrations for
 shared environments.
 
-## Provider variables are missing
+## Sign-in fails or sessions do not persist
 
-Confirm the provider selected by setup and fill only that provider's variables.
-If you must switch providers, commit work first and use the documented setup
-switching flow because it rewrites generated files.
+Confirm `BETTER_AUTH_SECRET` is set and `BETTER_AUTH_URL` matches the URL you
+open in the browser, including the port. For passkeys, `PASSKEY_RP_ID` must
+match the domain. See [Configure authentication](../configure/authentication).
 
 ## A package or build check fails
 

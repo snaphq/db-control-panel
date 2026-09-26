@@ -15,6 +15,9 @@ const ALLOWED = new Set([
   "AGENTS.md",
   "GEMINI.md",
   "LICENCE.md",
+  // setup:start
+  "SETUP.md",
+  // setup:end
 ]);
 
 function getStagedFiles(): string[] {

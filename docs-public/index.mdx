@@ -1,22 +1,23 @@
 ---
-title: Next.js 16 Starter Kit
-description: A task-oriented guide to starting, configuring, and extending the starter kit.
+title: Overview
+description: A task-oriented guide to running, configuring, and extending the app.
 ---
 
-# Next.js 16 Starter Kit
+# Overview
 
-This is a Turborepo monorepo for building full-stack Next.js applications with
-Bun workspaces, authentication, PostgreSQL, Drizzle, and shared domain
-packages.
+This is a Turborepo monorepo for a full-stack Next.js application with Bun
+workspaces, Better Auth, PostgreSQL, Drizzle, and shared domain packages.
 
-Start with [Getting started](/start/getting-started), then choose an
-authentication provider and connect a database. When you are ready to change
-the code, use [Project structure](/customize/project-structure).
+Start with [Getting started](/start/getting-started), then configure
+[authentication](/configure/authentication) and the
+[database](/configure/database). When you are ready to change the code, use
+[Project structure](/customize/project-structure).
 
 ## What is included
 
 - Next.js 16 App Router application in `apps/next-app`.
 - Shared packages for auth, billing, analytics, database, durable execution,
   AI, MCP, and object storage.
-- A one-time setup workflow that selects the authentication implementation.
+- Better Auth with organizations, two-factor auth, passkeys, and an OAuth
+  server for MCP clients.
 - Optional Stripe, PostHog, Inngest, SEO/AIEO, and agent integrations.

@@ -26,7 +26,7 @@
       {
         "tab": "Build your workflow",
         "icon": "hammer",
-        "pages": ["customize/project-structure", "customize/extend-the-starter"]
+        "pages": ["customize/project-structure", "customize/extend-the-project"]
       },
       {
         "tab": "Integrate",

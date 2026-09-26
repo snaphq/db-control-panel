@@ -109,7 +109,7 @@ export async function registerWidgetTools(
     invoking: "Loading content...",
     invoked: "Content loaded",
     html: html,
-    description: "Displays the homepage content from Next.js 16 starter kit",
+    description: "Displays the app homepage content",
     widgetDomain: appOrigin,
   };
 
