@@ -61,6 +61,15 @@ jobs:
             project_name: 'starter-solid-stack'
             alias_prefix: 'starter-solid-stack'
             node_version: '24'
+          # Astro 7 requires Node >= 22.12; the 22 line satisfies it. The row
+          # skips until the VERCEL_PROJECT_ID_SITE_D repository variable and
+          # its Vercel project exist.
+          - app: site-d
+            project_id_var: VERCEL_PROJECT_ID_SITE_D
+            default_project_id: ''
+            project_name: 'starter-astro-stack'
+            alias_prefix: 'starter-astro-stack'
+            node_version: '22'
     if: >
       github.event_name != 'pull_request' ||
       (!startsWith(github.event.pull_request.title, 'WIP') &&
