@@ -12,6 +12,7 @@ type CacheEntry = {
 };
 
 const analyticsCache = new Map<string, CacheEntry>();
+let analyticsCacheGeneration = 0;
 
 function cacheKey(endpoint: string, range: string): string {
   // The host is part of the tenant boundary even when the API URL only
@@ -24,13 +25,16 @@ function requestAnalytics<T>(url: string, key: string): Promise<T> {
   const existing = analyticsCache.get(key);
   if (existing?.inFlight) return existing.inFlight as Promise<T>;
 
+  const generation = analyticsCacheGeneration;
   const request = fetch(url, { credentials: "same-origin" })
     .then(async (res) => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as T;
     })
     .then((data) => {
-      analyticsCache.set(key, { data, updatedAt: Date.now() });
+      if (generation === analyticsCacheGeneration) {
+        analyticsCache.set(key, { data, updatedAt: Date.now() });
+      }
       return data;
     })
     .finally(() => {
@@ -52,6 +56,7 @@ function requestAnalytics<T>(url: string, key: string): Promise<T> {
 }
 
 export function clearAnalyticsCache() {
+  analyticsCacheGeneration++;
   analyticsCache.clear();
 }
 
@@ -62,6 +67,7 @@ export function useAnalytics<T>(endpoint: string, range: string) {
 
   useEffect(() => {
     let cancelled = false;
+    const generation = analyticsCacheGeneration;
     setError(null);
     const url = `${endpoint}${endpoint.includes("?") ? "&" : "?"}range=${range}`;
     const key = cacheKey(endpoint, range);
@@ -85,16 +91,28 @@ export function useAnalytics<T>(endpoint: string, range: string) {
 
     requestAnalytics<T>(url, key)
       .then((json) => {
-        if (!cancelled) setData(json);
+        if (!cancelled && generation === analyticsCacheGeneration) {
+          setData(json);
+        }
       })
       .catch((err) => {
         // Keep stale rows visible when revalidation fails.
-        if (!cancelled && !hasUsableCache) {
+        if (
+          !cancelled &&
+          generation === analyticsCacheGeneration &&
+          !hasUsableCache
+        ) {
           setError(err instanceof Error ? err.message : "Failed");
         }
       })
       .finally(() => {
-        if (!cancelled && !hasUsableCache) setLoading(false);
+        if (
+          !cancelled &&
+          generation === analyticsCacheGeneration &&
+          !hasUsableCache
+        ) {
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;
