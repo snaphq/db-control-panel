@@ -1,0 +1,48 @@
+---
+import { siteName, siteTagline } from "../config";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const features = [
+  {
+    title: "Own framework",
+    body: "Astro 7 with server-rendered pages and React islands, no shared route tree.",
+  },
+  {
+    title: "Own tenant",
+    body: "Every request resolves to this site's tenant from the Host header, never a shared default.",
+  },
+  {
+    title: "Shared platform",
+    body: "Identity and database come from the monorepo's workspace packages.",
+  },
+];
+---
+
+<BaseLayout description={siteTagline}>
+  <section class="mx-auto max-w-5xl px-4 py-24 text-center">
+    <h1 class="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
+      {siteName}
+    </h1>
+    <p class="mx-auto mt-4 max-w-xl text-pretty text-lg text-zinc-600">
+      {siteTagline}
+    </p>
+    <div class="mt-8 flex justify-center gap-3">
+      <a
+        class="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-700"
+        href="/dashboard">Open dashboard</a
+      >
+      <a
+        class="rounded-lg border border-zinc-300 px-5 py-2.5 text-sm font-medium hover:bg-zinc-50"
+        href="/pricing">See pricing</a
+      >
+    </div>
+  </section>
+  <section class="mx-auto grid max-w-5xl gap-6 px-4 pb-24 sm:grid-cols-3">
+    {features.map((feature) => (
+      <div class="rounded-xl border border-zinc-200 p-6">
+        <h2 class="font-medium">{feature.title}</h2>
+        <p class="mt-2 text-sm text-zinc-600">{feature.body}</p>
+      </div>
+    ))}
+  </section>
+</BaseLayout>
