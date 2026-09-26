@@ -12,6 +12,12 @@ import { execSync } from "node:child_process";
 
 const MIDDLEWARE_PATTERN =
   /(?:^|\/)middleware\.(ts|tsx|js|jsx|mts|cts|mjs|cjs)$/;
+
+// Astro standalone sites define request middleware in src/middleware.ts by
+// framework convention — there is no setting to rename it. The Next.js 16
+// middleware→proxy rename this hook enforces does not apply to those sites,
+// so exactly that path shape is exempt.
+const ASTRO_SITE_MIDDLEWARE = /^sites\/[^/]+\/src\/middleware\.(ts|js)$/;
 function getStagedFiles(): string[] {
   const output = execSync("git diff --cached --name-only --diff-filter=ACMR", {
     encoding: "utf8",
