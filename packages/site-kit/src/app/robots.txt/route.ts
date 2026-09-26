@@ -41,7 +41,6 @@ Allow: /
 
 User-agent: *
 Allow: /
-Disallow: /adminx
 Disallow: /dashboard
 Disallow: /api
 Disallow: /auth

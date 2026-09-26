@@ -14,6 +14,7 @@ export default defineConfig({
     "./src/schema-ext.ts",
     "./src/schema-operators.ts",
     "./src/schema-seo.ts",
+    "./src/schema-admin.ts",
   ],
   schemaFilter: ["public", "archived"],
   out: "./drizzle",

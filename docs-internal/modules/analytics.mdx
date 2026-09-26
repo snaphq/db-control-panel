@@ -17,7 +17,7 @@ through package subpaths.
 - Server routes and jobs use server helpers so PostHog credentials never enter
   browser bundles.
 - Admin analytics queries live in the package/query adapters and are consumed
-  by `apps/next-app/src/app/adminx/analytics`.
+  by `apps/backend/src/app/(admin)/analytics`.
 - Vercel analytics is an optional client-side integration; PostHog events and
   workflow actions remain the canonical lifecycle contract.
 

@@ -1,0 +1,51 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "noEmit": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "skipLibCheck": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@repo/database": ["../../packages/database/src"],
+      "@repo/database/dal/seo": [
+        "../../packages/database/src/dal/seo/index.ts"
+      ],
+      "@repo/database/*": ["../../packages/database/src/*"],
+      "@repo/analytics": ["../../packages/analytics/src"],
+      "@repo/analytics/client": [
+        "../../packages/analytics/src/client-entry.ts"
+      ],
+      "@repo/analytics/*": ["../../packages/analytics/src/*"],
+      "@repo/auth": ["../../packages/auth/src"],
+      "@repo/auth/*": ["../../packages/auth/src/*"],
+      "@repo/billing": ["../../packages/billing/src"],
+      "@repo/billing/*": ["../../packages/billing/src/*"],
+      "@repo/mcp-server": ["../../packages/mcp-server/src"],
+      "@repo/mcp-server/*": ["../../packages/mcp-server/src/*"],
+      "@repo/mcp-chatgpt": ["../../packages/mcp-chatgpt/src"],
+      "@repo/mcp-chatgpt/*": ["../../packages/mcp-chatgpt/src/*"],
+      "@repo/durable-exec": ["../../packages/durable-exec/src"],
+      "@repo/durable-exec/*": ["../../packages/durable-exec/src/*"],
+      "@repo/search": ["../../packages/search/src"],
+      "@repo/search/*": ["../../packages/search/src/*"],
+      "@repo/core/*": ["../../packages/core/src/*"],
+      "@repo/ui/*": ["../../packages/ui/src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

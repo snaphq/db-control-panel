@@ -73,7 +73,7 @@ export async function getOpenAIConfig(
   const encryptedKey = orgRow?.apiKeyEncrypted ?? globalKey;
   if (!encryptedKey) {
     throw new Error(
-      "OpenAI API key has not been configured. Set it in /adminx/ai-provider or workspace AI settings.",
+      "OpenAI API key has not been configured. Set it in the backend admin (AI Provider) or workspace AI settings.",
     );
   }
 

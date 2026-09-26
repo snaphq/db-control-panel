@@ -10,7 +10,7 @@ interface Props {
   range: string;
   title?: string;
   description?: string;
-  hrefBase?: string; // e.g. "/adminx/organizations"
+  hrefBase?: string; // e.g. "/organizations"
 }
 
 interface Result {
@@ -22,7 +22,7 @@ export function TopOrgsChart({
   range,
   title = "Top organizations by revenue",
   description,
-  hrefBase = "/adminx/organizations",
+  hrefBase = "/organizations",
 }: Props) {
   const { data, loading, error } = useAnalytics<Result>(endpoint, range);
   const empty = !!data && data.items.length === 0;

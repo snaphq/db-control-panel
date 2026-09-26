@@ -144,7 +144,7 @@ export const seoPromptSnapshotFunction = inngest.createFunction(
           if (!apiKey) {
             return {
               kind: "failed" as const,
-              error: `Missing ${secretKey} — set it in /adminx/seo/aieo/secrets`,
+              error: `Missing ${secretKey} — set it in the backend admin at /seo/aieo/secrets`,
               promptId: p.id,
               engineId: e.id,
             };

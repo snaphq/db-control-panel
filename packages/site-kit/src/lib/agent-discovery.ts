@@ -14,7 +14,6 @@ export function isPublicMarkdownPath(pathname: string): boolean {
     normalized.startsWith("/auth") ||
     normalized.startsWith("/dashboard") ||
     normalized.startsWith("/account") ||
-    normalized.startsWith("/adminx") ||
     normalized.startsWith("/consent") ||
     normalized.startsWith("/_next")
   ) {

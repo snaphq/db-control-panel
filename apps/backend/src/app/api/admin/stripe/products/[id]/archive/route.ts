@@ -1,0 +1,35 @@
+import { getAdminSession } from "@/lib/admin-auth";
+import { stripe } from "@repo/billing/stripe/client";
+import { getErrorMessage } from "@repo/core/error-utils";
+import { revalidatePath } from "next/cache";
+import { NextResponse } from "next/server";
+
+export async function POST(
+  req: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await getAdminSession();
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await context.params;
+
+    const product = await stripe.products.update(id, {
+      active: false,
+    });
+
+    revalidatePath("/stripe/products");
+    revalidatePath(`/stripe/products/${id}`);
+
+    return NextResponse.json({ status: "archived", product });
+  } catch (error: unknown) {
+    console.error("Error archiving product:", error);
+    return NextResponse.json(
+      { error: getErrorMessage(error) },
+      { status: 500 },
+    );
+  }
+}

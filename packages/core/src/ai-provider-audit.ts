@@ -1,5 +1,5 @@
 import { db } from "@repo/database";
-import { orgAuditLogs, userAuditLogs } from "@repo/database/schema";
+import { orgAuditLogs } from "@repo/database/schema";
 import { nanoid } from "nanoid";
 
 export type AiProviderChangeFields = {
@@ -7,22 +7,6 @@ export type AiProviderChangeFields = {
   baseUrl?: "set" | "cleared" | "unchanged";
   defaultModel?: "set" | "cleared" | "unchanged";
 };
-
-export async function logAdminAiProviderChange(
-  performedByUserId: string,
-  changes: AiProviderChangeFields,
-) {
-  const meaningful = Object.values(changes).some((v) => v && v !== "unchanged");
-  if (!meaningful) return;
-  await db()
-    .insert(userAuditLogs)
-    .values({
-      id: nanoid(),
-      userId: performedByUserId,
-      action: "admin_ai_provider_updated",
-      metadata: JSON.stringify(changes),
-    });
-}
 
 export async function logOrgAiProviderChange(
   organizationId: string,

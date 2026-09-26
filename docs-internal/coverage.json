@@ -93,7 +93,7 @@
       "visibility": "internal",
       "sources": [
         "packages/durable-exec/src",
-        "apps/next-app/src/app/api/inngest"
+        "apps/backend/src/app/api/inngest"
       ]
     },
     {
@@ -217,7 +217,7 @@
         "apps/next-app/src/app/api/referral",
         "apps/next-app/src/app/r",
         "packages/ui/src/components/referrals",
-        "apps/next-app/src/components/admin/referrals",
+        "apps/backend/src/components/admin/referrals",
         "packages/durable-exec/src/billing/functions/referral-window.ts",
         "scripts/seed-referrals.ts"
       ]

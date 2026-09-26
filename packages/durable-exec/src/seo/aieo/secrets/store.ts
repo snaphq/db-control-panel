@@ -75,7 +75,7 @@ export async function getSecret(key: AieoSecretKey): Promise<string | null> {
     const envFallback = process.env[key];
     if (envFallback) {
       console.warn(
-        `[aieo-secrets] Falling back to process.env.${key}; migrate by setting it in /adminx/seo/aieo/secrets`,
+        `[aieo-secrets] Falling back to process.env.${key}; migrate by setting it in the backend admin at /seo/aieo/secrets`,
       );
       return envFallback;
     }

@@ -5,7 +5,6 @@ import { auth } from "@repo/auth/server";
  * Simplified proxy with no provider switching.
  * ~120 lines vs 471 lines in the multi-provider version.
  */
-import { getSiteAdminStatus } from "@repo/core/auth-utils";
 import { headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
 import {
@@ -216,22 +215,6 @@ export async function proxy(request: NextRequest) {
         addCorsHeaders(response);
         return response;
       }
-    }
-  }
-
-  // Admin portal protection
-  if (pathname.startsWith("/adminx")) {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return NextResponse.redirect(new URL("/auth/sign-in", request.url));
-    }
-
-    const isAdmin = await getSiteAdminStatus(session.user.id);
-    if (!isAdmin) {
-      return new NextResponse(null, { status: 404 });
     }
   }
 
