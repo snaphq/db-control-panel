@@ -5,16 +5,16 @@ import {
   ResourceError,
   Section,
 } from "~/components/primitives";
-import { type GoData, fetchGo } from "~/lib/api";
+import { goData } from "~/server/dashboard";
 
-function formatDate(value: string | null) {
+function formatDate(value: Date | string | null) {
   if (!value) return "—";
-  const date = new Date(value);
+  const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toISOString().slice(0, 10);
 }
 
 export default function GoPage() {
-  const [go] = createResource<GoData>(fetchGo);
+  const [go] = createResource(goData);
 
   return (
     <>

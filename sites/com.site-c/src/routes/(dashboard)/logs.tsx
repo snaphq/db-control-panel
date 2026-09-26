@@ -6,10 +6,10 @@ import {
   ResourceError,
   Section,
 } from "~/components/primitives";
-import { fetchLogs } from "~/lib/api";
+import { logsData } from "~/server/dashboard";
 
-function formatWhen(value: string) {
-  const date = new Date(value);
+function formatWhen(value: Date | string) {
+  const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime())
     ? value
     : date.toISOString().replace("T", " ").slice(0, 16);
@@ -21,7 +21,7 @@ export default function LogsPage() {
   const page = () => Math.max(0, Number(search.page ?? 0) || 0);
   // No explicit generic: in the (source, fetcher) form the type parameter is
   // the source's, and LogsPage is already carried by fetchLogs' signature.
-  const [logs] = createResource(page, fetchLogs);
+  const [logs] = createResource(page, logsData);
 
   const goTo = (next: number) => {
     setSearch(next === 0 ? {} : { page: String(next) });

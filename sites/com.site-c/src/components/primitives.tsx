@@ -58,7 +58,7 @@ export function ResourceError(props: { error: unknown }) {
 
 export function DataTable(props: {
   columns: readonly string[];
-  rows: readonly (readonly string[])[];
+  rows: readonly (readonly (string | Date)[])[];
   empty: string;
 }) {
   return (
@@ -81,7 +81,7 @@ export function DataTable(props: {
                 <tr>
                   <For each={row}>
                     {(cell, index) => (
-                      <td data-cell={props.columns[index()]}>{cell}</td>
+                      <td data-cell={props.columns[index()]}>{String(cell)}</td>
                     )}
                   </For>
                 </tr>

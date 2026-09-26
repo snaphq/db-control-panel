@@ -72,3 +72,4 @@ docker-compose.override.yml
 
 # fallow analysis cache
 .fallow/
+.env*

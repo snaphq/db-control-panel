@@ -7,10 +7,10 @@ import {
   Section,
   StatTile,
 } from "~/components/primitives";
-import { type Overview, fetchOverview } from "~/lib/api";
+import { overviewData } from "~/server/dashboard";
 
 export default function OverviewPage() {
-  const [overview] = createResource<Overview>(fetchOverview);
+  const [overview] = createResource(overviewData);
 
   return (
     <>

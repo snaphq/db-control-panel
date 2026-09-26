@@ -1,8 +1,9 @@
 import type { RouteSectionProps } from "@solidjs/router";
 import { Show } from "solid-js";
+import { createResource } from "solid-js";
 import { DashboardNav } from "~/components/DashboardNav";
 import { ResourceError } from "~/components/primitives";
-import { useTenant } from "~/lib/api";
+import { tenantInfo } from "~/server/dashboard";
 
 /**
  * Pathless layout for the dashboard. SolidStart nests `(dashboard)/…` under this
@@ -10,7 +11,7 @@ import { useTenant } from "~/lib/api";
  * while keeping flat paths: /overview, /logs, /go.
  */
 export default function DashboardLayout(props: RouteSectionProps) {
-  const [tenant] = useTenant();
+  const [tenant] = createResource(tenantInfo);
 
   return (
     <Show

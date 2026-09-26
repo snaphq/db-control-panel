@@ -1,7 +1,8 @@
 import { getBetterAuthServer } from "@repo/auth/server";
+import { runWithAuthTenantContext } from "@repo/auth/server";
+import { resourceUrlForRequest } from "@repo/core/agent-auth/discovery";
 import type { Tenant } from "@repo/database";
 import { Hono } from "hono";
-import { getGo, getLogs, getOverview } from "../server/queries";
 
 /**
  * Per-request bindings handed to the Hono app.
@@ -17,8 +18,12 @@ export type ApiEnv = {
 /**
  * Hono app mounted under /api by src/http/tenant-guard.ts.
  *
- * Only /api/* is routed here; every other path falls through to the SolidStart
- * file-system routes in src/routes.
+ * Only /api/auth/* and /api/health are routed here. The dashboard read models
+ * are not served over HTTP: pages read them through "use server" functions in
+ * src/server/dashboard.ts, which avoids a server-side fetch to this same
+ * server (Node's fetch rejects the relative URL those pages would need) and
+ * saves the extra hop. The tenant still comes only from the Host header, never
+ * from a client-supplied parameter.
  */
 export const api = new Hono<{ Bindings: ApiEnv }>().basePath("/api");
 
@@ -29,55 +34,36 @@ api.get("/health", (c) =>
   }),
 );
 
-api.get("/tenant", (c) => {
-  const tenant = c.env.tenant;
-  return c.json({
-    id: tenant.id,
-    slug: tenant.slug,
-    name: tenant.name,
-    status: tenant.status,
-  });
-});
-
-/**
- * Dashboard read models.
- *
- * The tenant is taken from `c.env.tenant`, which the request guard resolved from
- * the Host header. There is no tenant query parameter anywhere in this API on
- * purpose: a client-supplied tenant id is exactly the thing AGENTS.md forbids,
- * so a request can only ever read the tenant it was sent to.
- */
-api.get("/overview", async (c) => c.json(await getOverview(c.env.tenant.id)));
-
-api.get("/logs", async (c) => {
-  const page = Number(c.req.query("page") ?? "0");
-  return c.json(
-    await getLogs(c.env.tenant.id, Number.isFinite(page) ? page : 0),
-  );
-});
-
-api.get("/go", async (c) => c.json(await getGo(c.env.tenant.id)));
-
 /**
  * Better Auth's own routes, mounted for every method under /api/auth/*.
+ *
+ * The handler runs inside `runWithAuthTenantContext`, which the shared auth
+ * adapter requires: withTenantBoundAuthAdapter throws on any tenant-bound
+ * read or write that has no tenant context, so mounting the raw handler would
+ * fail on the first sign-in rather than quietly mis-scoping it. `resource` is
+ * the tenant's own /mcp URL, the same value the Next.js sites bind.
  *
  * `cookieDelivery: "response"` drops Better Auth's `nextCookies` plugin, which
  * exists only to re-apply Set-Cookie through Next's `cookies()` API. Hono
  * returns the Response as-is, so the browser receives the headers directly.
  *
- * The instance is created once per process and is tenant-agnostic: every
- * Better Auth read and write is bound to the request's tenant by
- * withTenantBoundAuthAdapter inside @repo/auth, so one instance serves all
- * tenants safely.
+ * The instance is created once per process and is tenant-agnostic: the context
+ * above scopes every operation to the request's tenant.
  */
+function handleAuth(tenant: Tenant, request: Request): Promise<Response> {
+  return runWithAuthTenantContext(
+    { tenantId: tenant.id, resource: resourceUrlForRequest(request) },
+    () =>
+      getBetterAuthServer({ cookieDelivery: "response" })
+        .getAuthInstance()
+        .handler(request),
+  );
+}
+
 api.on(["GET", "POST", "PATCH", "PUT", "DELETE"], "/auth/*", (c) =>
-  getBetterAuthServer({ cookieDelivery: "response" })
-    .getAuthInstance()
-    .handler(c.req.raw),
+  handleAuth(c.env.tenant, c.req.raw),
 );
 
 api.on(["GET", "POST", "PATCH", "PUT", "DELETE"], "/auth", (c) =>
-  getBetterAuthServer({ cookieDelivery: "response" })
-    .getAuthInstance()
-    .handler(c.req.raw),
+  handleAuth(c.env.tenant, c.req.raw),
 );

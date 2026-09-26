@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@repo/auth": "workspace:*",
+    "@repo/core": "workspace:*",
     "@repo/database": "workspace:*",
     "@solidjs/meta": "catalog:",
     "@solidjs/router": "catalog:",

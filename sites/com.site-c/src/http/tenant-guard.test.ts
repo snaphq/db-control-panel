@@ -46,6 +46,14 @@ vi.mock("@repo/database", () => ({
 // app.ts mounts Better Auth under /api/auth/*, and @repo/auth/server imports
 // the `server-only` marker, which throws outside a real server. No auth route is
 // exercised here, so stub it rather than loading the auth stack.
+// app.ts also imports the MCP discovery helper for the auth resource URL; it
+// is not exercised here and pulls more of @repo/core than this suite needs.
+vi.mock("@repo/core/agent-auth/discovery", () => ({
+  resourceUrlForRequest: vi.fn((request: Request) =>
+    new URL("/mcp", new URL(request.url).origin).toString(),
+  ),
+}));
+
 vi.mock("@repo/auth/server", () => ({
   getBetterAuthServer: vi.fn(() => ({
     getAuthInstance: () => ({ handler: vi.fn() }),
@@ -88,24 +96,14 @@ describe("tenant guard", () => {
     expect((res as Response).status).toBe(404);
   });
 
-  it("binds the host's own tenant for /api", async () => {
-    const res = (await guard(
-      event("https://site-c.vercel.app/api/tenant", "site-c.vercel.app"),
-    )) as Response;
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({
-      id: "site-c",
-      slug: "site-c",
-      name: "Site C",
-      status: "active",
-    });
-  });
-
-  it("does not serve one site's tenant on another site's host", async () => {
-    const res = (await guard(
-      event("https://site-a.example/api/tenant", "site-a.example"),
-    )) as Response;
-    expect(await res.json()).toMatchObject({ id: "default", slug: "default" });
+  it("serves /api to a host whose tenant resolves", async () => {
+    // Tenant binding itself is asserted in src/server/dashboard.test.ts: the
+    // dashboard read models moved to server functions, and /api no longer
+    // echoes the tenant back.
+    const res = await guard(
+      event("https://site-c.vercel.app/api/health", "site-c.vercel.app"),
+    );
+    expect((res as Response).status).toBe(200);
   });
 
   it("falls through to the file-system routes outside /api", async () => {
