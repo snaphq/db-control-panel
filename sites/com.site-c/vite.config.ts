@@ -31,6 +31,10 @@ export default defineConfig(({ mode }) => {
     ],
     resolve: {
       alias: {
+        // SolidStart's conventional `~/` import prefix, matching the `~/*`
+        // path in tsconfig.json. Vite does not read tsconfig paths, so it has
+        // to be declared here too.
+        "~": fileURLToPath(new URL("./src", import.meta.url)),
         // See src/shims/server-only.ts for why this is needed.
         "server-only": fileURLToPath(
           new URL("./src/shims/server-only.ts", import.meta.url),

@@ -94,6 +94,11 @@ never registered on a site; they live on the backend
 
 ## Adding a site
 
+There are two kinds of site, discriminated by `stack` in `site.config.ts` and by
+whether the site depends on `@repo/site-kit`.
+
+### A site on the shared route tree (the usual case)
+
 1. Copy `sites/com.site-b` to `sites/<folder>` and set the package name and
    dev port (`package.json`), local URLs (`.env.development`), and
    `src/site.config.ts`.
@@ -102,3 +107,23 @@ never registered on a site; they live on the backend
 4. Add a `dev:<name>` root script and a matrix entry in
    `.github/workflows/deploy-vercel.yml` and `deploy-vercel-preview.yml`, and
    create its Vercel project with the site folder as Root Directory.
+
+### A standalone site on its own framework
+
+`sites/com.site-c` is SolidStart and consumes none of the shared route tree. The
+only structural requirement is that it must **not** list `@repo/site-kit` in its
+`dependencies` — that absence is what makes `scripts/sync-site-routes.ts` skip
+it, so no shims are generated and no flag is needed. Type-only imports from
+`@repo/site-kit` (for example `SiteConfig`) resolve through a tsconfig path
+mapping instead, which does not create the dependency.
+
+Such a site exports a `StandaloneSiteConfig` with `stack: "standalone"` and omits
+`markdown` and `mcp`, because it serves neither. It still gets its tenant rows
+from `bun run db:seed:sites`, which reads only the `SiteConfigBase` fields.
+
+Everything else — the deploy matrix row, the Vercel project, the `dev:<name>`
+script — is the same. Note that a framework with its own Node requirement needs
+its own `node_version` in the deploy matrix; `com.site-c` requires Node 24 while
+the Next.js sites run on 22.
+
+See [com.site-c](/architecture/com-site-c) for a worked example.

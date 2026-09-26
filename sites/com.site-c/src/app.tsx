@@ -4,6 +4,8 @@ import { FileRoutes } from "@solidjs/start/router";
 import { Suspense } from "solid-js";
 import { siteConfig } from "./site.config";
 import "./styles/globals.css";
+import "./styles/nav.css";
+import "./styles/components.css";
 
 export default function App() {
   return (

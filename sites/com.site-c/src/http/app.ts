@@ -1,6 +1,7 @@
 import { getBetterAuthServer } from "@repo/auth/server";
 import type { Tenant } from "@repo/database";
 import { Hono } from "hono";
+import { getGo, getLogs, getOverview } from "../server/queries";
 
 /**
  * Per-request bindings handed to the Hono app.
@@ -37,6 +38,25 @@ api.get("/tenant", (c) => {
     status: tenant.status,
   });
 });
+
+/**
+ * Dashboard read models.
+ *
+ * The tenant is taken from `c.env.tenant`, which the request guard resolved from
+ * the Host header. There is no tenant query parameter anywhere in this API on
+ * purpose: a client-supplied tenant id is exactly the thing AGENTS.md forbids,
+ * so a request can only ever read the tenant it was sent to.
+ */
+api.get("/overview", async (c) => c.json(await getOverview(c.env.tenant.id)));
+
+api.get("/logs", async (c) => {
+  const page = Number(c.req.query("page") ?? "0");
+  return c.json(
+    await getLogs(c.env.tenant.id, Number.isFinite(page) ? page : 0),
+  );
+});
+
+api.get("/go", async (c) => c.json(await getGo(c.env.tenant.id)));
 
 /**
  * Better Auth's own routes, mounted for every method under /api/auth/*.

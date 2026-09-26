@@ -9,6 +9,7 @@
         "apps/backend/package.json",
         "sites/com.site-a/package.json",
         "sites/com.site-b/package.json",
+        "sites/com.site-c/package.json",
         "packages/site-kit/src",
         "packages/core/src",
         "packages/ui/src"
@@ -21,11 +22,26 @@
       "sources": [
         "sites/com.site-a/src/site.config.ts",
         "sites/com.site-b/src/site.config.ts",
+        "sites/com.site-c/src/site.config.ts",
         "packages/site-kit/src/site-config.ts",
         "packages/site-kit/src/root-layout.tsx",
         "scripts/sync-site-routes.ts",
         "scripts/seed-site-tenants.ts",
         "packages/mcp-server/src/site-tools.ts"
+      ]
+    },
+    {
+      "id": "com-site-c",
+      "page": "architecture/com-site-c.mdx",
+      "visibility": "internal",
+      "sources": [
+        "sites/com.site-c/package.json",
+        "sites/com.site-c/vite.config.ts",
+        "sites/com.site-c/src/site.config.ts",
+        "sites/com.site-c/src/http/tenant-guard.ts",
+        "sites/com.site-c/src/http/app.ts",
+        "sites/com.site-c/src/server/queries.ts",
+        "sites/com.site-c/src/shims/server-only.ts"
       ]
     },
     {

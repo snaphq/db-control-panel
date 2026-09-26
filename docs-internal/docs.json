@@ -17,6 +17,7 @@
           "coverage",
           "architecture/system-overview",
           "architecture/multi-site",
+          "architecture/com-site-c",
           "architecture/backend-admin",
           "architecture/authentication",
           "architecture/data-and-tenancy",

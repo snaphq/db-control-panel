@@ -36,14 +36,23 @@ jobs:
             project_id_var: VERCEL_PROJECT_ID_SITE_A
             default_project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
             project_name: 'nexvio-ai'
+            node_version: '22'
           - app: site-b
             project_id_var: VERCEL_PROJECT_ID_SITE_B
             default_project_id: ''
             project_name: 'site-b'
+            node_version: '22'
           - app: backend
             project_id_var: VERCEL_PROJECT_ID_BACKEND
             default_project_id: ''
             project_name: 'backend'
+            node_version: '22'
+          # SolidStart 2 requires Node 24+, so this row must not inherit 22.
+          - app: site-c
+            project_id_var: VERCEL_PROJECT_ID_SITE_C
+            default_project_id: ''
+            project_name: 'com-site-c'
+            node_version: '24'
     environment:
       name: ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')) && 'production' || 'preview' }}
 
@@ -63,7 +72,7 @@ jobs:
           vercel_project_id: ${{ vars[matrix.project_id_var] || matrix.default_project_id }}
           vercel_project_name: ${{ matrix.project_name }}
           package_manager: 'bun'
-          node_version: '22'
+          node_version: ${{ matrix.node_version }}
           deploy_args: '--archive=tgz'
           environment: ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')) && 'production' || 'preview' }}
           prebuild_script: |

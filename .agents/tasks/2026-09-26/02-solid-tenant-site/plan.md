@@ -267,10 +267,27 @@ Per Vercel's Solid guide and the SolidStart v2 deployment-plugin docs:
 25. Routes under `src/routes/`:
     - **Overview** — usage rollups; reuse `@repo/billing` and
       `packages/billing/src/subscription.ts`.
-    - **Logs** — per-request rows from the shared `UsageTable` (`model`,
-      `provider`, token columns, `cost`, `keyID`, `sessionID`), paginated at
-      the existing `PAGE_SIZE = 50` convention.
-    - **Go** — plan/subscription state and limits.
+    - **Logs** — `org_audit_logs` for the tenant (action, from -> to, actor,
+      timestamp), paginated. Joined to `organization` because the audit table
+      has no `tenant_id` of its own.
+    - **Go** — per-organization plan state from `org_billing` plus `plan_tier`
+      display fields and any `org_features` overrides.
+
+### Correction: there is no `UsageTable` in this repo
+
+The original plan specified a per-request usage log modelled on opencode's
+console. That table does not exist here — mcp-crm has no request/usage log at
+all. The real sources are:
+
+| Page | Table | Notes |
+| --- | --- | --- |
+| Overview | `organization`, `org_billing` | count orgs, plan/status breakdown, recent activity |
+| Logs | `org_audit_logs` | joined to `organization`; no `tenant_id` column of its own |
+| Go | `org_billing`, `plan_tier`, `org_features` | plan, Stripe linkage, trial/period, feature overrides |
+
+Tenancy: `organization.tenantId` is the only tenant link on these tables, so
+every query filters through it. `org_billing` and `org_audit_logs` are reached
+via `organizationId`.
 
 ### Phase 6 — Tests
 

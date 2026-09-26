@@ -41,16 +41,26 @@ jobs:
             default_project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
             project_name: 'nexvio-ai'
             alias_prefix: 'nexvio-ai'
+            node_version: '22'
           - app: site-b
             project_id_var: VERCEL_PROJECT_ID_SITE_B
             default_project_id: ''
             project_name: 'site-b'
             alias_prefix: 'nextjs-starter-kit-site-b'
+            node_version: '22'
           - app: backend
             project_id_var: VERCEL_PROJECT_ID_BACKEND
             default_project_id: ''
             project_name: 'backend'
             alias_prefix: 'nextjs-starter-kit-backend'
+            node_version: '22'
+          # SolidStart 2 requires Node 24+, so this row must not inherit 22.
+          - app: site-c
+            project_id_var: VERCEL_PROJECT_ID_SITE_C
+            default_project_id: ''
+            project_name: 'com-site-c'
+            alias_prefix: 'nextjs-starter-kit-site-c'
+            node_version: '24'
     if: >
       github.event_name != 'pull_request' ||
       (!startsWith(github.event.pull_request.title, 'WIP') &&
@@ -76,7 +86,7 @@ jobs:
           vercel_project_id: ${{ vars[matrix.project_id_var] || matrix.default_project_id }}
           vercel_project_name: ${{ matrix.project_name }}
           package_manager: 'bun'
-          node_version: '22'
+          node_version: ${{ matrix.node_version }}
           deploy_args: '--archive=tgz'
           alias_prefix: ${{ matrix.alias_prefix }}
           environment: 'preview'

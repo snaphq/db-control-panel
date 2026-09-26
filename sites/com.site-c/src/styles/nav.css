@@ -1,0 +1,133 @@
+/*
+ * Dashboard shell geometry.
+ *
+ * Kept as one scoped stylesheet rather than Tailwind utilities: the desktop and
+ * mobile layouts are the same element tree with different flex direction and
+ * different active markers, and sharing the spacing scale between them is the
+ * whole point. Layout is Tailwind; these two treatments are hand-written.
+ *
+ * Desktop: horizontal bar, active item marked with a 2px bottom underline.
+ * Below 48rem: left sidebar, active item marked with a 2px left border.
+ */
+
+[data-shell="dashboard"] {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+[data-shell="bar"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+[data-shell="bar"] [data-slot="tenant"] {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+[data-shell="bar"] [data-slot="items"] {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: max-content;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+[data-shell="bar"] [data-slot="items"]::-webkit-scrollbar {
+  display: none;
+}
+
+[data-shell="bar"] [data-nav-item] {
+  display: block;
+  position: relative;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-nav);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-ink-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+[data-shell="bar"] [data-nav-item]:hover {
+  color: var(--color-ink);
+}
+
+[data-shell="bar"] [data-nav-item][aria-current="page"] {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+[data-shell="bar"] [data-nav-item][aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-ink);
+  border-radius: 2px 2px 0 0;
+}
+
+[data-shell="content"] {
+  flex: 1;
+  padding: var(--space-8) var(--space-6);
+}
+
+[data-shell="content"] [data-slot="inner"] {
+  max-width: 64rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+@media (max-width: 48rem) {
+  [data-shell="dashboard"] {
+    flex-direction: row;
+  }
+
+  [data-shell="bar"] {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+    width: 15rem;
+    flex-shrink: 0;
+    border-bottom: none;
+    border-right: 1px solid var(--color-border-subtle);
+    padding: var(--space-6) var(--space-4);
+  }
+
+  [data-shell="bar"] [data-slot="items"] {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  /* The active marker moves from the bottom edge to the left edge. */
+  [data-shell="bar"] [data-nav-item][aria-current="page"]::after {
+    top: 0;
+    bottom: 0;
+    left: calc(-1 * var(--space-1));
+    right: auto;
+    width: 2px;
+    height: auto;
+    border-radius: 0 2px 2px 0;
+  }
+
+  [data-shell="content"] {
+    padding: var(--space-6) var(--space-4);
+  }
+}

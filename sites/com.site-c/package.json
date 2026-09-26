@@ -29,6 +29,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
     "@types/node": "catalog:",
+    "drizzle-orm": "^0.44.7",
     "nitro": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",

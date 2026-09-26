@@ -161,3 +161,9 @@ To add a new shared package:
 3. `bun install && bun run sites:sync`, then `bun run db:seed:sites`.
 4. Add a `dev:<name>` root script and a deploy matrix entry in
    `.github/workflows/deploy-vercel*.yml`.
+
+A site that does **not** use `@repo/site-kit` (its own framework, like
+`sites/com.site-c`) skips `sites:sync`: omitting that dependency is exactly what
+makes `sync-site-routes.ts` skip the folder. It exports a `StandaloneSiteConfig`
+with `stack: "standalone"` rather than a `SiteConfig`, and still gets its tenant
+rows from `db:seed:sites`. See `docs-internal/architecture/com-site-c.mdx`.

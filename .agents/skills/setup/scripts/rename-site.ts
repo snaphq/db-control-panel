@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 /**
  * Rename one of the placeholder tenant sites (sites/com.site-a,
- * sites/com.site-b) and, optionally, set its brand, domain, and tenant.
+ * sites/com.site-b, sites/com.site-c) and, optionally, set its brand, domain,
+ * and tenant. Any placeholder folder works; the list is not hardcoded.
  *
  * Usage:
  *   bun .agents/skills/setup/scripts/rename-site.ts \
