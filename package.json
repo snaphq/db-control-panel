@@ -68,7 +68,9 @@
     "docs:public:validate": "cd docs-public && bunx --yes mint@4.1.0 broken-links",
     "docs:internal": "cd docs-internal && bunx --yes mint@4.1.0 dev --port 3334 --no-open",
     "docs:internal:validate": "cd docs-internal && bunx --yes mint@4.1.0 broken-links",
-    "prepare": "husky"
+    "prepare": "husky",
+    "sites:sync": "bun run scripts/sync-site-routes.ts",
+    "check:site-routes": "bun run scripts/sync-site-routes.ts --check"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

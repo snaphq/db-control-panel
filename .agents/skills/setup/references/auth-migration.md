@@ -54,7 +54,7 @@ the sign-in/sign-up/reset/organization param and result types.
 | `apps/next-app/src/app/oauth2/*`, `.well-known/{oauth-authorization-server,openid-configuration,jwks.json,oauth-protected-resource}` | MCP OAuth/OIDC authorization server built on `oidcProvider` |
 | `packages/core/src/agent-auth/**`, `app/auth.md` | Agent registration protocol; uses the OIDC server above |
 | `packages/ui/src/components/account/authentication/*` | Passkey, two-factor, sign-in-method cards |
-| `apps/next-app/src/lib/agent-readiness-protocol.test.ts` | Imports `better-auth` types |
+| `packages/site-kit/src/__tests__/agent-readiness-protocol.test.ts` | Imports `better-auth` types |
 
 ## 3. Database tables owned by Better Auth
 

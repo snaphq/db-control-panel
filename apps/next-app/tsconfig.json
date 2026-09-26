@@ -43,7 +43,9 @@
       "@repo/search": ["../../packages/search/src"],
       "@repo/search/*": ["../../packages/search/src/*"],
       "@repo/core/*": ["../../packages/core/src/*"],
-      "@repo/ui/*": ["../../packages/ui/src/*"]
+      "@repo/ui/*": ["../../packages/ui/src/*"],
+      "@repo/site-kit/*": ["../../packages/site-kit/src/*"],
+      "@site/*": ["./src/*"]
     }
   },
   "include": [

@@ -1,8 +1,8 @@
 import { baseURL } from "@/../baseUrl";
-import Provider from "@/app/provider";
 import { PostHogProvider } from "@repo/analytics";
 import { Analytics } from "@repo/analytics/vercel";
 import { absoluteUrl } from "@repo/core/site-config";
+import Provider from "@repo/site-kit/app/provider";
 import { NextChatSDKBootstrap } from "@repo/ui/components/NextChatSDKBootstrap";
 import { WebMcpBootstrap } from "@repo/ui/components/WebMcpBootstrap";
 import { ThemeProvider } from "@repo/ui/components/theme-provider";

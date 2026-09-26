@@ -1,0 +1,44 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "paths": {
+      "@repo/database": ["../database/src"],
+      "@repo/database/dal/seo": ["../database/src/dal/seo/index.ts"],
+      "@repo/database/*": ["../database/src/*"],
+      "@repo/ai": ["../ai/src"],
+      "@repo/ai/*": ["../ai/src/*"],
+      "@repo/analytics": ["../analytics/src"],
+      "@repo/analytics/client": ["../analytics/src/client-entry.ts"],
+      "@repo/analytics/*": ["../analytics/src/*"],
+      "@repo/auth": ["../auth/src"],
+      "@repo/auth/*": ["../auth/src/*"],
+      "@repo/billing": ["../billing/src"],
+      "@repo/billing/*": ["../billing/src/*"],
+      "@repo/fumadocs": ["../fumadocs/src"],
+      "@repo/fumadocs/*": ["../fumadocs/src/*"],
+      "@repo/mcp-server": ["../mcp-server/src"],
+      "@repo/mcp-server/*": ["../mcp-server/src/*"],
+      "@repo/mcp-chatgpt": ["../mcp-chatgpt/src"],
+      "@repo/mcp-chatgpt/*": ["../mcp-chatgpt/src/*"],
+      "@repo/durable-exec": ["../durable-exec/src"],
+      "@repo/durable-exec/*": ["../durable-exec/src/*"],
+      "@repo/object-storage": ["../object-storage/src"],
+      "@repo/object-storage/*": ["../object-storage/src/*"],
+      "@repo/search": ["../search/src"],
+      "@repo/search/*": ["../search/src/*"],
+      "@repo/core/*": ["../core/src/*"],
+      "@repo/ui/*": ["../ui/src/*"],
+      "@repo/site-kit/*": ["../site-kit/src/*"],
+      "@site/*": ["../../apps/next-app/src/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "../../apps/next-app/src/.source/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

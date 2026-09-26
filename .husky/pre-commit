@@ -8,6 +8,7 @@ bun run check:banned-deps
 bun run check:no-per-minute-cron
 bun run check:root-md
 bun run check:skill-links
+bun run check:site-routes
 bunx lint-staged
 bun run scripts/check-staged-catalog.mjs
 bun run check:catalog-deps
