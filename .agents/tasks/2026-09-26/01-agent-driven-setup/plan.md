@@ -28,7 +28,8 @@
   tell the agent to collect keys with `configure-env.ts` and have the user
   run the wizard (`! bun …`); referral settings can also be set in the
   admin UI. `setup-referral` now uses `@repo/database` instead of `pg`.
-- `.opencode/skills` was left unchanged. The `v0-setup-done` tag was dropped.
+- `.opencode/skills` was removed; opencode reads `.agents/skills` directly.
+  The `v0-setup-done` tag was dropped.
 
 ## Objective
 
@@ -247,7 +248,6 @@ script + hook + workflow together.
 - Add `scripts/check-skill-links.ts`: every `.agents/skills/*` has a matching
   `.claude/skills/*` symlink and `.claude/skills/` contains no real dirs.
   Wire into `.husky/pre-commit` and `package.json`.
-- Decide whether `.opencode/skills` mirrors all skills too (currently 3 of 5).
 
 ### Phase 2 — Drop provider switching from the live tree
 
@@ -355,7 +355,6 @@ script + hook + workflow together.
 
 ## Open questions
 
-- `.opencode/skills` — mirror all skills (including `setup*`) or leave as is?
 - Tag after finalize (`v0-setup-done`) — keep or drop?
 - Pin fallow as a devDependency or keep using the CLI/GH action?
 - Add knip to a `pre-push` hook, or CI only? (Decide after timing in
