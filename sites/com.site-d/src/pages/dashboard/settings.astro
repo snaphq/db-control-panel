@@ -1,0 +1,50 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+import { getUserAccount } from "../../server/account";
+import { getSessionFromRequest } from "../../server/session";
+
+const session = await getSessionFromRequest(Astro.request);
+if (!session) return Astro.redirect("/dashboard/login");
+
+const tenant = Astro.locals.tenant;
+const account = await getUserAccount(tenant.id, session.user.id);
+
+const formatDate = (date: Date | null | undefined) =>
+  date ? date.toISOString().slice(0, 10) : "—";
+---
+
+<DashboardLayout
+  title={`Settings · ${tenant.name}`}
+  userName={session.user.email}
+>
+  <h1 class="text-2xl font-semibold tracking-tight">Settings</h1>
+  <p class="mt-1 text-sm text-zinc-600">Profile details for your account.</p>
+
+  <section class="mt-8 max-w-xl rounded-xl border border-zinc-200 p-6">
+    <dl class="divide-y divide-zinc-200 text-sm">
+      <div class="flex justify-between gap-4 py-3">
+        <dt class="text-zinc-500">Name</dt>
+        <dd class="font-medium">{account?.name ?? session.user.name}</dd>
+      </div>
+      <div class="flex justify-between gap-4 py-3">
+        <dt class="text-zinc-500">Email</dt>
+        <dd class="font-medium">{account?.email ?? session.user.email}</dd>
+      </div>
+      <div class="flex justify-between gap-4 py-3">
+        <dt class="text-zinc-500">Role</dt>
+        <dd class="font-medium">{account?.role ?? "member"}</dd>
+      </div>
+      <div class="flex justify-between gap-4 py-3">
+        <dt class="text-zinc-500">Account created</dt>
+        <dd class="font-medium">{formatDate(account?.createdAt)}</dd>
+      </div>
+      <div class="flex justify-between gap-4 py-3">
+        <dt class="text-zinc-500">Current session expires</dt>
+        <dd class="font-medium">{formatDate(session.expiresAt)}</dd>
+      </div>
+    </dl>
+    <p class="mt-4 text-xs text-zinc-500">
+      Profile edits and password changes arrive with billing integration.
+    </p>
+  </section>
+</DashboardLayout>

@@ -1,0 +1,39 @@
+---
+import SignOutButton from "../components/react/SignOutButton";
+import BaseLayout from "./BaseLayout.astro";
+
+interface Props {
+  title: string;
+  userName: string;
+}
+
+const { title, userName } = Astro.props;
+---
+
+<BaseLayout title={title}>
+  <div class="mx-auto flex max-w-5xl gap-8 px-4 py-10">
+    <aside class="hidden w-52 shrink-0 sm:block">
+      <p class="px-3 text-xs font-medium tracking-wide text-zinc-400 uppercase">
+        Account
+      </p>
+      <nav class="mt-2 flex flex-col gap-1 text-sm">
+        <a class="rounded-lg px-3 py-2 hover:bg-zinc-100" href="/dashboard">
+          Overview</a
+        >
+        <a
+          class="rounded-lg px-3 py-2 hover:bg-zinc-100"
+          href="/dashboard/settings">Settings</a
+        >
+      </nav>
+      <div class="mt-6 border-t border-zinc-200 pt-4 text-xs text-zinc-500">
+        <p class="truncate px-3" title={userName}>Signed in as {userName}</p>
+        <div class="px-3">
+          <SignOutButton client:visible />
+        </div>
+      </div>
+    </aside>
+    <div class="min-w-0 flex-1">
+      <slot />
+    </div>
+  </div>
+</BaseLayout>
