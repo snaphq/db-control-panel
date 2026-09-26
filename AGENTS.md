@@ -116,6 +116,12 @@ bun run --filter @repo/database build   # Build database package only
 - Put public, task-oriented guidance in `docs-public/`.
 - Put developer, agent, architecture, security, operations, and verification
   guidance in `docs-internal/`.
+- Site-specific docs go in a folder named after the site's short name:
+  `docs-public/site-a/` and `docs-internal/site-a/` for `sites/com.site-a`
+  (likewise `site-b/`, …). Docs shared by every site stay outside those
+  folders. `bun run check:doc-coverage` rejects a page whose coverage sources
+  all belong to one site but that lives outside its folder, and each Next.js
+  site's `/docs` mirrors the shared pages plus only its own folder.
 - Keep `/auth.md` generated from `packages/site-kit/src/app/auth.md/route.ts`
   as the machine-readable agent contract; document its consumer and
   implementation views separately.
@@ -208,4 +214,4 @@ A site that does **not** use `@repo/site-kit` (its own framework, like
 `sites/com.site-c`) skips `sites:sync`: omitting that dependency is exactly what
 makes `sync-site-routes.ts` skip the folder. It exports a `StandaloneSiteConfig`
 with `stack: "standalone"` rather than a `SiteConfig`, and still gets its tenant
-rows from `db:seed:sites`. See `docs-internal/architecture/com-site-c.mdx`.
+rows from `db:seed:sites`. See `docs-internal/site-c/overview.mdx`.

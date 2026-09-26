@@ -1,0 +1,26 @@
+---
+title: Site B (com.site-b)
+description: The thin Next.js tenant site that shows the minimum a site-kit site owns.
+---
+
+# Site B — `sites/com.site-b`
+
+A second Next.js site on `@repo/site-kit`, kept deliberately small: it is the
+template to copy when adding a site (see "Adding a New Site" in `AGENTS.md`).
+
+| | |
+| --- | --- |
+| Stack | Next.js 16 on `@repo/site-kit` |
+| Tenant | `site-b` |
+| Local URL | http://localhost:8802 (`bun run dev:site-b`) |
+| Deploy | matrix row `site-b`, Vercel Root Directory `sites/com.site-b` |
+
+## What this site owns
+
+- `src/site.config.ts` — identity, public pages (`/`, `/privacy`, `/terms`),
+  agent markdown, and MCP toolsets (`account` only).
+- `src/app/page.tsx`, `privacy`, `terms` — its public pages.
+- `src/components/Container/PageWrapper.tsx` — its header and footer.
+- `src/app/globals.css` — the teal brand over `@repo/react-ui`'s theme.
+- `content/blog` and `source.config.ts` — its blog and the `docs-public/`
+  mirror (shared pages plus `docs-public/site-b/`).

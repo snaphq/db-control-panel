@@ -45,6 +45,28 @@
           "operate/deploy",
           "operate/troubleshoot"
         ]
+      },
+      {
+        "tab": "Sites",
+        "icon": "globe",
+        "groups": [
+          {
+            "group": "Site A",
+            "pages": ["site-a/index"]
+          },
+          {
+            "group": "Site B",
+            "pages": ["site-b/index"]
+          },
+          {
+            "group": "Site C",
+            "pages": ["site-c/index"]
+          },
+          {
+            "group": "Site D",
+            "pages": ["site-d/index"]
+          }
+        ]
       }
     ]
   }

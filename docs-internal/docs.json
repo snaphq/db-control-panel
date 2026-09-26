@@ -17,8 +17,6 @@
           "coverage",
           "architecture/system-overview",
           "architecture/multi-site",
-          "architecture/com-site-c",
-          "architecture/com-site-d",
           "architecture/backend-admin",
           "architecture/authentication",
           "architecture/data-and-tenancy",
@@ -26,6 +24,28 @@
           "architecture/agent-auth",
           "architecture/mcp-and-agent-surfaces",
           "architecture/operator-tokens"
+        ]
+      },
+      {
+        "tab": "Sites",
+        "icon": "globe",
+        "groups": [
+          {
+            "group": "Site A",
+            "pages": ["site-a/overview"]
+          },
+          {
+            "group": "Site B",
+            "pages": ["site-b/overview"]
+          },
+          {
+            "group": "Site C",
+            "pages": ["site-c/overview"]
+          },
+          {
+            "group": "Site D",
+            "pages": ["site-d/overview"]
+          }
         ]
       },
       {

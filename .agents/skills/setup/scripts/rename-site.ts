@@ -18,6 +18,10 @@
  * The folder is moved with `git mv`, and every tracked reference to the old
  * folder or package name (root scripts, deploy workflow, Vercel and Docker
  * config, tsconfig/vitest references, docs, dead-code baselines) is updated.
+ * The short name ("site-a") moves too: docs-public/site-a and
+ * docs-internal/site-a, the dev:<short> script, the deploy matrix row, and
+ * docs links. If the tenant id equals the short name, it follows unless
+ * --tenant sets it explicitly.
  * Run `bun install` afterwards to refresh bun.lock.
  */
 
@@ -108,6 +112,26 @@ function renameDevScript(from: string, to: string): void {
   writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
+/**
+ * Site-specific docs live in docs-public/<short>/ and docs-internal/<short>/
+ * (e.g. site-a/), and the short name also labels the site's dev script,
+ * deploy matrix row, and docs links. Move the folders and update references.
+ */
+function renameShortName(from: string, to: string): void {
+  if (from === to) return;
+  for (const docsRoot of ["docs-public", "docs-internal"]) {
+    if (existsSync(join(ROOT, docsRoot, from))) {
+      execFileSync("git", ["mv", `${docsRoot}/${from}`, `${docsRoot}/${to}`], {
+        cwd: ROOT,
+      });
+      console.log(`  moved ${docsRoot}/${from} → ${docsRoot}/${to}`);
+    }
+  }
+  for (const file of replaceInTrackedFiles(from, to)) {
+    console.log(`  updated ${file}`);
+  }
+}
+
 function setConfigValue(file: string, key: string, value: string): void {
   const content = readFileSync(file, "utf8");
   const pattern = new RegExp(`(\\n\\s*${key}: )"[^"]*"`);
@@ -141,6 +165,7 @@ function main(): void {
     for (const file of replaceInTrackedFiles(from, to)) {
       console.log(`  updated ${file}`);
     }
+    renameShortName(shortName(from), shortName(to));
   }
 
   const config = join(ROOT, "sites", to, "src/site.config.ts");

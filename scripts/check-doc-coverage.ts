@@ -43,6 +43,11 @@ function navigationPages(value: unknown): string[] {
   ];
 }
 
+/** "com.site-a" -> "site-a": the docs folder for a site workspace. */
+function siteDocsFolder(siteWorkspace: string): string {
+  return siteWorkspace.split(".").slice(1).join(".") || siteWorkspace;
+}
+
 function assert(condition: boolean, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
@@ -98,6 +103,20 @@ for (const entry of coverage.entries) {
     assert(
       existsSync(resolve(root, source)),
       `Coverage source does not exist: ${source} (${entry.id})`,
+    );
+  }
+
+  // Site-specific docs live in docs-*/<site>/: a page that documents only one
+  // site's code (sources all under sites/com.<site>/) must sit in that folder.
+  const siteFolders = new Set(
+    entry.sources.map((source) => source.match(/^sites\/([^/]+)/)?.[1] ?? ""),
+  );
+  const [onlySite] = [...siteFolders];
+  if (siteFolders.size === 1 && onlySite) {
+    const docsFolder = siteDocsFolder(onlySite);
+    assert(
+      entry.page.startsWith(`${docsFolder}/`),
+      `Coverage entry ${entry.id} documents only sites/${onlySite}; move ${site}/${entry.page} under ${site}/${docsFolder}/`,
     );
   }
 }

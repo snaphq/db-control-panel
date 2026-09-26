@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs";
 import {
   defineCollections,
   defineConfig,
@@ -5,10 +6,25 @@ import {
 } from "fumadocs-mdx/config";
 import { z } from "zod";
 
+const DOCS_DIR = "../../docs-public";
+// Site-specific public docs live in docs-public/<site>/ (e.g. site-a/). Mirror
+// the shared pages plus this site's own folder, never another site's.
+const OWN_DOCS_FOLDER = "site-a";
+const otherSiteDocs = readdirSync(DOCS_DIR, { withFileTypes: true })
+  .filter(
+    (entry) =>
+      entry.isDirectory() &&
+      /^site-/.test(entry.name) &&
+      entry.name !== OWN_DOCS_FOLDER,
+  )
+  .map((entry) => `!${entry.name}/**`);
+
 export const docs = defineDocs({
   // Public docs are the canonical source for the generated in-app /docs view.
   // Keep this as a mirror rather than maintaining a second docs tree.
-  dir: "../../docs-public",
+  dir: DOCS_DIR,
+  docs: { files: ["**/*.{md,mdx}", ...otherSiteDocs] },
+  meta: { files: ["**/*.{json,yaml}", ...otherSiteDocs] },
 });
 
 export const blogCollection = defineCollections({

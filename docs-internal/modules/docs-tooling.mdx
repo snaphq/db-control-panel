@@ -26,3 +26,13 @@ Use the public/internal preview and broken-link commands, the staged path policy
 and the coverage checker. Source-path references in internal pages should be
 covered by `docs-internal/coverage.json` and verified at the same commit as the
 documentation change.
+
+## Site-specific docs
+
+Docs about one site live in `docs-public/<site>/` and `docs-internal/<site>/`,
+where `<site>` is the site's short name (`site-a` for `sites/com.site-a`), and
+appear under the **Sites** tab of each Mintlify site. `check:doc-coverage`
+enforces it: an entry whose sources are all under one `sites/<folder>/` must
+point at a page in that site's folder. Each Next.js site's `source.config.ts`
+excludes the other sites' folders, so its `/docs` shows shared pages plus its
+own. `rename-site.ts` moves these folders when a site is renamed.

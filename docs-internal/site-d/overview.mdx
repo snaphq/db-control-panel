@@ -22,7 +22,7 @@ sharing the monorepo's single `DATABASE_URL` and owning its own tenant.
 
 ## Why it does not use site-kit
 
-Same decision as [com.site-c](/architecture/com-site-c), and the same
+Same decision as [com.site-c](/site-c/overview), and the same
 mechanism: **do not list `@repo/site-kit` in the site's `dependencies`**.
 `scripts/sync-site-routes.ts` selects sites by exactly that dependency, so its
 absence is a complete opt-out. The `StandaloneSiteConfig` type import in
