@@ -4,7 +4,13 @@
     "scripts/*.{ts,mjs,js}",
     "sites/*/src/site.config.ts",
     "sites/*/src/lib/source.ts",
-    "sites/*/src/components/Container/PageWrapper.tsx"
+    "sites/*/src/components/Container/PageWrapper.tsx",
+    "sites/com.site-c/vite.config.ts",
+    "sites/com.site-c/src/entry-client.tsx",
+    "sites/com.site-c/src/entry-server.tsx",
+    "sites/com.site-c/src/app.tsx",
+    "sites/com.site-c/src/routes/**/*.{ts,tsx}",
+    "sites/com.site-c/src/http/*.ts"
   ],
   "ignorePatterns": [
     "docs-public/**",

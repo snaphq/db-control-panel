@@ -3,24 +3,29 @@
  * Create or update the tenant (and primary domain) for every site in sites/*
  * from its src/site.config.ts. Safe to re-run.
  *
+ * Handles both site shapes discriminated by `AnySiteConfig["stack"]`: sites on
+ * the shared @repo/site-kit route tree, and standalone sites that own their own
+ * framework. Only the identity fields on SiteConfigBase are read, so both
+ * shapes seed identically.
+ *
  * Run with: bun run db:seed:sites
  */
 
 import { existsSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { config } from "dotenv";
-import type { SiteConfig } from "../packages/site-kit/src/site-config";
+import type { AnySiteConfig } from "../packages/site-kit/src/site-config";
 import { colors } from "./lib/colors";
 
 config({ path: resolve(process.cwd(), ".env.local") });
 
-async function loadSiteConfigs(): Promise<SiteConfig[]> {
+async function loadSiteConfigs(): Promise<AnySiteConfig[]> {
   const sitesDir = resolve(process.cwd(), "sites");
-  const configs: SiteConfig[] = [];
+  const configs: AnySiteConfig[] = [];
   for (const name of readdirSync(sitesDir).sort()) {
     const file = resolve(sitesDir, name, "src/site.config.ts");
     if (!existsSync(file)) continue;
-    const mod = (await import(file)) as { siteConfig?: SiteConfig };
+    const mod = (await import(file)) as { siteConfig?: AnySiteConfig };
     if (!mod.siteConfig) {
       throw new Error(`${file} does not export siteConfig`);
     }

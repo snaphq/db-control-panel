@@ -1,0 +1,36 @@
+{
+  "name": "com.site-c",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone SolidStart tenant site. Shares the monorepo DATABASE_URL; owns its own tenant identity and does not use @repo/site-kit.",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "vite dev --port 8803",
+    "build": "vite build",
+    "start": "node .output/server/index.mjs",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@solidjs/meta": "catalog:",
+    "@solidjs/router": "catalog:",
+    "@solidjs/start": "catalog:",
+    "hono": "catalog:",
+    "solid-js": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "@types/node": "catalog:",
+    "nitro": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}
