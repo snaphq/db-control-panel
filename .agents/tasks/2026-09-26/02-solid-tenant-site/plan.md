@@ -1,9 +1,37 @@
 # `com.site-c` — standalone Solid/Hono/Effect tenant site
 
-**Status:** In progress — Phases 1, 2, 3 done; Phase 6's isolation test done
+**Status:** In progress — Phases 1–4 done; Phase 6's isolation test done
 **Date:** 2026-09-26
 **Baseline:** local `main` at `026798d`
-**Commits:** `177bbd9` scaffold, `7c6bb05` tenant resolution
+**Commits:** `177bbd9` scaffold, `7c6bb05` tenant resolution, `9e96f1d` auth
+
+## Auth: how the Next coupling was removed
+
+The audit said `@repo/auth` was "7/8 reusable". In practice the Next coupling
+was only two call sites, and both are now avoidable without duplicating the
+package:
+
+- `createAuthInstance` takes a new `cookieDelivery` option, `"next"` (default,
+  so every existing site is byte-identical) or `"response"`. Under `"response"`
+  Better Auth's `nextCookies` plugin is omitted. It exists only to re-apply
+  `Set-Cookie` through Next's `cookies()` API; SolidStart returns the Response
+  as-is, so it is genuinely unnecessary rather than merely unused.
+- `getApiHandler()` now `await import("better-auth/next-js")` instead of
+  importing it at module scope, so a non-Next consumer never pulls
+  `next/headers` into its graph. Both existing callers already awaited it.
+- The site mounts `/api/auth/*` in Hono and calls
+  `getBetterAuthServer({ cookieDelivery: "response" }).getAuthInstance().handler`.
+  One instance serves all tenants: every read and write is bound by
+  `withTenantBoundAuthAdapter`.
+
+Verified: the client bundle contains no Next internals. The server bundle still
+carries ~160KB of Next edge runtime because the `nextCookies` import must stay
+static to keep plugin construction synchronous; it is never executed under
+`"response"`. Documented in the option's JSDoc rather than contorted away.
+
+`@repo/auth`'s `peerDependencies` on `next` and `react` are still declared.
+They resolve from the workspace, and nothing Next-specific executes, but if the
+site is ever split into its own install this is the line to revisit.
 
 ## Environment blocker: no database
 
