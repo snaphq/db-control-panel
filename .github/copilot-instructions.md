@@ -24,22 +24,15 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 ```
 .
 ├── apps/
-│   └── next-app/           # Next.js 16 application (com.site-a)
-│       ├── src/
-│       │   ├── app/        # App Router pages and layouts
-│       │   ├── components/ # Shared UI components
-│       │   ├── lib/        # Helpers and business logic
-│       │   ├── types/      # TypeScript type definitions
-│       │   └── utils/      # Utility functions
-│       ├── public/         # Static assets
-│       ├── content/        # MDX content
-│       └── docs/           # Documentation
+│   └── backend/            # Admin portal for every site
+├── sites/
+│   ├── com.site-a/         # Tenant site A (config, brand, pages)
+│   └── com.site-b/         # Tenant site B
 ├── packages/
+│   ├── site-kit/           # Routes, proxy, and layout shared by every site
+│   ├── core/               # Shared server logic
+│   ├── ui/                 # Shared React components and theme
 │   └── database/           # Shared Drizzle database package (@repo/database)
-│       ├── src/
-│       │   ├── schema.ts   # Drizzle schema definitions
-│       │   ├── client.ts   # Database connection (getDb)
-│       │   └── index.ts    # Re-exports
 │       └── drizzle.config.ts
 ├── scripts/                # Root-level scripts (seed, checks, stripe)
 ├── turbo.json              # Turborepo config with TUI mode
@@ -176,7 +169,7 @@ bun run --filter @repo/database build   # Build database package only
 ### Docker
 
 - **Build**: `docker build -t app .`
-- **Run**: `docker run -p 8801:8801 --env-file .env.local app`
+- **Run**: `docker run -p 8801:8801 --env-file .env.local app` (build other apps with `--build-arg APP_DIR=… --build-arg APP_PACKAGE=… --build-arg PORT=…`)
 
 ## Best Practices for Issues and PRs
 
@@ -219,7 +212,7 @@ export default async function MyPage() {
 #### Creating a Client Component
 
 ```typescript
-// sites/com.site-a/src/components/MyComponent.tsx
+// packages/ui/src/components/MyComponent.tsx
 "use client";
 
 import { useState } from "react";

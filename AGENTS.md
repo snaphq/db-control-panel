@@ -16,29 +16,30 @@ with TUI mode enabled.
 ```
 .
 ├── apps/
-│   └── next-app/           # Next.js 16 application
-│       ├── src/
-│       │   ├── app/        # App Router pages and layouts
-│       │   ├── components/ # Shared UI components
-│       │   ├── lib/        # Helpers and business logic
-│       │   ├── types/      # TypeScript type definitions
-│       │   └── utils/      # Utility functions
-│       ├── public/         # Static assets
-│       ├── content/        # MDX content
-│       └── ...
+│   └── backend/            # Platform admin portal for every site (@repo/backend)
+├── sites/                  # One Next.js 16 app per tenant site
+│   ├── com.site-a/         # First site: site.config.ts, branding, landing/legal pages
+│   └── com.site-b/         # Second site (thin: config + brand + a few pages)
+├── packages/
+│   ├── site-kit/           # Shared site routes (src/app), proxy, root layout
+│   ├── core/               # Shared server logic (auth helpers, agent auth, operators, integrations)
+│   ├── ui/                 # Shared React components, hooks, providers, theme.css
+│   ├── database/           # Drizzle schema and data access (@repo/database)
+│   ├── auth/               # Better Auth wrapper for the sites (@repo/auth)
+│   ├── mcp-server/         # MCP tools and per-site toolsets
+│   └── …                   # billing, analytics, ai, durable-exec, search, …
 ├── docs-public/            # Public, task-oriented Mintlify documentation
 ├── docs-internal/          # Private developer and agent Mintlify documentation
-├── packages/
-│   └── database/           # Shared Drizzle database package (@repo/database)
-│       ├── src/
-│       │   ├── schema.ts   # Drizzle schema definitions
-│       │   ├── client.ts   # Database connection (getDb)
-│       │   └── index.ts    # Re-exports
-│       └── drizzle.config.ts
-├── scripts/                # Root-level scripts (seed, checks, stripe)
+├── scripts/                # Root-level scripts (seed, checks, site route sync)
 ├── turbo.json              # Turborepo config with TUI mode
 └── package.json            # Root workspace config
 ```
+
+Dependency direction: `sites/*` and `apps/backend` depend on packages;
+`site-kit` depends on `ui` and `core`; `ui` depends on `core`; packages never
+import from apps or sites. Shared site routes reach site-owned modules only
+through the `@site/*` alias (`@site/site.config`, `@site/lib/source`,
+`@site/components/Container/PageWrapper`).
 
 ## Build, Test, and Development Commands
 
@@ -46,8 +47,11 @@ All commands use bun and are run from the monorepo root:
 
 - `bun install` - Install all dependencies across workspaces
 - `bun run dev` - Start all dev servers with the Turbo TUI
+- `bun run dev:backend` / `dev:site-a` / `dev:site-b` - Start one app
 - `bun run build` - Production build (fails on type or lint errors)
-- `bun run start` - Serve the built app locally
+- `bun run start` - Serve the built apps locally
+- `bun run sites:sync` - Regenerate site route shims after changing
+  `packages/site-kit/src/app`
 - `bun run lint` / `bun run lint:fix` - Biome static analysis
 - `bun run format` / `bun run format:check` - Biome formatting
 
@@ -57,14 +61,16 @@ All commands use bun and are run from the monorepo root:
 - `bun run db:migrate` - Run migrations
 - `bun run db:push` - Push schema to database (dev only)
 - `bun run db:studio` - Open Drizzle Studio
-- `bun run db:seed` - Seed admin user
+- `bun run db:seed` - Seed the default tenant and its site admin
+- `bun run db:seed:sites` - Create/update one tenant per `sites/*/src/site.config.ts`
 
 ### Workspace Filtering
 
 Run commands for specific packages:
 
 ```bash
-bun run --filter com.site-a dev     # Run dev for Next.js app only
+bun run --filter com.site-a dev         # Run dev for one site only
+bun run --filter @repo/backend dev      # Run dev for the admin portal only
 bun run --filter @repo/database build   # Build database package only
 ```
 
@@ -113,9 +119,11 @@ import { db } from "@repo/database";
 import { user, session, organization } from "@repo/database/schema";
 ```
 
-Path aliases in `sites/com.site-a/tsconfig.json`:
+Path aliases in each app's `tsconfig.json` (`apps/backend`, `sites/*`):
 - `@/*` - Maps to `./src/*` for app-internal imports
-- `@repo/database` - Maps to the database package
+- `@repo/<package>` / `@repo/<package>/*` - Map to `packages/<package>/src`
+- `@site/*` (sites only) - Maps to the site's own `./src/*`, used by shared
+  routes in `@repo/site-kit`
 
 ## Coding Style & Naming Conventions
 
@@ -123,7 +131,7 @@ TypeScript is required across the repo. Use two-space indentation, single quotes
 
 ## Testing Guidelines
 
-There is no formal automated test harness yet—document manual verification steps in each PR. When adding tests, colocate them with their modules (`feature.test.tsx`) or under `sites/com.site-a/src/tests`. Prefer Vitest + Testing Library for unit coverage and Playwright for flow tests so they can run inside CI without extra services. Keep test names declarative (`it('renders empty state when no invoices')`). Always run `bun run build` to ensure the app compiles before merging.
+Vitest suites live in the packages and in `apps/backend` (`src/**/*.test.ts` or `src/__tests__/`); run them all with `bunx turbo run test --filter='./packages/*' --filter='./apps/*'` (the CI test job). Tests that touch tenancy must prove isolation between sites, for example that a credential from one site's tenant is rejected on another site's host (`packages/core/src/tenant-isolation.test.ts`). Keep test names declarative (`it('renders empty state when no invoices')`), document manual verification steps in each PR, and run `bun run build` before merging.
 
 ## Commit & Pull Request Guidelines
 
@@ -131,7 +139,7 @@ Commits use Conventional Commits (`feat(auth): add passkey login`), enforced by 
 
 ## Security & Configuration Notes
 
-Secrets belong in `.env.local` (at the monorepo root) and never in Git; redact example values before attaching logs. Rotating `BETTER_AUTH_SECRET` signs every user out. Database migrations should be reviewed because `db:push` can overwrite dev data—prefer `db:migrate` for anything shared. When exposing MCP or webhook endpoints, confirm URLs through `baseUrl.js` to avoid leaking staging hosts.
+Secrets belong in `.env.local` (at the monorepo root, symlinked into every app) and never in Git; each app's non-secret local URL lives in its committed `.env.development`. Redact example values before attaching logs. Rotating `BETTER_AUTH_SECRET` signs every site user out; rotating `BACKEND_SESSION_SECRET` invalidates pending admin sign-in codes, and removing an email from `BACKEND_ADMIN_EMAILS` revokes that admin immediately. Database migrations should be reviewed because `db:push` can overwrite dev data—prefer `db:migrate` for anything shared. Every site shares one database: scope queries by the request's tenant and never trust a tenant id supplied by the client.
 
 ## Adding New Packages
 
@@ -141,4 +149,15 @@ To add a new shared package:
 2. Add `tsconfig.json` extending the root config
 3. Export from `src/index.ts`
 4. Add as dependency in consuming apps: `"@repo/your-package": "workspace:*"`
-5. Add path alias in consuming app's `tsconfig.json` if needed for IDE support
+5. Add path aliases in every consuming app's `tsconfig.json` (`apps/backend`,
+   each `sites/*`, and `packages/site-kit` if it imports the package)
+
+## Adding a New Site
+
+1. Copy `sites/com.site-b` to `sites/<folder>`; set the package name, dev port
+   (`package.json`), local URL (`.env.development`), and `src/site.config.ts`
+   (tenant, domain, public pages, agent markdown, MCP toolsets).
+2. Adjust branding in `src/app/globals.css` and the site-owned pages.
+3. `bun install && bun run sites:sync`, then `bun run db:seed:sites`.
+4. Add a `dev:<name>` root script and a deploy matrix entry in
+   `.github/workflows/deploy-vercel*.yml`.

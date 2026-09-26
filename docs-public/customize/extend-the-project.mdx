@@ -7,7 +7,10 @@ description: Add product behavior while preserving package boundaries.
 
 ## Put behavior at the right boundary
 
-- Keep route-specific behavior in `sites/com.site-a`.
+- Add routes every site needs in `packages/site-kit/src/app`, then run
+  `bun run sites:sync`.
+- Keep site-specific pages and branding in that site's folder under `sites/`.
+- Put admin-only screens and APIs in `apps/backend`.
 - Move reusable domain behavior into a `packages/*` workspace package.
 - Keep database reads and writes behind `@repo/database` schemas/DALs.
 - Use the package entry points and exports instead of importing implementation
@@ -18,7 +21,7 @@ description: Add product behavior while preserving package boundaries.
 Run the focused app build and the relevant package checks:
 
 ```bash
-bun run --filter com.site-a build
+bun run --filter com.site-a build   # or @repo/backend, com.site-b
 bun run lint
 bun run format:check
 bun run check:dead-code

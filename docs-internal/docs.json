@@ -16,6 +16,8 @@
           "index",
           "coverage",
           "architecture/system-overview",
+          "architecture/multi-site",
+          "architecture/backend-admin",
           "architecture/authentication",
           "architecture/data-and-tenancy",
           "architecture/search",

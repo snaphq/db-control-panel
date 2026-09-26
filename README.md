@@ -33,20 +33,19 @@ A full-stack Next.js app with the App Router, TypeScript, Better Auth, PostgreSQ
 ```
 .
 ├── apps/
-│   └── next-app/                 # Next.js 16 application
-│       ├── src/                  # App source code
-│       │   ├── app/              # Next.js App Router
-│       │   ├── components/       # React components
-│       │   ├── lib/              # Core utilities
-│       │   └── ...
-│       ├── public/               # Static assets
-│       ├── content/              # Blog MDX content
-│       └── ...
+│   └── backend/                  # Admin portal for every site (port 8800)
+│
+├── sites/                        # One Next.js 16 app per tenant site
+│   ├── com.site-a/               # First site (port 8801): config, brand, pages, blog
+│   └── com.site-b/               # Second site (port 8802)
 │
 ├── docs-public/                  # Public, task-oriented Mintlify docs
 ├── docs-internal/                # Private developer and agent Mintlify docs
 │
 ├── packages/
+│   ├── site-kit/                 # Routes, proxy, and layout shared by every site
+│   ├── core/                     # Shared server logic
+│   ├── ui/                       # Shared React components and theme
 │   ├── ai/                       # OpenAI-compatible model helpers
 │   ├── analytics/                # PostHog/Vercel analytics
 │   ├── auth/                     # Better Auth wrapper (@repo/auth)
@@ -54,17 +53,15 @@ A full-stack Next.js app with the App Router, TypeScript, Better Auth, PostgreSQ
 │   ├── database/                 # Drizzle schemas and DALs
 │   ├── durable-exec/             # Inngest and SEO/AIEO jobs
 │   ├── mcp-chatgpt/              # MCP context and logging
-│   ├── mcp-server/               # MCP tool registration
-│   └── object-storage/            # Vercel Blob/S3 providers
+│   ├── mcp-server/               # MCP tools and per-site toolsets
+│   └── object-storage/           # Vercel Blob/S3 providers
 │
-├── scripts/                      # Ongoing scripts (seed, checks, integrations)
-│   ├── seed-admin.ts             # Seed admin user
-│   └── ...
+├── scripts/                      # Ongoing scripts (seed, checks, site route sync)
 │
 ├── turbo.json                    # Turborepo config
 ├── package.json                  # Root workspace
 ├── biome.json                    # Linting/formatting
-└── .env.local                    # Environment variables
+└── .env.local                    # Shared secrets (linked into every app)
 ```
 
 ## Tech Stack
@@ -102,13 +99,15 @@ A full-stack Next.js app with the App Router, TypeScript, Better Auth, PostgreSQ
 2. **Configure environment**
 
    Copy `env.example` to `.env.local` at the repo root and fill in at least
-   `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, and
-   `BETTER_AUTH_URL`. See [Configure authentication](./docs-public/configure/authentication.mdx).
+   `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BACKEND_ADMIN_EMAILS`, and
+   `BACKEND_SESSION_SECRET`. Each app's local URL is already set in its
+   committed `.env.development`. See [Configure authentication](./docs-public/configure/authentication.mdx).
 
-3. **Push the database schema and seed the admin user**
+3. **Push the database schema and seed the tenants**
    ```bash
    bun run db:push
-   bun run db:seed
+   bun run db:seed        # default tenant + its site admin
+   bun run db:seed:sites  # one tenant per site
    ```
 
 4. **Start the dev server**
@@ -116,7 +115,8 @@ A full-stack Next.js app with the App Router, TypeScript, Better Auth, PostgreSQ
    bun run dev
    ```
 
-   Then open http://localhost:8801.
+   Then open the admin portal at http://localhost:8800 and the sites at
+   http://localhost:8801 and http://localhost:8802.
 
 ## Available Scripts
 
@@ -125,6 +125,7 @@ A full-stack Next.js app with the App Router, TypeScript, Better Auth, PostgreSQ
 | Command | Description |
 |---------|-------------|
 | `bun run dev` | Start all dev servers with TUI sidebar |
+| `bun run dev:backend` / `dev:site-a` / `dev:site-b` | Start one app |
 | `bun run build` | Build all packages and apps |
 | `bun run start` | Start production server |
 | `bun run lint` | Run Biome linter |
@@ -134,7 +135,9 @@ A full-stack Next.js app with the App Router, TypeScript, Better Auth, PostgreSQ
 | `bun run db:migrate` | Apply migrations |
 | `bun run db:push` | Push schema to database |
 | `bun run db:studio` | Open Drizzle Studio GUI |
-| `bun run db:seed` | Seed admin user |
+| `bun run db:seed` | Seed the default tenant and its site admin |
+| `bun run db:seed:sites` | Create or update one tenant per site |
+| `bun run sites:sync` | Regenerate site route shims from `packages/site-kit` |
 | `bun run docs:public` | Preview public Mintlify documentation |
 | `bun run docs:internal` | Preview internal Mintlify documentation |
 | `bun run docs:public:validate` | Validate public documentation links |
@@ -146,7 +149,7 @@ A full-stack Next.js app with the App Router, TypeScript, Better Auth, PostgreSQ
 ### Filtering to specific packages
 
 ```bash
-# Run dev only for next-app
+# Run dev for one site only
 bun run --filter com.site-a dev
 
 # Run db commands in database package
@@ -188,10 +191,13 @@ bun run db:migrate
 
 ```env
 DATABASE_URL=postgresql://user:password@host/db
-NEXT_PUBLIC_APP_URL=http://localhost:8801
-BETTER_AUTH_SECRET=   # openssl rand -base64 32
-BETTER_AUTH_URL=http://localhost:8801
+BETTER_AUTH_SECRET=       # openssl rand -base64 32
+BACKEND_ADMIN_EMAILS=you@example.com
+BACKEND_SESSION_SECRET=   # openssl rand -base64 32
 ```
+
+`NEXT_PUBLIC_APP_URL` and `BETTER_AUTH_URL` are per app: set them in each
+app's `.env.development` locally and in each Vercel project in production.
 
 ## Development Guidelines
 
@@ -225,9 +231,10 @@ mkdir -p packages/my-package/src
 
 This project includes ChatGPT Apps SDK support for running inside ChatGPT.
 
-1. Deploy to Vercel
-2. Connect via MCP: `https://your-app.vercel.app/mcp`
-3. Test with "Show me the content" in ChatGPT
+1. Deploy a site to Vercel
+2. Connect via MCP: `https://<site-domain>/mcp` (each site chooses its own
+   toolsets in `src/site.config.ts`)
+3. Test with "Show me the content" in ChatGPT (site A exposes the content tool)
 
 See [MCP integration](./docs-public/integrate/mcp.mdx) and
 [agent authentication](./docs-public/integrate/agent-auth.mdx) for details.
@@ -236,7 +243,13 @@ See [MCP integration](./docs-public/integrate/mcp.mdx) and
 
 ### Vercel
 
-The root [`vercel.json`](vercel.json) configures monorepo deployment (build/install/output). Scheduled jobs (billing, SEO) run via **Inngest** — see `@repo/durable-exec` and `/api/inngest`; do not use Vercel Cron.
+Each app is its own Vercel project, deployed by the GitHub Actions matrix in
+`.github/workflows/deploy-vercel.yml`. The root [`vercel.json`](vercel.json)
+builds `sites/com.site-a` from the repository root; `apps/backend` and
+`sites/com.site-b` carry their own `vercel.json` and use their folder as the
+project Root Directory. Stripe webhooks (`/api/webhooks/stripe`) and scheduled
+jobs via **Inngest** (`/api/inngest`, see `@repo/durable-exec`) run on the
+backend; do not use Vercel Cron.
 
 ```json
 {
@@ -250,8 +263,13 @@ The root [`vercel.json`](vercel.json) configures monorepo deployment (build/inst
 ### Docker
 
 ```bash
-docker build -t app .
-docker run -p 8801:8801 --env-file .env.local app
+# Site A (defaults)
+docker build -t site-a .
+docker run -p 8801:8801 --env-file .env.local site-a
+
+# Any other app
+docker build -t backend --build-arg APP_DIR=apps/backend \
+  --build-arg APP_PACKAGE=@repo/backend --build-arg PORT=8800 .
 ```
 
 ## Troubleshooting
@@ -273,7 +291,7 @@ bun run build
 
 ### Cache Issues
 ```bash
-rm -rf .turbo node_modules apps/*/node_modules packages/*/node_modules
+rm -rf .turbo node_modules apps/*/node_modules sites/*/node_modules packages/*/node_modules
 bun install
 ```
 

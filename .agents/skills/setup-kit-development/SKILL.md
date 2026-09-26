@@ -13,7 +13,15 @@ here.
 
 ## Day-to-day development
 
-- `bun run dev` works normally (there is no dev guard).
+- `bun run dev` works normally (there is no dev guard); it starts the admin
+  portal (`apps/backend`, 8800) and both sites (`sites/com.site-a` 8801,
+  `sites/com.site-b` 8802). `bun run dev:backend|dev:site-a|dev:site-b` start
+  one app.
+- Shared site routes live in `packages/site-kit/src/app`. After adding or
+  removing one, or changing its exports, run `bun run sites:sync`; the
+  pre-commit hook fails on stale shims.
+- Keep `sites/com.site-a` and `sites/com.site-b` as placeholder names in the
+  template; users rename them during setup with `rename-site.ts`.
 - Write docs, README, `env.example`, `AGENTS.md`, and `CLAUDE.md` for the
   **finished** project: Better Auth only, no setup steps, no "starter kit"
   wording. Setup knowledge belongs in `SETUP.md` and `setup*` skills only.

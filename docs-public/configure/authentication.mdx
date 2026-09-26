@@ -1,6 +1,6 @@
 ---
 title: Configure authentication
-description: Configure Better Auth secrets, social sign-in, passkeys, and admin access.
+description: Configure site sign-in, social providers, passkeys, and admin portal access.
 ---
 
 # Configure authentication
@@ -15,9 +15,9 @@ Set these in `.env.local` and in your deployment environment:
 
 | Variable | Purpose |
 | --- | --- |
-| `BETTER_AUTH_SECRET` | Signs sessions. Generate with `openssl rand -base64 32`. |
-| `BETTER_AUTH_URL` | Public base URL of the app, for example `http://localhost:8801`. |
-| `NEXT_PUBLIC_APP_URL` | Same base URL, exposed to the browser. |
+| `BETTER_AUTH_SECRET` | Signs sessions on every site. Generate with `openssl rand -base64 32`. |
+| `BETTER_AUTH_URL` | Public base URL of the site, for example `http://localhost:8801`. Per site: set it in the site's `.env.development` locally and in its Vercel project. |
+| `NEXT_PUBLIC_APP_URL` | Same base URL, exposed to the browser (per site, like `BETTER_AUTH_URL`). |
 
 Rotating `BETTER_AUTH_SECRET` signs every user out.
 
@@ -26,9 +26,9 @@ Rotating `BETTER_AUTH_SECRET` signs every user out.
 Google and GitHub sign-in turn on when both values of a pair are set:
 
 - Google: `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`. Redirect URI:
-  `<app-url>/api/auth/callback/google`.
+  `<site-url>/api/auth/callback/google` (add one per site).
 - GitHub: `NEXT_PUBLIC_GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`. Redirect URI:
-  `<app-url>/api/auth/callback/github`.
+  `<site-url>/api/auth/callback/github` (add one per site).
 
 ## Passkeys
 
@@ -36,7 +36,20 @@ Set `PASSKEY_RP_ID` to the domain users sign in on (for example
 `app.example.com`). It must match the deployed domain or passkey registration
 fails.
 
-## Admin access
+## Admin portal access
+
+The admin portal (`apps/backend`) has its own sign-in, separate from the
+sites:
+
+| Variable | Purpose |
+| --- | --- |
+| `BACKEND_ADMIN_EMAILS` | Comma-separated emails allowed to sign in. Removing an email revokes access immediately. |
+| `BACKEND_SESSION_SECRET` | Protects emailed sign-in codes. Generate with `openssl rand -base64 32`. |
+
+Admins sign in at `/login` with a 6-digit code sent by email (Resend). In
+production, configure `RESEND_API_KEY`; codes are never printed there.
+
+## Site admins
 
 - `ADMIN_EMAIL_DOMAINS`: comma-separated domains whose users become site
   admins.

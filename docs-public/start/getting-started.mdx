@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Install dependencies, configure the environment, and run the app locally.
+description: Install dependencies, configure the environment, and run the admin portal and sites locally.
 ---
 
 # Getting started
@@ -19,32 +19,40 @@ bun install
 cp env.example .env.local
 ```
 
-Fill in at least `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`,
-and `BETTER_AUTH_URL` in the root `.env.local`. `env.example` lists every
-variable; see [Configure authentication](../configure/authentication) for the
-auth values. Never commit real values.
+Fill in at least `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BACKEND_ADMIN_EMAILS`
+(who may sign in to the admin portal), and `BACKEND_SESSION_SECRET` in the
+root `.env.local`. Each app's local URL is already set in its committed
+`.env.development`. `env.example` lists every variable; see
+[Configure authentication](../configure/authentication) for the auth values.
+Never commit real values.
 
 ## Prepare the database
 
-For local development, push the schema and create the admin user:
+For local development, push the schema, create the default tenant and its
+site admin, then create one tenant per site:
 
 ```bash
 bun run db:push
 bun run db:seed
+bun run db:seed:sites
 ```
 
 Use reviewed migrations (`bun run db:generate` followed by
 `bun run db:migrate`) for shared environments.
 
-## Run the app
+## Run the apps
 
 ```bash
 bun run dev
 ```
 
-The Next.js app listens on port `8801` by default. To run only the app without
-the Turborepo TUI, use:
+| App | URL |
+| --- | --- |
+| Admin portal (`apps/backend`) | http://localhost:8800 |
+| Site A (`sites/com.site-a`) | http://localhost:8801 |
+| Site B (`sites/com.site-b`) | http://localhost:8802 |
 
-```bash
-bun run --filter com.site-a dev
-```
+To run one app without the Turborepo TUI, use `bun run dev:backend`,
+`bun run dev:site-a`, or `bun run dev:site-b`. Sign in to the admin portal
+with an email from `BACKEND_ADMIN_EMAILS`; until email delivery is configured,
+the sign-in code prints in the backend's terminal.

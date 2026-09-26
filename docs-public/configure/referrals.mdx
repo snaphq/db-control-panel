@@ -23,7 +23,8 @@ commission, or affiliate/partner tracking.
 
 ## Configure rewards
 
-Edit the settings in the admin UI at `/adminx/referrals` under **Settings**.
+Edit the settings in the admin portal (`apps/backend`) at `/referrals` under
+**Settings**.
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
@@ -63,7 +64,7 @@ recipient role so duplicate webhook deliveries cannot double-credit.
 
 ## Admin operations
 
-`/adminx/referrals` has four tabs:
+The admin portal's `/referrals` page has four tabs:
 
 - **Codes** — search codes and activate or deactivate them.
 - **Referrals** — track each referrer/referee pair and its status.
@@ -86,8 +87,8 @@ applied credits.
 | Area | Path |
 | --- | --- |
 | Referral domain logic | `packages/billing/src/referrals` |
-| Share link | `sites/com.site-a/src/app/r/[code]/route.ts` |
-| Referral APIs | `sites/com.site-a/src/app/api/referral` |
+| Share link | `packages/site-kit/src/app/r/[code]/route.ts` |
+| Referral APIs | `packages/site-kit/src/app/api/referral` |
 | Admin APIs | `apps/backend/src/app/api/admin/referrals` |
 | Stripe hooks | `apps/backend/src/app/api/webhooks/stripe/route.ts` |
 | User and admin UI | `packages/ui/src/components/referrals`, `apps/backend/src/components/admin/referrals` |

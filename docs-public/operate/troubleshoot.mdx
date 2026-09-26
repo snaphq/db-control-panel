@@ -13,8 +13,12 @@ shared environments.
 
 ## Sign-in fails or sessions do not persist
 
-Confirm `BETTER_AUTH_SECRET` is set and `BETTER_AUTH_URL` matches the URL you
-open in the browser, including the port. For passkeys, `PASSKEY_RP_ID` must
+Confirm `BETTER_AUTH_SECRET` is set and the site's `BETTER_AUTH_URL` (in its
+`.env.development` or Vercel project) matches the URL you open in the browser,
+including the port. Do not set `BETTER_AUTH_URL` or `NEXT_PUBLIC_APP_URL` in
+the root `.env.local`: it overrides every site. If admin portal sign-in never
+arrives, check `BACKEND_ADMIN_EMAILS` and, locally, the backend's terminal for
+the code. For passkeys, `PASSKEY_RP_ID` must
 match the domain. See [Configure authentication](../configure/authentication).
 
 ## A package or build check fails

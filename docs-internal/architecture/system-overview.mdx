@@ -1,37 +1,52 @@
 ---
 title: System overview
-description: How the Next.js app, workspace packages, and external services fit together.
+description: How the admin portal, tenant sites, shared packages, and external services fit together.
 ---
 
 # System overview
 
-The repository is a Bun workspace/Turborepo monorepo. `sites/com.site-a` owns the
-HTTP and UI surface. Reusable server/domain behavior is split into `packages/*`
-and consumed through workspace exports.
+The repository is a Bun workspace/Turborepo monorepo with three kinds of
+workspace:
 
-## Request path
+| Workspace | Role |
+| --- | --- |
+| `apps/backend` | Platform admin portal for every site, plus platform ingress (Stripe webhooks, Inngest) and the admin MCP endpoint. See [Backend admin portal](/architecture/backend-admin). |
+| `sites/*` | One Next.js app per tenant site (`sites/com.site-a`, `sites/com.site-b`). Each owns its identity, branding, and marketing/legal pages. See [Multi-site architecture](/architecture/multi-site). |
+| `packages/*` | Shared code: routes and layout for every site (`site-kit`), server logic (`core`), React UI and theme (`ui`), and domain/integration packages (`auth`, `database`, `billing`, `mcp-server`, …). |
 
-1. Next.js resolves an App Router page or `route.ts` under
-   `sites/com.site-a/src/app`.
-2. `sites/com.site-a/src/proxy.ts` handles cross-cutting request policy where
-   applicable. Next.js 16 uses the `proxy.ts` convention; do not add a
-   production `middleware.ts`.
-3. Route handlers call package APIs, authentication helpers, and database/DAL
-   functions. UI server components should keep data access on the server;
-   client components are used only where browser state or interaction requires
-   them.
+All workspaces share one PostgreSQL database. Each site serves one tenant;
+tenant-owned rows carry a tenant key and every request resolves its tenant
+before it reads or writes.
+
+## Request path (site)
+
+1. Next.js resolves a route in `sites/<site>/src/app`. Shared routes there are
+   generated shims that re-export `packages/site-kit/src/app/…`.
+2. `sites/<site>/src/proxy.ts` re-exports the shared proxy
+   (`packages/site-kit/src/proxy.ts`): tenant resolution from the Host header,
+   auth gates for the dashboard, markdown negotiation, and CORS. Next.js 16
+   uses the `proxy.ts` convention; do not add a production `middleware.ts`.
+3. Route handlers call `@repo/core`, `@repo/auth`, and database/DAL functions.
+   UI server components keep data access on the server.
 4. External services (PostgreSQL, Stripe, PostHog, Inngest, provider APIs,
-   storage, and MCP clients) are reached through the owning package or adapter.
+   storage, and MCP clients) are reached through the owning package.
 
 ## Ownership map
 
 | Layer | Owns | Examples |
 | --- | --- | --- |
-| App routes/UI | URL contracts, auth gates, composition | `sites/com.site-a/src/app`, `src/components` |
-| App libraries | request adapters and app-specific policy | `src/lib`, `src/providers` |
-| Shared packages | reusable domain and integration contracts | `packages/auth`, `billing`, `database`, `analytics` |
-| Scripts | seeds, checks, migration/integration utilities | `scripts/` |
+| Site-owned files | identity, branding, landing/legal pages, blog content | `sites/<site>/src/site.config.ts`, `src/app/page.tsx`, `content/blog` |
+| Shared site routes | URL contracts, auth gates, composition for every site | `packages/site-kit/src/app`, `src/proxy.ts`, `src/root-layout.tsx` |
+| Admin portal | platform administration and ingress | `apps/backend/src/app` |
+| Shared logic and UI | request adapters, domain policy, components | `packages/core`, `packages/ui` |
+| Domain packages | reusable domain and integration contracts | `packages/auth`, `billing`, `database`, `analytics`, `mcp-server` |
+| Scripts | seeds, checks, route shim sync | `scripts/` |
 
-Use the separately published `docs-public/customize/project-structure` page
-for the user-facing overview and the package pages in this site for
-implementation contracts.
+Dependency direction is one way: apps and sites import packages; `site-kit`
+imports `ui` and `core`; `ui` imports `core`; packages never import from
+apps or sites. Shared routes reach site-owned modules only through the
+`@site/*` alias.
+
+Use the published `docs-public/customize/project-structure` page for the
+user-facing overview and the package pages in this site for implementation
+contracts.

@@ -1,35 +1,54 @@
 ---
 title: Deployment and runtime
-description: Vercel, Docker, runtime URLs, proxy behavior, and external docs hosting.
+description: One Vercel project per app, Docker builds, runtime URLs, and post-deploy checks.
 ---
 
 # Deployment and runtime
 
-The Next.js app is built from `sites/com.site-a` through the root Turborepo
-commands. `sites/com.site-a/next.config.ts` configures the Next.js build and
-external package behavior; `sites/com.site-a/src/proxy.ts` is the Next.js 16
-request interception entry point.
+Each deployable is its own app and its own Vercel project: `apps/backend`
+and every `sites/*`. Deployment runs only through GitHub Actions
+(`.github/workflows/deploy-vercel.yml` on pushes to `main`,
+`deploy-vercel-preview.yml` for pull requests), as a matrix with one entry per
+app. An entry is skipped until its project id is configured.
 
 ## Vercel
 
-`vercel.json` defines install/build/output behavior. Set the required runtime
-environment variables in the project and configure Inngest separately for
-durable functions. Preview and production URLs feed the shared `site-config`
-base-URL helper, which is used by discovery metadata and agent credentials.
+| App | Root Directory | Config | Project id variable |
+| --- | --- | --- | --- |
+| `sites/com.site-a` | repository root | root `vercel.json` (`--filter=com.site-a`, output `sites/com.site-a/.next`) | `VERCEL_PROJECT_ID_SITE_A` |
+| `sites/com.site-b` | `sites/com.site-b` | `sites/com.site-b/vercel.json` | `VERCEL_PROJECT_ID_SITE_B` |
+| `apps/backend` | `apps/backend` | `apps/backend/vercel.json` | `VERCEL_PROJECT_ID_BACKEND` |
+
+`VERCEL_ORG_ID` and the project-id variables are repository variables;
+`VERCEL_TOKEN` is a secret. Each project needs its own runtime variables,
+including its public URL (`NEXT_PUBLIC_APP_URL`, and `BETTER_AUTH_URL` for
+sites) and each site's production domain (which must match
+`site.config.ts` → `tenant_domain`). Preview and production URLs feed the
+shared `site-config` base-URL helper used by discovery metadata and agent
+credentials.
+
+Stripe webhooks and Inngest run on the backend: point Stripe at
+`https://<backend>/api/webhooks/stripe` and sync Inngest with
+`https://<backend>/api/inngest`. Sites only send Inngest events.
 
 ## Docker
 
-The root `Dockerfile` packages the app. Apply database migrations separately,
-provide runtime variables through the deployment secret store, and expose the
-port expected by the app (`8801` by default in development).
+The root `Dockerfile` builds one app per image, selected with build args
+(`APP_DIR`, `APP_PACKAGE`, `PORT`; defaults build `sites/com.site-a` on
+8801). Apply database migrations separately and provide runtime variables
+through the deployment secret store.
 
 ## Documentation sites
 
 If Mintlify hosts `docs-public/` and `docs-internal/` separately, confirm the
-internal site's access control before publishing. If `/docs` remains in the
-Next.js app, it must load the public source tree rather than a forked copy.
+internal site's access control before publishing. The `/docs` route every
+site serves loads `docs-public/` through the site's fumadocs source rather
+than a forked copy.
 
 ## Post-deploy checks
 
-Check `/status`, `/robots.txt`, `/sitemap.xml`, `/auth.md`, OAuth/OIDC metadata,
-JWKS, the MCP server card, and `/mcp` with the intended authentication state.
+On each site: `/status`, `/robots.txt`, `/sitemap.xml`, `/auth.md`,
+OAuth/OIDC metadata, JWKS, the MCP server card, and `/mcp` with the intended
+authentication state. On the backend: `/login` renders, `/dashboard` redirects
+to `/login` when signed out, `/api/admin/*` returns 401 without a session,
+and `/mcp` without `?tenant=` returns 400.

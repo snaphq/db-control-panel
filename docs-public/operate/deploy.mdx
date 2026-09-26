@@ -1,27 +1,41 @@
 ---
 title: Deploy
-description: Prepare the Next.js app and its external services for deployment.
+description: Deploy the admin portal and each site, and connect their external services.
 ---
 
 # Deploy
 
 ## Vercel
 
-Set the selected auth, database, and optional integration variables in the
-Vercel project. Use the repository's `vercel.json` build/install settings and
-deploy the `sites/com.site-a` output produced by the root build.
+Each app is its own Vercel project, deployed by the repository's GitHub
+Actions workflow:
 
-Scheduled billing and SEO work is handled through Inngest; configure its
-production signing/event values when those jobs are enabled.
+| App | Project Root Directory |
+| --- | --- |
+| `sites/com.site-a` | repository root (root `vercel.json`) |
+| `sites/com.site-b` | `sites/com.site-b` |
+| `apps/backend` | `apps/backend` |
+
+Set the database, auth, and optional integration variables in every project,
+plus that app's own public URL (`NEXT_PUBLIC_APP_URL`, and `BETTER_AUTH_URL`
+for sites). Point each site's domain at its project; the domain must match
+`domain` in the site's `src/site.config.ts`.
+
+Stripe webhooks and scheduled billing and SEO work run on the admin portal:
+use `https://<admin-domain>/api/webhooks/stripe` as the Stripe webhook URL
+and sync Inngest with `https://<admin-domain>/api/inngest`.
 
 ## Containers
 
-The repository includes a `Dockerfile`. Provide runtime environment variables
-to the container and expose the application port used by the deployment. Run
+The repository includes a `Dockerfile` that builds one app per image; choose
+it with `--build-arg APP_DIR=… --build-arg APP_PACKAGE=… --build-arg PORT=…`
+(the defaults build site A). Provide runtime environment variables to the
+container and expose the application port used by the deployment. Run
 the same database migration commands separately before serving traffic.
 
 ## After deployment
 
-Check `/status`, `/robots.txt`, the OAuth discovery documents, and `/mcp` with
-the intended authentication state. Do not use live secrets in smoke-test logs
+On each site, check `/status`, `/robots.txt`, the OAuth discovery documents,
+and `/mcp` with the intended authentication state. On the admin portal, check
+that `/login` loads and that admin pages redirect there when signed out. Do not use live secrets in smoke-test logs
 or documentation examples.

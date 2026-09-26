@@ -21,7 +21,7 @@ key to a custom OpenAI-compatible endpoint.
 The current providers are Vercel Blob and an S3-compatible implementation. The
 interface covers upload, list, signed access, metadata, and ACL options.
 
-App routes under `sites/com.site-a/src/app/api/storage` and integration code should
+App routes under `packages/site-kit/src/app/api/storage` and integration code should
 not depend on provider-specific return shapes. Provider selection and keys are
 configuration concerns: with no `OBJECT_STORAGE_PROVIDER` set, the storage
 page shows a "not configured" state and the routes return errors.

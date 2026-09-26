@@ -7,7 +7,7 @@ description: Configure the referral program's reward settings during initial pro
 
 Referrals pay out as Stripe customer balance credits, so finish
 `setup-stripe` first. Settings live in the `referral_config` table and can
-also be changed later in the admin UI at `/adminx/referrals`.
+also be changed later in the admin portal (`apps/backend`) at `/referrals`.
 
 ## 1. Prerequisites
 
@@ -30,9 +30,9 @@ Ask the user for:
 
 Either the user runs the interactive wizard in their terminal (in Claude
 Code: `! bun .agents/skills/setup-referral/scripts/setup-referral.ts`), or
-they sign in as a site admin and set the values at `/adminx/referrals` →
+they sign in to the admin portal (`apps/backend`) and set the values at `/referrals` →
 **Settings**. Both write the same row.
 
 ## 4. Verify
 
-Open `/adminx/referrals` and confirm the settings show the chosen values.
+Open `/referrals` in the admin portal and confirm the settings show the chosen values.

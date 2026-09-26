@@ -5,8 +5,9 @@ description: A task-oriented guide to running, configuring, and extending the ap
 
 # Overview
 
-This is a Turborepo monorepo for a full-stack Next.js application with Bun
-workspaces, Better Auth, PostgreSQL, Drizzle, and shared domain packages.
+This is a Turborepo monorepo for a multi-site SaaS: several branded Next.js
+sites that share one platform, plus an admin portal for all of them. It uses
+Bun workspaces, Better Auth, PostgreSQL, Drizzle, and shared domain packages.
 
 Start with [Getting started](/start/getting-started), then configure
 [authentication](/configure/authentication) and the
@@ -15,7 +16,9 @@ Start with [Getting started](/start/getting-started), then configure
 
 ## What is included
 
-- Next.js 16 App Router application in `sites/com.site-a`.
+- Two Next.js 16 tenant sites in `sites/` (each with its own brand, domain,
+  tenant, and MCP server) built from one shared route tree.
+- An admin portal in `apps/backend` for platform administrators.
 - Shared packages for auth, billing, analytics, database, durable execution,
   AI, MCP, and object storage.
 - Better Auth with organizations, two-factor auth, passkeys, and an OAuth

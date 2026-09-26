@@ -21,10 +21,12 @@ Inspect local data with:
 bun run db:studio
 ```
 
-Seed an initial admin user when needed:
+Seed the default tenant and its first site admin, then one tenant per site
+(from each `sites/*/src/site.config.ts`):
 
 ```bash
 bun run db:seed
+bun run db:seed:sites
 ```
 
 ## Apply shared-environment changes

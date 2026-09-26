@@ -79,7 +79,7 @@ export function printSummary(result: SetupResult, isLiveMode: boolean) {
     `    1. ${colors.cyan}bun run dev${colors.reset}              - Start development server`,
   );
   console.log(
-    `    2. Visit ${colors.cyan}/adminx/stripe/products${colors.reset} - Manage products & pricing`,
+    `    2. Visit ${colors.cyan}/stripe/products${colors.reset} in the admin portal - Manage products & pricing`,
   );
 
   if (!result.webhookConfigured) {

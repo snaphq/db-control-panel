@@ -14,7 +14,21 @@ notes.
 ## Running the dev server
 
 - `bun run dev` — `turbo run dev` across every workspace (TUI)
-- `bun run --filter com.site-a dev` — just the Next.js app (port 8801)
+- `bun run dev:backend` — admin portal only (`apps/backend`, port 8800)
+- `bun run dev:site-a` / `bun run dev:site-b` — one tenant site
+  (`sites/com.site-a` on 8801, `sites/com.site-b` on 8802)
+
+## Apps and sites
+
+- `apps/backend` is the platform admin portal. It has its own sign-in
+  (`BACKEND_ADMIN_EMAILS` + emailed code) and hosts Stripe webhooks, Inngest,
+  and the admin MCP endpoint (`/mcp?tenant=<id>`).
+- `sites/*` are tenant sites. Shared routes live in `packages/site-kit/src/app`;
+  each site keeps generated one-line shims (`bun run sites:sync`, checked by
+  `bun run check:site-routes` in pre-commit) plus its own `site.config.ts`,
+  branding, and landing/legal pages. Edit shared routes in site-kit, never the
+  generated shims; a site overrides a route by committing its own file there.
+- Shared logic is in `packages/core`, shared React in `packages/ui`.
 
 ## Repo conventions
 

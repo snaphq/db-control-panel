@@ -380,7 +380,7 @@ function printSummary(result: SetupResult) {
     `    2. ${colors.cyan}bun run dev${colors.reset}               - Start development server`,
   );
   console.log(
-    `    3. Visit ${colors.cyan}/adminx/referrals${colors.reset}    - Manage referrals in admin panel`,
+    `    3. Visit ${colors.cyan}/referrals${colors.reset} in the admin portal (apps/backend) - Manage referrals`,
   );
   console.log(
     `    4. Visit ${colors.cyan}/dashboard/.../referrals${colors.reset} - User referral dashboard`,

@@ -5,7 +5,40 @@
       "id": "system-overview",
       "page": "architecture/system-overview.mdx",
       "visibility": "internal",
-      "sources": ["sites/com.site-a/src", "sites/com.site-a/package.json"]
+      "sources": [
+        "apps/backend/package.json",
+        "sites/com.site-a/package.json",
+        "sites/com.site-b/package.json",
+        "packages/site-kit/src",
+        "packages/core/src",
+        "packages/ui/src"
+      ]
+    },
+    {
+      "id": "multi-site",
+      "page": "architecture/multi-site.mdx",
+      "visibility": "internal",
+      "sources": [
+        "sites/com.site-a/src/site.config.ts",
+        "sites/com.site-b/src/site.config.ts",
+        "packages/site-kit/src/site-config.ts",
+        "packages/site-kit/src/root-layout.tsx",
+        "scripts/sync-site-routes.ts",
+        "scripts/seed-site-tenants.ts",
+        "packages/mcp-server/src/site-tools.ts"
+      ]
+    },
+    {
+      "id": "backend-admin",
+      "page": "architecture/backend-admin.mdx",
+      "visibility": "internal",
+      "sources": [
+        "apps/backend/src/lib/admin-auth.ts",
+        "apps/backend/src/lib/admin-login.ts",
+        "apps/backend/src/proxy.ts",
+        "apps/backend/src/app/mcp/route.ts",
+        "packages/database/src/schema-admin.ts"
+      ]
     },
     {
       "id": "authentication",
@@ -14,7 +47,7 @@
       "sources": [
         "packages/auth/src",
         "packages/core/src/auth",
-        "sites/com.site-a/src/proxy.ts"
+        "packages/site-kit/src/proxy.ts"
       ]
     },
     {
@@ -38,9 +71,9 @@
       "visibility": "internal",
       "sources": [
         "packages/core/src/agent-auth",
-        "sites/com.site-a/src/app/auth.md",
-        "sites/com.site-a/src/app/agent",
-        "sites/com.site-a/src/app/oauth2",
+        "packages/site-kit/src/app/auth.md",
+        "packages/site-kit/src/app/agent",
+        "packages/site-kit/src/app/oauth2",
         "packages/database/src/schema-agent-auth.ts"
       ]
     },
@@ -51,8 +84,8 @@
       "sources": [
         "packages/mcp-chatgpt/src",
         "packages/mcp-server/src",
-        "sites/com.site-a/src/app/mcp",
-        "sites/com.site-a/src/app/.well-known"
+        "packages/site-kit/src/app/mcp",
+        "packages/site-kit/src/app/.well-known"
       ]
     },
     {
@@ -64,7 +97,7 @@
         "packages/core/src/auth/operator-token.ts",
         "packages/core/src/auth/operator-authorization.ts",
         "packages/core/src/operators",
-        "sites/com.site-a/src/app/api/account/operators",
+        "packages/site-kit/src/app/api/account/operators",
         "packages/ui/src/components/account/operators",
         "packages/mcp-chatgpt/src/logger.ts"
       ]
@@ -81,7 +114,7 @@
       "visibility": "internal",
       "sources": [
         "packages/billing/src",
-        "sites/com.site-a/src/app/api/billing"
+        "packages/site-kit/src/app/api/billing"
       ]
     },
     {
@@ -111,7 +144,7 @@
       "visibility": "internal",
       "sources": [
         "packages/core/src/integrations",
-        "sites/com.site-a/src/app/api/integrations"
+        "packages/site-kit/src/app/api/integrations"
       ]
     },
     {
@@ -155,7 +188,7 @@
       "page": "operations/observability-and-recovery.mdx",
       "visibility": "internal",
       "sources": [
-        "sites/com.site-a/src/app/status",
+        "packages/site-kit/src/app/status",
         "packages/analytics/src",
         "scripts"
       ]
@@ -183,8 +216,8 @@
       "page": "testing/agent-auth.mdx",
       "visibility": "internal",
       "sources": [
-        "sites/com.site-a/src/app/agent",
-        "sites/com.site-a/src/app/oauth2"
+        "packages/site-kit/src/app/agent",
+        "packages/site-kit/src/app/oauth2"
       ]
     },
     {
@@ -224,8 +257,8 @@
       "visibility": "public",
       "sources": [
         "packages/billing/src/referrals",
-        "sites/com.site-a/src/app/api/referral",
-        "sites/com.site-a/src/app/r",
+        "packages/site-kit/src/app/api/referral",
+        "packages/site-kit/src/app/r",
         "packages/ui/src/components/referrals",
         "apps/backend/src/components/admin/referrals",
         "packages/durable-exec/src/billing/functions/referral-window.ts",
@@ -252,9 +285,9 @@
       "page": "integrate/agent-auth.mdx",
       "visibility": "public",
       "sources": [
-        "sites/com.site-a/src/app/auth.md",
-        "sites/com.site-a/src/app/agent",
-        "sites/com.site-a/src/app/oauth2"
+        "packages/site-kit/src/app/auth.md",
+        "packages/site-kit/src/app/agent",
+        "packages/site-kit/src/app/oauth2"
       ]
     },
     {
@@ -262,7 +295,7 @@
       "site": "docs-public",
       "page": "integrate/mcp.mdx",
       "visibility": "public",
-      "sources": ["sites/com.site-a/src/app/mcp", "packages/mcp-server/src"]
+      "sources": ["packages/site-kit/src/app/mcp", "packages/mcp-server/src"]
     },
     {
       "id": "public-operators",
@@ -270,7 +303,7 @@
       "page": "integrate/operators.mdx",
       "visibility": "public",
       "sources": [
-        "sites/com.site-a/src/app/api/account/operators",
+        "packages/site-kit/src/app/api/account/operators",
         "packages/ui/src/components/account/operators"
       ]
     },

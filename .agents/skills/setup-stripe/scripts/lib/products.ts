@@ -122,7 +122,7 @@ async function createEnterpriseTier(
 
     printSuccess(`Created Enterprise tier: ${enterpriseProduct.id}`);
     console.log(
-      `    ${colors.dim}No default price - create custom prices per customer in adminx${colors.reset}`,
+      `    ${colors.dim}No default price - create custom prices per customer in the admin portal${colors.reset}`,
     );
 
     return {
@@ -149,7 +149,7 @@ export async function createDefaultProducts(
     `  ${colors.dim}Products are created with generic names (Tier 1, Tier 2, etc.).${colors.reset}`,
   );
   console.log(
-    `  ${colors.dim}You can rename them later in the admin portal: /adminx/stripe/products${colors.reset}`,
+    `  ${colors.dim}You can rename them later in the admin portal: /stripe/products${colors.reset}`,
   );
   console.log("");
 
@@ -161,7 +161,7 @@ export async function createDefaultProducts(
   if (!shouldCreateProducts) {
     printWarning("Product creation skipped");
     printInfo(
-      `You can create products later in the admin portal: ${colors.cyan}/adminx/stripe/products${colors.reset}`,
+      `You can create products later in the admin portal: ${colors.cyan}/stripe/products${colors.reset}`,
     );
     return [];
   }
@@ -193,7 +193,7 @@ export async function createDefaultProducts(
     `  ${colors.dim}Enterprise tier: For custom pricing via email/sales contact.${colors.reset}`,
   );
   console.log(
-    `  ${colors.dim}No price is attached - you create custom prices per customer in adminx.${colors.reset}`,
+    `  ${colors.dim}No price is attached - you create custom prices per customer in the admin portal.${colors.reset}`,
   );
 
   const createEnterprise = await confirm({
