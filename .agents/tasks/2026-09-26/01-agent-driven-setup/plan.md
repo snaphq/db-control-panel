@@ -1,8 +1,34 @@
 # Agent-driven setup (SETUP.md + `setup*` skills) plan
 
-**Status:** Planned — not started
+**Status:** Implemented (Phases 0–7) on `main`, 2026-09-26
 **Date:** 2026-09-26
 **Baseline:** local `main` at `d32ebe1`
+
+## Implementation notes and deviations
+
+- **Verified end-to-end:** a throwaway clone ran `rename-project.ts` then
+  `finalize.ts --ci` successfully: it removed 44 files, found no setup
+  leftovers and no new dead code, and docs coverage, lint and build all
+  passed.
+- **Optional features stay in the code (no per-feature deletion).** Tracing
+  showed that no optional service can be removed by deleting files alone: for
+  example, object storage also backs avatar upload in account settings, and
+  the old `teardown-object-storage.ts` would have broken the build. Each
+  service already has a "not configured" runtime state, so an unconfigured
+  service is inactive, not dead. The manifest therefore only has a
+  `delete` list of setup-only paths, and the CI job runs one configuration.
+- **Added `rename-project.ts`.** Template branding in app code (page titles,
+  MCP server names, Inngest id, default URLs) is replaced by the user's
+  name/slug/URL. Generic "starter template" wording was rewritten
+  permanently. Branding tokens are part of the leftover scan.
+- **fallow does not scan hidden directories**, so knip alone covers
+  `.agents/skills/*/scripts`. fallow is pinned as a root devDependency.
+  knip runs in CI only; it is not in a pre-push hook.
+- **Stripe/PostHog/referral wizards stay interactive**. Their skills
+  tell the agent to collect keys with `configure-env.ts` and have the user
+  run the wizard (`! bun …`); referral settings can also be set in the
+  admin UI. `setup-referral` now uses `@repo/database` instead of `pg`.
+- `.opencode/skills` was left unchanged. The `v0-setup-done` tag was dropped.
 
 ## Objective
 

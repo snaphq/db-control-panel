@@ -1,0 +1,67 @@
+# Template-only: proves a project created from this template can be set up
+# and finalized with no setup leftovers, dead code, or broken docs/build.
+# finalize.ts deletes this workflow when a project completes setup.
+name: Setup finalize
+
+on:
+  pull_request:
+    paths:
+      - 'SETUP.md'
+      - '.agents/skills/setup*/**'
+      - 'docs-public/**'
+      - 'docs-internal/**'
+      - 'apps/**'
+      - 'packages/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'knip.json'
+      - '.fallowrc.json'
+      - '.github/workflows/setup-finalize.yml'
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: setup-finalize-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  finalize:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Copy into a throwaway directory
+        run: |
+          rm -rf "$RUNNER_TEMP/app"
+          cp -a "$GITHUB_WORKSPACE/." "$RUNNER_TEMP/app"
+
+      - name: Install dependencies
+        working-directory: ${{ runner.temp }}/app
+        run: bun install --ignore-scripts
+
+      - name: Rename project
+        working-directory: ${{ runner.temp }}/app
+        run: bun .agents/skills/setup/scripts/rename-project.ts --name "CI App" --slug ci-app
+
+      - name: Finalize setup
+        working-directory: ${{ runner.temp }}/app
+        run: bun .agents/skills/setup/scripts/finalize.ts --ci
