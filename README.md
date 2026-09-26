@@ -147,7 +147,7 @@ A full-stack Next.js app with the App Router, TypeScript, Better Auth, PostgreSQ
 
 ```bash
 # Run dev only for next-app
-bun run --filter @repo/next-app dev
+bun run --filter com.site-a dev
 
 # Run db commands in database package
 bun run --filter @repo/database db:push
@@ -240,10 +240,10 @@ The root [`vercel.json`](vercel.json) configures monorepo deployment (build/inst
 
 ```json
 {
-  "buildCommand": "bun run build --filter=@repo/next-app",
+  "buildCommand": "bun run build --filter=com.site-a",
   "installCommand": "bun install",
   "framework": "nextjs",
-  "outputDirectory": "apps/next-app/.next"
+  "outputDirectory": "sites/com.site-a/.next"
 }
 ```
 

@@ -44,14 +44,14 @@ the sign-in/sign-up/reset/organization param and result types.
 | --- | --- |
 | `packages/auth/src/auth-instance.ts` | Plugins: `organization` (tenant-bound fields), `twoFactor`, `passkey`, `oidcProvider` (MCP OAuth), Google/GitHub social providers, email+password |
 | `packages/auth/src/tenant-binding.ts` | Tenant-bound Drizzle adapter wrapper |
-| `apps/next-app/src/app/api/auth/[...all]` | Better Auth catch-all handler |
-| `apps/next-app/src/app/api/auth/{sign-in,sign-up,sign-out,get-session,forgot-password,reset-password,organization}` | Wrappers over `baseServer` / Better Auth API |
-| `apps/next-app/src/app/auth/**` | Sign-in, sign-up, invitation, onboarding, reset, profile UI |
+| `sites/com.site-a/src/app/api/auth/[...all]` | Better Auth catch-all handler |
+| `sites/com.site-a/src/app/api/auth/{sign-in,sign-up,sign-out,get-session,forgot-password,reset-password,organization}` | Wrappers over `baseServer` / Better Auth API |
+| `sites/com.site-a/src/app/auth/**` | Sign-in, sign-up, invitation, onboarding, reset, profile UI |
 | `packages/core/src/auth/session-cookie.ts` | Hard-coded `better-auth.session_token` cookie names |
 | `packages/core/src/auth/oauth-route-*.ts`, `oauth-token.ts` | Session-cookie detection and OIDC route helpers |
-| `apps/next-app/src/proxy.ts` | Session check via `auth.api.getSession` |
+| `sites/com.site-a/src/proxy.ts` | Session check via `auth.api.getSession` |
 | `packages/core/src/auth-utils.ts` | `getSiteAdminStatus` (~55 importers) built on the session |
-| `apps/next-app/src/app/oauth2/*`, `.well-known/{oauth-authorization-server,openid-configuration,jwks.json,oauth-protected-resource}` | MCP OAuth/OIDC authorization server built on `oidcProvider` |
+| `sites/com.site-a/src/app/oauth2/*`, `.well-known/{oauth-authorization-server,openid-configuration,jwks.json,oauth-protected-resource}` | MCP OAuth/OIDC authorization server built on `oidcProvider` |
 | `packages/core/src/agent-auth/**`, `app/auth.md` | Agent registration protocol; uses the OIDC server above |
 | `packages/ui/src/components/account/authentication/*` | Passkey, two-factor, sign-in-method cards |
 | `packages/site-kit/src/__tests__/agent-readiness-protocol.test.ts` | Imports `better-auth` types |

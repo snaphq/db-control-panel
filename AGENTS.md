@@ -64,7 +64,7 @@ All commands use bun and are run from the monorepo root:
 Run commands for specific packages:
 
 ```bash
-bun run --filter @repo/next-app dev     # Run dev for Next.js app only
+bun run --filter com.site-a dev     # Run dev for Next.js app only
 bun run --filter @repo/database build   # Build database package only
 ```
 
@@ -76,7 +76,7 @@ bun run --filter @repo/database build   # Build database package only
 - Keep `/auth.md` generated from its route as the machine-readable agent
   contract; document its consumer and implementation views separately.
 - Do not add hand-maintained `docs/` or nested `*/docs/*` directories. The
-  existing `apps/next-app/src/app/docs/` route is an allowed generated mirror
+  existing `packages/site-kit/src/app/docs/` route is an allowed generated mirror
   of `docs-public/`; staged-path checks also ignore `.agents/**` and
   `.claude/**`, which hold executable agent instructions.
 - `README.md`, `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, and `LICENCE.md` are the
@@ -113,7 +113,7 @@ import { db } from "@repo/database";
 import { user, session, organization } from "@repo/database/schema";
 ```
 
-Path aliases in `apps/next-app/tsconfig.json`:
+Path aliases in `sites/com.site-a/tsconfig.json`:
 - `@/*` - Maps to `./src/*` for app-internal imports
 - `@repo/database` - Maps to the database package
 
@@ -123,7 +123,7 @@ TypeScript is required across the repo. Use two-space indentation, single quotes
 
 ## Testing Guidelines
 
-There is no formal automated test harness yet—document manual verification steps in each PR. When adding tests, colocate them with their modules (`feature.test.tsx`) or under `apps/next-app/src/tests`. Prefer Vitest + Testing Library for unit coverage and Playwright for flow tests so they can run inside CI without extra services. Keep test names declarative (`it('renders empty state when no invoices')`). Always run `bun run build` to ensure the app compiles before merging.
+There is no formal automated test harness yet—document manual verification steps in each PR. When adding tests, colocate them with their modules (`feature.test.tsx`) or under `sites/com.site-a/src/tests`. Prefer Vitest + Testing Library for unit coverage and Playwright for flow tests so they can run inside CI without extra services. Keep test names declarative (`it('renders empty state when no invoices')`). Always run `bun run build` to ensure the app compiles before merging.
 
 ## Commit & Pull Request Guidelines
 

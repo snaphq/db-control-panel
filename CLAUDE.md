@@ -14,7 +14,7 @@ notes.
 ## Running the dev server
 
 - `bun run dev` — `turbo run dev` across every workspace (TUI)
-- `bun run --filter @repo/next-app dev` — just the Next.js app (port 8801)
+- `bun run --filter com.site-a dev` — just the Next.js app (port 8801)
 
 ## Repo conventions
 
@@ -33,10 +33,10 @@ notes.
 - Public, task-oriented documentation belongs in `docs-public/`.
 - Private developer, agent, architecture, security, operations, and testing
   documentation belongs in `docs-internal/`.
-- Keep `/auth.md` generated from `apps/next-app/src/app/auth.md/route.ts` as
+- Keep `/auth.md` generated from `packages/site-kit/src/app/auth.md/route.ts` as
   the machine-readable protocol source of truth.
 - Never add a hand-maintained generic `docs/` directory or nested workspace
-  docs directory. The existing `apps/next-app/src/app/docs/` route is a
+  docs directory. The existing `packages/site-kit/src/app/docs/` route is a
   generated mirror of `docs-public/`. Use `.agents/tasks/` for planning
   artifacts and `.agents/skills/` for executable agent instructions.
 - Preview with `bun run docs:public` or `bun run docs:internal`; validate with

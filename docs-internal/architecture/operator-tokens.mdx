@@ -20,9 +20,9 @@ application continues to use Better Auth sessions exclusively.
 | Account-management helpers | `packages/core/src/operators/management.ts` |
 | Database activity sink | `packages/core/src/operators/activity.ts` |
 | Operator detail helpers (tokens incl. revoked, activity, label edits) | `packages/core/src/operators/detail.ts` |
-| Management API | `apps/next-app/src/app/api/account/operators/**` |
-| Account UI | `apps/next-app/src/app/account/settings/operators/page.tsx`, `packages/ui/src/components/account/operators/**` |
-| MCP authentication | `apps/next-app/src/app/mcp/route.ts` |
+| Management API | `sites/com.site-a/src/app/api/account/operators/**` |
+| Account UI | `sites/com.site-a/src/app/account/settings/operators/page.tsx`, `packages/ui/src/components/account/operators/**` |
+| MCP authentication | `sites/com.site-a/src/app/mcp/route.ts` |
 | Context/logger/activity sink | `packages/mcp-chatgpt/src/{request-context,logger}.ts` |
 
 ## Data model
@@ -93,7 +93,7 @@ request context: `actorId = operator.id`, `actorType = "operator"`,
   `@repo/mcp-chatgpt`. The logger invokes it synchronously, exactly once, for
   every operator-attributed entry (non-operator entries never reach it), and it
   inserts an `operator_activity` row fire-and-forget. It is idempotently
-  registered and loaded by `apps/next-app/src/app/mcp/route.ts`.
+  registered and loaded by `sites/com.site-a/src/app/mcp/route.ts`.
 - **Axiom (additional, optional):** when `AXIOM_TOKEN` is set, operator events
   are also routed to `AXIOM_OPERATOR_DATASET` (or `AXIOM_DATASET` when unset or
   empty) and tagged with `project.type: "operator"` so they can be filtered
@@ -149,7 +149,7 @@ Scopes remain on the operator; tokens carry no scope of their own.
 ## Verification
 
 ```bash
-bun run --filter @repo/next-app test
+bun run --filter com.site-a test
 bun run lint
 bun run build
 ```

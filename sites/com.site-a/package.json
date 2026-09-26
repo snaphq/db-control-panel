@@ -1,0 +1,40 @@
+{
+  "name": "com.site-a",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 8801",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
+  },
+  "dependencies": {
+    "@repo/auth": "workspace:*",
+    "@repo/billing": "workspace:*",
+    "@repo/fumadocs": "workspace:*",
+    "@repo/site-kit": "workspace:*",
+    "@repo/ui": "workspace:*",
+    "@tailwindcss/postcss": "^4.2.2",
+    "framer-motion": "^11.1.9",
+    "fumadocs-mdx": "catalog:",
+    "lucide-react": "^0.279.0",
+    "next": "catalog:",
+    "postcss": "^8.5.8",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-hook-form": "^7.51.3",
+    "react-icons": "^4.11.0",
+    "tailwindcss": "^4.2.2",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/mdx": "^2.0.13",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:"
+  }
+}

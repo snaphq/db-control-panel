@@ -28,6 +28,7 @@
     "bcryptjs": "catalog:",
     "date-fns": "^3.6.0",
     "drizzle-orm": "^0.44.7",
+    "geist": "^1.3.0",
     "jose": "^6.1.0",
     "lucide-react": "^0.279.0",
     "mcp-handler": "catalog:",
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
     "@repo/ai": "workspace:*",
+    "@types/mdx": "^2.0.13",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

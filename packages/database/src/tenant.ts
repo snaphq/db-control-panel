@@ -182,12 +182,16 @@ export async function resolveTenantFromHost(host: string | null | undefined) {
     // an arbitrary `*.localhost` Host must not select the default tenant or
     // become a server-side fetch target.
     if (production) return null;
+    // Each site build pins SITE_TENANT_ID (sites/*/next.config.ts) so two
+    // sites running on localhost resolve to their own tenants.
+    const localTenantId =
+      process.env.SITE_TENANT_ID?.trim() || getDefaultTenantId();
     const [row] = await db()
       .select()
       .from(tenant)
       .where(
         and(
-          eq(tenant.id, getDefaultTenantId()),
+          eq(tenant.id, localTenantId),
           or(eq(tenant.status, "active"), eq(tenant.status, "readonly")),
         ),
       )

@@ -32,13 +32,13 @@
       "@repo/core/*": ["../core/src/*"],
       "@repo/ui/*": ["../ui/src/*"],
       "@repo/site-kit/*": ["../site-kit/src/*"],
-      "@site/*": ["../../apps/next-app/src/*"]
+      "@site/*": ["../../sites/com.site-a/src/*"]
     }
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "../../apps/next-app/src/.source/**/*.ts"
+    "../../sites/com.site-a/src/.source/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

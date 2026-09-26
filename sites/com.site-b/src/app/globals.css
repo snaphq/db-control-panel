@@ -1,0 +1,20 @@
+@import "tailwindcss";
+@import "../../../../packages/ui/src/styles/theme.css";
+
+/* Shared site routes live in @repo/site-kit; scan them for class names. */
+@source "../../../../packages/site-kit/src";
+
+/* Site B branding: a teal primary in place of the default zinc. */
+@layer base {
+  :root {
+    --primary: 173 80% 30%;
+    --primary-foreground: 0 0% 98%;
+    --ring: 173 80% 30%;
+  }
+
+  .dark {
+    --primary: 172 66% 50%;
+    --primary-foreground: 240 10% 3.9%;
+    --ring: 172 66% 50%;
+  }
+}

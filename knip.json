@@ -9,12 +9,19 @@
       ]
     },
     "apps/*": {},
-    "packages/*": {}
+    "packages/*": {},
+    "sites/*": {
+      "entry": [
+        "src/site.config.ts",
+        "src/lib/source.ts",
+        "src/components/Container/PageWrapper.tsx"
+      ]
+    }
   },
   "ignore": [
     "docs-public/**",
     "docs-internal/**",
     ".agents/tasks/**",
-    "apps/next-app/src/.source/**"
+    "sites/*/src/.source/**"
   ]
 }

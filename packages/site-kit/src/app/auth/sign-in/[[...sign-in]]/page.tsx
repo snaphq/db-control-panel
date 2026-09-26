@@ -1,5 +1,6 @@
 "use client";
 import { passkey, signIn, twoFactor } from "@repo/auth/client";
+import { Icons } from "@repo/ui/components/Icons";
 import { Button } from "@repo/ui/components/ui/button";
 import {
   Card,
@@ -11,7 +12,6 @@ import {
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
 import PageWrapper from "@site/components/Container/PageWrapper";
-import { Icons } from "@site/components/Icons";
 import { KeyRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";

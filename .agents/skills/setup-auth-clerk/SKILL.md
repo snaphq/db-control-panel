@@ -41,7 +41,7 @@ Ask and record the answers before editing:
   `CLERK_WEBHOOK_SIGNING_SECRET` if syncing. Add them to `env.example`,
   `turbo.json` (the `NEXT_PUBLIC_` key), and the setup env scripts. Remove the
   Better Auth keys.
-- Deps: add `@clerk/nextjs` to `apps/next-app` and `packages/auth` (plus
+- Deps: add `@clerk/nextjs` to `sites/com.site-a` and `packages/auth` (plus
   `@clerk/backend` in `packages/auth` for server-side calls); remove
   `better-auth` and `@better-auth/passkey`. Use the root catalog for versions
   shared across workspaces.
@@ -56,7 +56,7 @@ Ask and record the answers before editing:
    them.
 2. Wrap the app in `<ClerkProvider>` via
    `packages/ui/src/components/AuthProviderWrapper.tsx`.
-3. Replace request gating in `apps/next-app/src/proxy.ts` with
+3. Replace request gating in `sites/com.site-a/src/proxy.ts` with
    `clerkMiddleware()` exported as `proxy` (Next.js 16 uses `proxy.ts`; the
    pre-commit hook rejects `middleware.ts`).
 4. Replace `app/auth/sign-in` and `sign-up` pages with Clerk's `<SignIn />`

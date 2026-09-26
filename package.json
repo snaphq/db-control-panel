@@ -4,7 +4,7 @@
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "packageManager": "bun@1.3.14",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": ["apps/*", "packages/*", "sites/*"],
   "catalog": {
     "@modelcontextprotocol/sdk": "^1.25.2",
     "@types/node": "^22.0.0",
@@ -31,6 +31,9 @@
   },
   "scripts": {
     "dev": "turbo run dev",
+    "dev:backend": "bun run --filter @repo/backend dev",
+    "dev:site-a": "bun run --filter com.site-a dev",
+    "dev:site-b": "bun run --filter com.site-b dev",
     "build": "turbo run build",
     "start": "turbo run start",
     "lint": "turbo run lint",
@@ -43,6 +46,7 @@
     "db:query": "bun run --filter @repo/database db:query --",
     "db:studio": "bun run --filter @repo/database db:studio",
     "db:seed": "bun run scripts/seed-admin.ts",
+    "db:seed:sites": "bun run scripts/seed-site-tenants.ts",
     "db:seed:billing": "bun run scripts/seed-billing.ts",
     "seed:integrations": "bun run scripts/seed-integrations.ts",
     "seed:seo:engines": "bun run scripts/seed-seo-engines.ts",

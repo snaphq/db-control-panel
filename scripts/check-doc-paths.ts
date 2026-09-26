@@ -4,7 +4,12 @@ import { execFileSync } from "node:child_process";
 
 const IGNORED_PREFIXES = [".agents/", ".claude/"];
 const ALLOWED_DOC_ROOTS = ["docs-public/", "docs-internal/"];
-const GENERATED_DOC_PATHS = ["apps/next-app/src/app/docs/"];
+// The shared /docs route (in @repo/site-kit) and each site's generated route
+// shim render docs-public; they are not hand-maintained documentation trees.
+const GENERATED_DOC_PATHS = [
+  /^packages\/site-kit\/src\/app\/docs\//,
+  /^sites\/[^/]+\/src\/app\/docs\//,
+];
 
 function getStagedFiles(): string[] {
   const output = execFileSync(
@@ -30,9 +35,7 @@ const violations = getStagedFiles().filter((file) => {
     return false;
   }
 
-  // The app's /docs route is a generated mirror of docs-public, not a
-  // hand-maintained documentation tree.
-  if (GENERATED_DOC_PATHS.some((prefix) => file.startsWith(prefix))) {
+  if (GENERATED_DOC_PATHS.some((pattern) => pattern.test(file))) {
     return false;
   }
 

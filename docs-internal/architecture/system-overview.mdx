@@ -5,15 +5,15 @@ description: How the Next.js app, workspace packages, and external services fit 
 
 # System overview
 
-The repository is a Bun workspace/Turborepo monorepo. `apps/next-app` owns the
+The repository is a Bun workspace/Turborepo monorepo. `sites/com.site-a` owns the
 HTTP and UI surface. Reusable server/domain behavior is split into `packages/*`
 and consumed through workspace exports.
 
 ## Request path
 
 1. Next.js resolves an App Router page or `route.ts` under
-   `apps/next-app/src/app`.
-2. `apps/next-app/src/proxy.ts` handles cross-cutting request policy where
+   `sites/com.site-a/src/app`.
+2. `sites/com.site-a/src/proxy.ts` handles cross-cutting request policy where
    applicable. Next.js 16 uses the `proxy.ts` convention; do not add a
    production `middleware.ts`.
 3. Route handlers call package APIs, authentication helpers, and database/DAL
@@ -27,7 +27,7 @@ and consumed through workspace exports.
 
 | Layer | Owns | Examples |
 | --- | --- | --- |
-| App routes/UI | URL contracts, auth gates, composition | `apps/next-app/src/app`, `src/components` |
+| App routes/UI | URL contracts, auth gates, composition | `sites/com.site-a/src/app`, `src/components` |
 | App libraries | request adapters and app-specific policy | `src/lib`, `src/providers` |
 | Shared packages | reusable domain and integration contracts | `packages/auth`, `billing`, `database`, `analytics` |
 | Scripts | seeds, checks, migration/integration utilities | `scripts/` |

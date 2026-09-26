@@ -40,7 +40,7 @@ Ask and record the answers before editing:
   `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (`<app-url>/api/auth/callback`). Add them
   to `env.example`, `turbo.json` (the `NEXT_PUBLIC_` key), and the setup env
   scripts. Remove the Better Auth keys.
-- Deps: add `@workos-inc/authkit-nextjs` to `apps/next-app` and
+- Deps: add `@workos-inc/authkit-nextjs` to `sites/com.site-a` and
   `packages/auth`, and `@workos-inc/node` to `packages/auth`; remove
   `better-auth` and `@better-auth/passkey`. Use the root catalog for versions
   shared across workspaces.
@@ -54,10 +54,10 @@ Ask and record the answers before editing:
    `tenant-binding.ts` once nothing imports them.
 2. Wrap the app in `<AuthKitProvider>` via
    `packages/ui/src/components/AuthProviderWrapper.tsx`.
-3. Replace request gating in `apps/next-app/src/proxy.ts` with
+3. Replace request gating in `sites/com.site-a/src/proxy.ts` with
    `authkitMiddleware()` exported as `proxy` (Next.js 16 uses `proxy.ts`; the
    pre-commit hook rejects `middleware.ts`).
-4. Add `apps/next-app/src/app/api/auth/callback/route.ts` using
+4. Add `sites/com.site-a/src/app/api/auth/callback/route.ts` using
    `handleAuth()`. Point sign-in/sign-up pages at AuthKit's hosted flow;
    delete the other `/api/auth/*` Better Auth routes and the cookie helpers in
    `lib/auth/session-cookie.ts` / `oauth-route-utils.ts`.

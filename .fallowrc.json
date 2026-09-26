@@ -1,11 +1,16 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
-  "entry": ["scripts/*.{ts,mjs,js}"],
+  "entry": [
+    "scripts/*.{ts,mjs,js}",
+    "sites/*/src/site.config.ts",
+    "sites/*/src/lib/source.ts",
+    "sites/*/src/components/Container/PageWrapper.tsx"
+  ],
   "ignorePatterns": [
     "docs-public/**",
     "docs-internal/**",
     ".agents/tasks/**",
-    "apps/next-app/src/.source/**"
+    "sites/*/src/.source/**"
   ],
   "ignoreUnresolvedImports": ["../.source/*"]
 }

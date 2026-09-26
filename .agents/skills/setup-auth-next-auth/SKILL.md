@@ -59,7 +59,7 @@ Ask and record the answers before editing:
    (`export const { GET, POST } = handlers`); delete the other `/api/auth/*`
    Better Auth routes and the cookie helpers in `lib/auth/session-cookie.ts` /
    `oauth-route-utils.ts`.
-4. Update `apps/next-app/src/proxy.ts` to use `auth()` from the Auth.js config
+4. Update `sites/com.site-a/src/proxy.ts` to use `auth()` from the Auth.js config
    and export it as `proxy` (the pre-commit hook rejects `middleware.ts`).
 5. Adapt the Drizzle schema to the adapter's `users`/`accounts`/`sessions`/
    `verificationTokens` shape and generate a migration

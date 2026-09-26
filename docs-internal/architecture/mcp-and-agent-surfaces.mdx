@@ -7,7 +7,7 @@ description: MCP tools, discovery metadata, markdown negotiation, and agent-faci
 
 ## MCP request path
 
-`apps/next-app/src/app/mcp/route.ts` authenticates the request (unless the
+`sites/com.site-a/src/app/mcp/route.ts` authenticates the request (unless the
 explicit local override is enabled), establishes an async request context, and
 delegates tool registration to `@repo/mcp-server`. `@repo/mcp-chatgpt` supplies
 tool metadata, structured logging, context propagation, wrappers, and ChatGPT

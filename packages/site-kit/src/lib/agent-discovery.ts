@@ -1,5 +1,6 @@
 import { absoluteUrl, normalizePathname, sha256 } from "@repo/core/site-config";
 import { blog, docsSource } from "@site/lib/source";
+import { siteConfig } from "@site/site.config";
 import { getPublicBlogPaths, getPublicDocsPaths } from "./site-content";
 
 export function isMarkdownRequest(request: Request): boolean {
@@ -21,14 +22,9 @@ export function isPublicMarkdownPath(pathname: string): boolean {
   }
 
   return new Set([
-    "/",
+    ...siteConfig.publicPaths,
     "/blog",
     "/docs",
-    "/help",
-    "/privacy",
-    "/terms",
-    "/changelog",
-    "/marketing-page",
     ...getPublicBlogPaths(),
     ...getPublicDocsPaths(),
   ]).has(normalized);
@@ -39,16 +35,8 @@ export function getMarkdownContent(pathname: string): string | null {
 
   if (normalized === "/") {
     return [
-      "# Nextjs Starter Kit",
-      "",
-      "Build a SAAS with a solid foundation.",
-      "",
-      "## Key sections",
-      "- Authentication and onboarding",
-      "- Billing and Stripe integration",
-      "- Admin and workspace dashboards",
-      "- Blog and docs publishing",
-      "- MCP and AI-agent integration",
+      siteConfig.markdown["/"] ??
+        `# ${siteConfig.name}\n\n${siteConfig.description}`,
       "",
       `Docs: ${absoluteUrl("/docs")}`,
       `Blog: ${absoluteUrl("/blog")}`,
@@ -121,15 +109,7 @@ export function getMarkdownContent(pathname: string): string | null {
     ].join("\n");
   }
 
-  const staticPages: Record<string, string> = {
-    "/help": "# Help\n\nSupport and self-serve guidance.",
-    "/privacy": "# Privacy Policy\n\nPrivacy and data handling information.",
-    "/terms": "# Terms\n\nTerms and conditions for the product.",
-    "/changelog": "# Changelog\n\nRecent product changes.",
-    "/marketing-page": "# Marketing Page\n\nAlternative public marketing page.",
-  };
-
-  return staticPages[normalized] ?? null;
+  return siteConfig.markdown[normalized] ?? null;
 }
 
 export function createLinkHeader(pathname: string): string {
