@@ -1,0 +1,117 @@
+import { describe, expect, it, vi } from "vitest";
+
+/**
+ * Cross-site isolation for the request guard.
+ *
+ * Every site in this monorepo shares one database, so this guard is the only
+ * thing between an unrecognized Host header and some tenant's data. An
+ * unresolvable tenant must 404; it must never fall back to a default identity.
+ *
+ * @repo/database is mocked with a host -> tenant map, following the pattern in
+ * packages/core/src/tenant-isolation.test.ts, so these run without a database.
+ */
+
+const tenantsByHost: Record<
+  string,
+  { id: string; slug: string; name: string; status: string }
+> = {
+  "site-c.vercel.app": {
+    id: "site-c",
+    slug: "site-c",
+    name: "Site C",
+    status: "active",
+  },
+  "site-a.example": {
+    id: "default",
+    slug: "default",
+    name: "Site A",
+    status: "active",
+  },
+};
+
+// The real @solidjs/start/middleware imports the React-only `server-only`
+// marker and runs inside the framework's h3 pipeline, neither of which exists
+// here. createMiddleware returns an array argument unchanged, so a pass-through
+// keeps the export shape and lets the test drive the guard directly.
+vi.mock("@solidjs/start/middleware", () => ({
+  createMiddleware: (middleware: unknown) => middleware,
+}));
+
+vi.mock("@repo/database", () => ({
+  resolveTenantFromHost: vi.fn(async (host: string | null) =>
+    host ? (tenantsByHost[host] ?? null) : null,
+  ),
+}));
+
+const { default: middleware } = await import("./tenant-guard");
+
+// createMiddleware returns an array argument unchanged, so the exported value is
+// the middleware list itself and entry 0 is this site's request guard.
+const guard = middleware[0] as (
+  event: unknown,
+) => Promise<Response | undefined>;
+
+function event(url: string, host: string | null) {
+  return {
+    url: new URL(url),
+    req: new Request(url, { headers: host ? { host } : {} }),
+  };
+}
+
+describe("tenant guard", () => {
+  it("404s a request whose host maps to no tenant", async () => {
+    const res = await guard(
+      event("https://unknown.example/api/health", "unknown.example"),
+    );
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(404);
+  });
+
+  it("404s a request with no host header rather than assuming a tenant", async () => {
+    const res = await guard(event("https://unknown.example/api/health", null));
+    expect((res as Response).status).toBe(404);
+  });
+
+  it("404s a page request for an unknown host, not just /api", async () => {
+    const res = await guard(
+      event("https://unknown.example/", "unknown.example"),
+    );
+    expect((res as Response).status).toBe(404);
+  });
+
+  it("binds the host's own tenant for /api", async () => {
+    const res = (await guard(
+      event("https://site-c.vercel.app/api/tenant", "site-c.vercel.app"),
+    )) as Response;
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      id: "site-c",
+      slug: "site-c",
+      name: "Site C",
+      status: "active",
+    });
+  });
+
+  it("does not serve one site's tenant on another site's host", async () => {
+    const res = (await guard(
+      event("https://site-a.example/api/tenant", "site-a.example"),
+    )) as Response;
+    expect(await res.json()).toMatchObject({ id: "default", slug: "default" });
+  });
+
+  it("falls through to the file-system routes outside /api", async () => {
+    expect(
+      await guard(event("https://site-c.vercel.app/", "site-c.vercel.app")),
+    ).toBeUndefined();
+  });
+
+  it("does not let a query string smuggle a different host past the guard", async () => {
+    const res = await guard(
+      event(
+        "https://unknown.example/api/health?host=site-c.vercel.app",
+        "unknown.example",
+      ),
+    );
+    expect((res as Response).status).toBe(404);
+  });
+});
