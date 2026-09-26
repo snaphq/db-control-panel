@@ -1,3 +1,4 @@
+import { confirm } from "@inquirer/prompts";
 import { runMigrations } from "stripe-sync-engine";
 import { colors } from "../lib/colors";
 import {
@@ -7,7 +8,6 @@ import {
   printSuccess,
   printWarning,
 } from "../lib/log";
-import { confirm } from "../lib/prompts";
 
 export async function runDatabaseMigrations(): Promise<boolean> {
   printHeader("STEP 3: DATABASE MIGRATIONS");

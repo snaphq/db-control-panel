@@ -5,14 +5,14 @@
  * environment without duplicating secrets.
  *
  * Usage:
- *   bun run env:link
+ *   bun .agents/skills/setup/scripts/link-env.ts
  */
 import { existsSync, lstatSync, symlinkSync, unlinkSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { colors } from "../scripts/lib/colors";
+import { colors } from "../../../../scripts/lib/colors";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const SOURCE = resolve(ROOT, ".env.local");
 
 const TARGETS = [
@@ -45,7 +45,7 @@ if (!existsSync(SOURCE)) {
   console.log(`  ${bold("vc pull")}`);
   console.log(`  ${bold("cp .vercel/.env.development.local .env.local")}\n`);
   console.log("Then run:\n");
-  console.log(`  ${bold("bun run env:link")}`);
+  console.log(`  ${bold("bun .agents/skills/setup/scripts/link-env.ts")}`);
   process.exit(1);
 }
 

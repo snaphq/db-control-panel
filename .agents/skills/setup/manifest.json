@@ -1,0 +1,33 @@
+{
+  "$comment": "Read by finalize.ts. Everything listed here exists only to set the project up and is removed when setup completes.",
+  "delete": [
+    "SETUP.md",
+    ".agents/skills/setup*",
+    ".claude/skills/setup*",
+    ".agents/tasks/2026-09-12",
+    ".agents/tasks/2026-09-26",
+    ".github/workflows/setup-finalize.yml"
+  ],
+  "markerBlocks": {
+    "start": "setup:start",
+    "end": "setup:end"
+  },
+  "residueTokens": [
+    "SETUP.md",
+    ".setup/",
+    "bun run setup",
+    "dev-guard",
+    "setup:start",
+    "setup:end",
+    "setup-kit-development",
+    "setup-auth-",
+    "setup-stripe",
+    "setup-posthog",
+    "setup-referral",
+    "skills/setup/",
+    ".auth-provider.lock",
+    "starter kit",
+    "starter-kit"
+  ],
+  "residueIgnore": ["bun.lock", "scripts/dead-code-baseline/*"]
+}

@@ -1,6 +1,7 @@
+import { confirm, input } from "@inquirer/prompts";
 import type Stripe from "stripe";
+import { updateEnvFile } from "../../.agents/skills/setup/scripts/lib/env";
 import { colors } from "../lib/colors";
-import { updateEnvFile } from "../lib/env";
 import {
   printError,
   printHeader,
@@ -8,7 +9,6 @@ import {
   printSuccess,
   printWarning,
 } from "../lib/log";
-import { confirm, input } from "../lib/prompts";
 import { WEBHOOK_EVENTS } from "./constants";
 import type { WebhookSetupResult } from "./types";
 

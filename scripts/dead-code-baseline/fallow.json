@@ -123,7 +123,6 @@
     "unused_exports|packages/billing/src/referrals/grants-admin.ts|rejectCreditGrant",
     "unused_exports|packages/billing/src/referrals/grants-admin.ts|setReferralCodeActive",
     "unused_exports|packages/billing/src/referrals/grants-admin.ts|updateReferralConfig",
-    "unused_exports|packages/object-storage/src/providers/s3.ts|validateS3Connection",
     "unused_files|apps/next-app/src/lib/auth/operator-authorization.ts|-",
     "unused_server_actions|apps/next-app/src/app/adminx/seo/aieo/prompts/actions.ts|snapshotAllPromptsNowAction",
     "unused_server_actions|apps/next-app/src/app/adminx/seo/aieo/secrets/actions.ts|markValidationFailureAction",

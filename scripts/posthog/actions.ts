@@ -1,3 +1,4 @@
+import { confirm } from "@inquirer/prompts";
 import { colors } from "../lib/colors";
 import {
   printError,
@@ -7,7 +8,6 @@ import {
   printSuccess,
   printWarning,
 } from "../lib/log";
-import { confirm } from "../lib/prompts";
 import { createAction, getExistingActions } from "./api";
 
 const EVENT_DEFINITIONS = [

@@ -1,3 +1,4 @@
+import { confirm } from "@inquirer/prompts";
 import Stripe from "stripe";
 import { colors } from "../lib/colors";
 import {
@@ -7,7 +8,6 @@ import {
   printSuccess,
   printWarning,
 } from "../lib/log";
-import { confirm } from "../lib/prompts";
 import type { VerifyApiKeysResult } from "./types";
 
 export async function verifyApiKeys(): Promise<VerifyApiKeysResult> {

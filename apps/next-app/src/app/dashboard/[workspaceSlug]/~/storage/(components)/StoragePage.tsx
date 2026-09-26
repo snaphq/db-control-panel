@@ -96,11 +96,11 @@ export function StoragePage({ isConfigured }: StoragePageProps) {
       <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">
         <p className="font-medium">Object storage is not configured.</p>
         <p className="text-sm mt-1">
-          Run{" "}
+          Set{" "}
           <code className="text-xs bg-muted px-1 py-0.5 rounded">
-            bun run setup
+            OBJECT_STORAGE_PROVIDER
           </code>{" "}
-          and select an object storage provider.
+          and its credentials in the environment, then restart the app.
         </p>
       </div>
     );

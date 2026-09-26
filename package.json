@@ -48,8 +48,6 @@
     "seed:seo:engines": "bun run scripts/seed-seo-engines.ts",
     "seed:seo:settings": "bun run scripts/seed-seo-settings.ts",
     "seed:seo:prompts": "bun run scripts/seed-seo-prompts.ts",
-    "setup": "bun run .setup/setup.ts",
-    "env:link": "bun run .setup/link-env.ts",
     "setup:stripe": "bun run .setup/setup-stripe.ts",
     "setup:posthog": "bun run .setup/setup-posthog.ts",
     "setup:referral": "bun run .setup/setup-referral.ts",

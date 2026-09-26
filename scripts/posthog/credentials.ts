@@ -1,5 +1,6 @@
+import { confirm, input } from "@inquirer/prompts";
+import { updateEnvFile } from "../../.agents/skills/setup/scripts/lib/env";
 import { colors } from "../lib/colors";
-import { updateEnvFile } from "../lib/env";
 import {
   printError,
   printHeader,
@@ -7,7 +8,6 @@ import {
   printSuccess,
   printWarning,
 } from "../lib/log";
-import { confirm, input } from "../lib/prompts";
 import { getProjectInfo } from "./api";
 import type { VerifyCredentialsResult } from "./types";
 

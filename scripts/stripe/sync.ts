@@ -1,3 +1,4 @@
+import { confirm } from "@inquirer/prompts";
 import { colors } from "../lib/colors";
 import {
   printError,
@@ -6,7 +7,6 @@ import {
   printSuccess,
   printWarning,
 } from "../lib/log";
-import { confirm } from "../lib/prompts";
 
 export async function syncExistingData(): Promise<boolean> {
   printHeader("STEP 5: SYNC EXISTING STRIPE DATA");

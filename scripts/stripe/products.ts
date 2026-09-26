@@ -1,3 +1,4 @@
+import { confirm, input } from "@inquirer/prompts";
 import type Stripe from "stripe";
 import { colors } from "../lib/colors";
 import {
@@ -7,7 +8,6 @@ import {
   printSuccess,
   printWarning,
 } from "../lib/log";
-import { confirm, input } from "../lib/prompts";
 import { ENTERPRISE_FEATURES, TIER_FEATURES } from "./constants";
 import type { CreatedProduct } from "./types";
 

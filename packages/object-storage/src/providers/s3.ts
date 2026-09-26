@@ -246,9 +246,3 @@ function buildObjectUrl(cfg: S3Config, key: string): string {
   }
   return `https://${cfg.bucket}.s3.${cfg.region}.amazonaws.com/${key}`;
 }
-
-export async function validateS3Connection(): Promise<void> {
-  const cfg = requireConfig();
-  const aws = await getClient();
-  await (aws as unknown as AwsLiteClient).S3.HeadBucket({ Bucket: cfg.bucket });
-}

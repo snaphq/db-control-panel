@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { confirm } from "@inquirer/prompts";
 import { colors } from "../lib/colors";
 import {
   printError,
@@ -8,7 +9,6 @@ import {
   printSuccess,
   printWarning,
 } from "../lib/log";
-import { confirm } from "../lib/prompts";
 import { EMAIL_TEMPLATES, WORKFLOW_DEFINITIONS } from "../posthog-workflows";
 
 export function getEmailTemplateIds(): string[] {
