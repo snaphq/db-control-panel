@@ -5,8 +5,8 @@ run `bun run setup` once to pick an auth provider and configure `.env.local`;
 we are developing the kit itself, so the workflow is different.
 
 For the full workflow, see
-`.claude/skills/starter-kit-workflow/SKILL.md` — invoked via the
-`starter-kit-workflow` skill.
+`.agents/skills/setup-kit-development/SKILL.md` — invoked via the
+`setup-kit-development` skill.
 
 ## Running the dev server
 

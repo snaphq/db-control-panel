@@ -1,5 +1,5 @@
 ---
-name: starter-kit-workflow
+name: setup-kit-development
 description: Development workflow for this Next.js starter kit. Use when working on the core project (features, fixes, refactors) — covers how to run the dev server without triggering the setup guard, how to test the unified `bun run setup` flow, and how to revert setup mutations so the repo stays in its pre-setup "template" state.
 metadata:
   pathPatterns:

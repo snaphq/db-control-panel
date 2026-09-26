@@ -68,6 +68,7 @@
     "check:catalog-deps": "bun run scripts/check-catalog-deps.ts",
     "check:no-per-minute-cron": "bun run scripts/check-no-per-minute-cron.ts",
     "check:dead-code": "bun run scripts/check-dead-code.ts",
+    "check:skill-links": "bun run scripts/check-skill-links.ts",
     "docs:public": "cd docs-public && bunx --yes mint@4.1.0 dev --port 3333 --no-open",
     "docs:public:validate": "cd docs-public && bunx --yes mint@4.1.0 broken-links",
     "docs:internal": "cd docs-internal && bunx --yes mint@4.1.0 dev --port 3334 --no-open",
