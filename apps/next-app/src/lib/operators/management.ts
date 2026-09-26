@@ -68,6 +68,7 @@ export type OperatorTokenSummary = {
   expiresAt: Date | null;
   lastUsedAt: Date | null;
   createdAt: Date;
+  revokedAt: Date | null;
 };
 
 export type OperatorSummary = {
@@ -117,6 +118,7 @@ export async function listOperatorsForUser(
       expiresAt: operatorToken.expiresAt,
       lastUsedAt: operatorToken.lastUsedAt,
       createdAt: operatorToken.createdAt,
+      revokedAt: operatorToken.revokedAt,
     })
     .from(operatorToken)
     .where(
@@ -141,6 +143,7 @@ export async function listOperatorsForUser(
       expiresAt: token.expiresAt,
       lastUsedAt: token.lastUsedAt,
       createdAt: token.createdAt,
+      revokedAt: token.revokedAt,
     });
     byOperator.set(token.operatorId, list);
   }
@@ -250,6 +253,7 @@ export async function createOperatorWithToken(input: {
         expiresAt: operatorToken.expiresAt,
         lastUsedAt: operatorToken.lastUsedAt,
         createdAt: operatorToken.createdAt,
+        revokedAt: operatorToken.revokedAt,
       });
 
     return { createdOperator, createdToken };
@@ -291,6 +295,7 @@ export async function issueOperatorToken(input: {
       expiresAt: operatorToken.expiresAt,
       lastUsedAt: operatorToken.lastUsedAt,
       createdAt: operatorToken.createdAt,
+      revokedAt: operatorToken.revokedAt,
     });
 
   return { token: created, plaintext };

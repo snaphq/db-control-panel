@@ -42,16 +42,17 @@ export interface McpLogEntry {
 }
 
 /**
- * Fallback sink invoked when Axiom is not configured, or when an ingest
- * request fails. Registered by the host application (e.g. to persist operator
- * activity to the database). Sinks must be fire-and-forget and never throw.
+ * Operator activity sink invoked for every operator-attributed entry,
+ * independently of Axiom. Registered by the host application (e.g. to persist
+ * operator activity to the database so the dashboard can show it). Sinks must
+ * be fire-and-forget and never throw.
  */
-export type McpLogFallback = (entry: McpLogEntry) => void;
+export type McpActivitySink = (entry: McpLogEntry) => void;
 
-let logFallback: McpLogFallback | null = null;
+let activitySink: McpActivitySink | null = null;
 
-export function registerMcpLogFallback(sink: McpLogFallback): void {
-  logFallback = sink;
+export function registerMcpActivitySink(sink: McpActivitySink): void {
+  activitySink = sink;
 }
 
 const NODE_ENV = process.env.NODE_ENV ?? "development";
@@ -59,7 +60,8 @@ const NODE_ENV = process.env.NODE_ENV ?? "development";
 /**
  * Resolve the Axiom ingest target for an entry. Operator activity can use a
  * dedicated dataset (`AXIOM_OPERATOR_DATASET`) and otherwise falls back to the
- * shared MCP dataset (`AXIOM_DATASET`). Both require `AXIOM_TOKEN`.
+ * shared MCP dataset (`AXIOM_DATASET`) when unset or empty. Both require
+ * `AXIOM_TOKEN`.
  */
 function resolveAxiomTarget(
   entry: McpLogEntry,
@@ -68,33 +70,39 @@ function resolveAxiomTarget(
   if (!token) return null;
   if (entry.actorType === "operator") {
     const dataset =
-      process.env.AXIOM_OPERATOR_DATASET ?? process.env.AXIOM_DATASET;
+      process.env.AXIOM_OPERATOR_DATASET || process.env.AXIOM_DATASET;
     return dataset ? { token, dataset } : null;
   }
   const dataset = process.env.AXIOM_DATASET;
   return dataset ? { token, dataset } : null;
 }
 
-function invokeFallback(entry: McpLogEntry): void {
-  if (!logFallback) return;
+function invokeActivitySink(entry: McpLogEntry): void {
+  if (!activitySink || entry.actorType !== "operator") return;
   try {
-    logFallback(entry);
+    activitySink(entry);
   } catch {
-    // Fallback sinks are best-effort; never let them break logging callers.
+    // Activity sinks are best-effort; never let them break logging callers.
   }
 }
 
 /**
- * Send a log entry to Axiom. Fire-and-forget — never throws and never blocks
- * the request. Operator entries fall back to the registered sink when Axiom is
- * not configured or the ingest request fails.
+ * Emit a log entry. Fire-and-forget — never throws and never blocks the
+ * request. Operator entries always reach the registered activity sink exactly
+ * once; Axiom ingest is additional and its failures do not trigger retries.
+ */
+function emit(entry: McpLogEntry): void {
+  invokeActivitySink(entry);
+  sendToAxiom(entry);
+}
+
+/**
+ * Send a log entry to Axiom when configured. Fire-and-forget — failures are
+ * swallowed so logging never surfaces errors to callers.
  */
 function sendToAxiom(entry: McpLogEntry): void {
   const target = resolveAxiomTarget(entry);
-  if (!target) {
-    if (entry.actorType === "operator") invokeFallback(entry);
-    return;
-  }
+  if (!target) return;
 
   const payload = [
     {
@@ -115,17 +123,9 @@ function sendToAxiom(entry: McpLogEntry): void {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  })
-    .then((response) => {
-      if (!response.ok && entry.actorType === "operator") {
-        invokeFallback(entry);
-      }
-    })
-    .catch(() => {
-      // Intentionally swallowed — logging must never surface errors to
-      // callers. Operator entries still reach the fallback sink.
-      if (entry.actorType === "operator") invokeFallback(entry);
-    });
+  }).catch(() => {
+    // Intentionally swallowed — logging must never surface errors to callers.
+  });
 }
 
 /**
@@ -235,7 +235,7 @@ export function logMcpRequest(
   path: string,
   headers: Record<string, string>,
 ): void {
-  sendToAxiom({
+  emit({
     ...base(requestId),
     type: "mcp_request",
     method,
@@ -250,7 +250,7 @@ export function logMcpResponse(
   durationMs: number,
   error?: Error | string,
 ): void {
-  sendToAxiom({
+  emit({
     ...base(requestId),
     type: error ? "mcp_error" : "mcp_response",
     statusCode,
@@ -260,7 +260,7 @@ export function logMcpResponse(
 }
 
 export function logMcpToolCall(toolName: string, toolInput: unknown): void {
-  sendToAxiom({
+  emit({
     ...base(),
     type: "mcp_tool_call",
     toolName,
@@ -274,7 +274,7 @@ export function logMcpToolResponse(
   durationMs: number,
   error?: Error | string,
 ): void {
-  sendToAxiom({
+  emit({
     ...base(),
     type: error ? "mcp_error" : "mcp_tool_response",
     toolName,

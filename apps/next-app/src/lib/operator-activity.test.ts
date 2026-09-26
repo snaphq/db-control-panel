@@ -15,7 +15,7 @@ vi.mock("@repo/database", () => ({
 const registeredSinks: Array<(entry: unknown) => void> = [];
 
 vi.mock("@repo/mcp-chatgpt", () => ({
-  registerMcpLogFallback: (sink: (entry: unknown) => void) => {
+  registerMcpActivitySink: (sink: (entry: unknown) => void) => {
     registeredSinks.push(sink);
   },
 }));
@@ -41,7 +41,7 @@ const operatorEntry = {
   environment: "test",
 };
 
-describe("operator activity fallback", () => {
+describe("operator activity sink", () => {
   beforeEach(() => {
     inserted.length = 0;
     registeredSinks.length = 0;

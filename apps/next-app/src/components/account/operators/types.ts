@@ -12,6 +12,22 @@ export type OperatorTokenView = {
   expiresAt: string | null;
   lastUsedAt: string | null;
   createdAt: string;
+  // Always null in list responses; set on the operator detail page, which
+  // also returns revoked keys as history.
+  revokedAt: string | null;
+};
+
+export type OperatorActivityView = {
+  id: string;
+  credentialId: string | null;
+  eventType: string;
+  toolName: string | null;
+  method: string | null;
+  statusCode: number | null;
+  durationMs: number | null;
+  success: boolean | null;
+  error: string | null;
+  createdAt: string;
 };
 
 export type OperatorScopeView =
@@ -29,3 +45,7 @@ export type OperatorView = {
   updatedAt: string;
   tokens: OperatorTokenView[];
 };
+
+// Operator detail page payload: tokens include revoked keys (revokedAt set),
+// ordered active first, then revoked, newest first within each group.
+export type OperatorDetailView = OperatorView;

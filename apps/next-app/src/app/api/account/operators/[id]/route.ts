@@ -1,5 +1,9 @@
 import { parseOperatorScope } from "@/lib/auth/operator-token";
 import {
+  getOwnedOperatorDetail,
+  serializeOperatorDetail,
+} from "@/lib/operators/detail";
+import {
   MAX_OPERATOR_DESCRIPTION,
   MAX_OPERATOR_NAME,
   findOwnedOperator,
@@ -13,6 +17,25 @@ import { type NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const OPERATOR_STATUSES = new Set(["active", "suspended"]);
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const auth = await getSessionAndTenant();
+  if (!auth.ok) return auth.response;
+  const { id } = await params;
+
+  const detail = await getOwnedOperatorDetail({
+    userId: auth.userId,
+    tenantId: auth.tenantId,
+    operatorId: id,
+  });
+  if (!detail) {
+    return NextResponse.json({ error: "operator_not_found" }, { status: 404 });
+  }
+  return NextResponse.json({ operator: serializeOperatorDetail(detail) });
+}
 
 export async function PATCH(
   req: NextRequest,

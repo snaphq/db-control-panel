@@ -2,20 +2,21 @@ import "server-only";
 
 import { db } from "@repo/database";
 import { operatorActivity } from "@repo/database/schema-operators";
-import { type McpLogEntry, registerMcpLogFallback } from "@repo/mcp-chatgpt";
+import { type McpLogEntry, registerMcpActivitySink } from "@repo/mcp-chatgpt";
 import { nanoid } from "nanoid";
 
 let registered = false;
 
 /**
- * Register the database fallback for operator activity. Axiom remains the
- * primary sink; this runs only when Axiom is not configured or an ingest
- * request fails. Idempotent so hot reloads cannot stack duplicate sinks.
+ * Register the database sink for operator activity. Every operator-attributed
+ * event is written to `operator_activity` (powering the operator dashboard),
+ * in addition to Axiom when configured. Idempotent so hot reloads cannot
+ * stack duplicate sinks.
  */
 export function registerOperatorActivitySink(): void {
   if (registered) return;
   registered = true;
-  registerMcpLogFallback((entry) => {
+  registerMcpActivitySink((entry) => {
     void persistOperatorActivity(entry).catch(() => {
       // Activity persistence is best-effort; never surface failures.
     });
@@ -42,7 +43,7 @@ function buildMetadata(entry: McpLogEntry): Record<string, unknown> | null {
 
 /**
  * Persist one operator activity event. Non-operator entries are ignored so the
- * fallback table only ever contains operator-attributed activity. Returns
+ * activity table only ever contains operator-attributed activity. Returns
  * without writing when the identity required by the table is incomplete.
  */
 export async function persistOperatorActivity(
