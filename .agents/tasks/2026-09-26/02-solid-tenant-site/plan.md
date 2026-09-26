@@ -1,9 +1,39 @@
 # `com.site-c` — standalone Solid/Hono/Effect tenant site
 
-**Status:** In progress — Phases 1–4 done; Phase 6's isolation test done
+**Status:** Phases 1–9 complete, pushed to `origin/main`
 **Date:** 2026-09-26
 **Baseline:** local `main` at `026798d`
-**Commits:** `177bbd9` scaffold, `7c6bb05` tenant resolution, `9e96f1d` auth
+**Commits:** `177bbd9` scaffold · `7c6bb05` tenant resolution ·
+`9e96f1d` auth · `9677a3d` dashboard, CI, docs
+
+## What is verified, and what is not
+
+Verified by running it:
+
+- `vite build` and `tsc --noEmit` clean for the site; `site-kit` and `auth`
+  still typecheck after the `SiteConfig` split and the auth change.
+- All 6 existing package test suites pass, plus 10 new site tests.
+- The dev server serves the dashboard: SSR HTML contains the shell, the three
+  nav items, the page header and the stat tiles.
+- Every route is gated by the guard — `/overview`, `/logs`, `/` and an unknown
+  path all 404 for an unrecognized Host, and a Host carrying a scheme is
+  rejected too.
+- All nine repo checks pass, and both knip and fallow are clean against baseline.
+- `check-doc-coverage` (37 entries) and the Mintlify broken-link check pass.
+
+**Not verified — needs a real `DATABASE_URL`:** tenant seeding, the real
+`resolveTenantFromHost` lookup, and the Overview/Logs/Go data rendering. The
+dashboard was confirmed to render its shell, but every number on it came back
+empty because the Neon driver cannot connect.
+
+## Phase 9 outcome
+
+`rename-site.ts` turned out to need **no** change: it is driven by `--from` /
+`--to` and does not hardcode a site list, so it already handles `com.site-c`.
+Only its header comment listed the two placeholders. The real work was
+`multi-site.mdx` and `AGENTS.md`, which both said "copy `com.site-b`" as though
+that were the only option; they now describe the standalone path and the fact
+that omitting `@repo/site-kit` is the whole opt-out.
 
 ## Auth: how the Next coupling was removed
 
