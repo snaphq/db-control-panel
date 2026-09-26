@@ -17,9 +17,11 @@ with TUI mode enabled.
 .
 ├── apps/
 │   └── backend/            # Platform admin portal for every site (@repo/backend)
-├── sites/                  # One Next.js 16 app per tenant site
-│   ├── com.site-a/         # First site: site.config.ts, branding, landing/legal pages
-│   └── com.site-b/         # Second site (thin: config + brand + a few pages)
+├── sites/                  # Tenant sites, one tenant each
+│   ├── com.site-a/         # Next.js site on the shared site-kit route tree
+│   ├── com.site-b/         # Thin Next.js site (config + brand + a few pages)
+│   ├── com.site-c/         # Standalone SolidStart site (no @repo/site-kit)
+│   └── com.site-d/         # Standalone Astro site with an account dashboard
 ├── packages/
 │   ├── site-kit/           # Shared site routes (src/app), proxy, root layout
 │   ├── core/               # Shared server logic (auth helpers, agent auth, operators, integrations)

@@ -18,6 +18,7 @@
           "architecture/system-overview",
           "architecture/multi-site",
           "architecture/com-site-c",
+          "architecture/com-site-d",
           "architecture/backend-admin",
           "architecture/authentication",
           "architecture/data-and-tenancy",

@@ -110,20 +110,26 @@ whether the site depends on `@repo/site-kit`.
 
 ### A standalone site on its own framework
 
-`sites/com.site-c` is SolidStart and consumes none of the shared route tree. The
-only structural requirement is that it must **not** list `@repo/site-kit` in its
-`dependencies` — that absence is what makes `scripts/sync-site-routes.ts` skip
-it, so no shims are generated and no flag is needed. Type-only imports from
-`@repo/site-kit` (for example `SiteConfig`) resolve through a tsconfig path
-mapping instead, which does not create the dependency.
+`sites/com.site-c` (SolidStart) and `sites/com.site-d` (Astro) consume none of
+the shared route tree. The only structural requirement is that the site must
+**not** list `@repo/site-kit` in its `dependencies` — that absence is what
+makes `scripts/sync-site-routes.ts` skip it, so no shims are generated and no
+flag is needed. Type-only imports from `@repo/site-kit` (for example
+`SiteConfig`) resolve through a tsconfig path mapping instead, which does not
+create the dependency.
 
-Such a site exports a `StandaloneSiteConfig` with `stack: "standalone"` and omits
-`markdown` and `mcp`, because it serves neither. It still gets its tenant rows
-from `bun run db:seed:sites`, which reads only the `SiteConfigBase` fields.
+Such a site exports a `StandaloneSiteConfig` with `stack: "standalone"` and
+omits `markdown` and `mcp`, because it serves neither. It still gets its
+tenant rows from `bun run db:seed:sites`, which reads only the
+`SiteConfigBase` fields.
 
 Everything else — the deploy matrix row, the Vercel project, the `dev:<name>`
-script — is the same. Note that a framework with its own Node requirement needs
-its own `node_version` in the deploy matrix; `com.site-c` requires Node 24 while
-the Next.js sites run on 22.
+script — is the same. Note that a framework with its own Node requirement
+needs its own `node_version` in the deploy matrix; `com.site-c` requires
+Node 24 while the Next.js sites run on 22. Astro 7 requires Node ≥ 22.12,
+which the 22 line satisfies. A framework that fixes its middleware filename
+(such as Astro's `src/middleware.ts`) also needs the matching exemption in
+`scripts/check-no-middleware.ts`.
 
-See [com.site-c](/architecture/com-site-c) for a worked example.
+See [com.site-c](/architecture/com-site-c) and
+[com.site-d](/architecture/com-site-d) for worked examples.

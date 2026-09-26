@@ -45,6 +45,22 @@
       ]
     },
     {
+      "id": "com-site-d",
+      "page": "architecture/com-site-d.mdx",
+      "visibility": "internal",
+      "sources": [
+        "sites/com.site-d/package.json",
+        "sites/com.site-d/astro.config.mjs",
+        "sites/com.site-d/src/site.config.ts",
+        "sites/com.site-d/src/middleware.ts",
+        "sites/com.site-d/src/pages/api/auth/[...all].ts",
+        "sites/com.site-d/src/server/account.ts",
+        "sites/com.site-d/src/server/auth.ts",
+        "sites/com.site-d/src/server/session.ts",
+        "sites/com.site-d/src/shims/server-only.ts"
+      ]
+    },
+    {
       "id": "backend-admin",
       "page": "architecture/backend-admin.mdx",
       "visibility": "internal",
