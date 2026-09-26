@@ -129,8 +129,11 @@ bun run --filter @repo/database build   # Build database package only
   existing `packages/site-kit/src/app/docs/` route is an allowed generated mirror
   of `docs-public/`; staged-path checks also ignore `.agents/**` and
   `.claude/**`, which hold executable agent instructions.
+<!-- setup:start -->
+- The template also keeps `SETUP.md` at the root until setup finalizes.
+<!-- setup:end -->
 - `README.md`, `AGENTS.md`, and `LICENCE.md` are the only root markdown
-  files (plus `SETUP.md` in the template). Agent instructions go in
+  files. Agent instructions go in
   `AGENTS.md`; `CLAUDE.md` and `GEMINI.md` are rejected by
   `bun run check:root-md`.
 - Use `.agents/tasks/` for planning artifacts and `.agents/skills/` for

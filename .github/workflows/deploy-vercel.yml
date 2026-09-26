@@ -27,9 +27,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # One Vercel project per app. Project ids (and the org id below) are
-        # written during setup by .agents/skills/setup/scripts/set-vercel-projects.ts;
-        # rows with an empty project_id are skipped. sites/com.site-a deploys
+        # One Vercel project per app, with hard-coded project ids (and the org
+        # id below); rows with an empty project_id are skipped.
+        # setup:start
+        # Written during setup by .agents/skills/setup/scripts/set-vercel-projects.ts.
+        # setup:end
+        # sites/com.site-a deploys
         # from the repository root (root vercel.json); the others use the
         # vercel.json in their own folder as the project Root Directory.
         include:
