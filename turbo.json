@@ -23,7 +23,8 @@
         "NEXT_PUBLIC_GOOGLE_CLIENT_ID",
         "INNGEST_EVENT_KEY",
         "INNGEST_SIGNING_KEY",
-        "INNGEST_DEV"
+        "INNGEST_DEV",
+        "NITRO_PRESET"
       ]
     },
     "dev": {

@@ -5,8 +5,11 @@ import { nitro } from "nitro/vite";
 import { defineConfig, loadEnv } from "vite";
 
 // SolidStart 2 builds directly on Vite 8 (no Vinxi). `nitro()` is the
-// deployment plugin; it detects Vercel during the build and emits the output
-// Vercel deploys as-is, so no preset argument is needed.
+// deployment plugin. It only auto-detects Vercel when the build runs on
+// Vercel's builders; the deploy workflow builds on a GitHub runner, so
+// vercel.json sets NITRO_PRESET=vercel (declared in turbo.json's build env)
+// to emit .vercel/output. Without it the build emits a Node server in
+// .output and the deployed site answers NOT_FOUND.
 //
 // `middleware` points at src/http/tenant-guard.ts. It must NOT be named
 // middleware.ts at any depth: scripts/check-no-middleware.ts blocks that
