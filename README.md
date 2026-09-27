@@ -12,6 +12,23 @@ A full-stack Next.js app with the App Router, TypeScript, Better Auth, PostgreSQ
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.x-38bdf8)](https://tailwindcss.com/)
 [![Turborepo](https://img.shields.io/badge/Turborepo-Monorepo-EF4444)](https://turbo.build/)
 
+## Live Deployments
+
+Production deploys run from `.github/workflows/deploy-vercel.yml` on every push
+to `main`. Status as of 2026-09-27:
+
+| App | Folder | Stack | Production URL |
+| --- | --- | --- | --- |
+| Site A | `sites/com.site-a` | Next.js 16 | https://nextjs-starter-kit-app.vercel.app |
+| Site C | `sites/com.site-c` | SolidStart 2 | https://starter-solid-stack.vercel.app |
+| Admin portal | `apps/backend` | Next.js 16 | Not deployed yet (no Vercel project id) |
+| Site B | `sites/com.site-b` | Next.js 16 | Not deployed yet (no Vercel project id) |
+| Site D | `sites/com.site-d` | Astro | Not deployed yet (no Vercel project id) |
+
+An app without a project id in the workflow matrix is skipped. Once its Vercel
+project exists, set the id in both deploy workflows (the setup script
+`set-vercel-projects.ts` writes them) and push.
+
 ## Features
 
 - **Turborepo Monorepo** with Bun workspaces and a shared dependency catalog
