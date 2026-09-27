@@ -51,7 +51,7 @@ jobs:
             alias_prefix: 'nextjs-starter-kit-site-b'
             node_version: '22'
           - app: backend
-            project_id: ''
+            project_id: 'prj_4uAEmRzCIIyMJJ9I3RnOirbcrley'
             project_name: 'backend'
             alias_prefix: 'nextjs-starter-kit-backend'
             node_version: '22'
