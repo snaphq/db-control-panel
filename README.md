@@ -21,7 +21,7 @@ to `main`. Status as of 2026-09-27:
 | --- | --- | --- | --- |
 | Site A | `sites/com.site-a` | Next.js 16 | https://nextjs-starter-kit-app.vercel.app |
 | Site C | `sites/com.site-c` | SolidStart 2 | https://starter-solid-stack.vercel.app |
-| Admin portal | `apps/backend` | Next.js 16 | Not deployed yet (no Vercel project id) |
+| Admin portal | `apps/backend` | Next.js 16 | https://starter-admin-eight.vercel.app (admins sign in at `/login`) |
 | Site B | `sites/com.site-b` | Next.js 16 | Not deployed yet (no Vercel project id) |
 | Site D | `sites/com.site-d` | Astro | Not deployed yet (no Vercel project id) |
 
