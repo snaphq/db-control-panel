@@ -26,8 +26,8 @@ to `main`. Status as of 2026-09-27:
 | Site D | `sites/com.site-d` | Astro | Not deployed yet (no Vercel project id) |
 
 An app without a project id in the workflow matrix is skipped. Once its Vercel
-project exists, set the id in both deploy workflows (the setup script
-`set-vercel-projects.ts` writes them) and push.
+project exists, set its `project_id` in both deploy workflows
+(`deploy-vercel.yml`, `deploy-vercel-preview.yml`) and push.
 
 ## Features
 
