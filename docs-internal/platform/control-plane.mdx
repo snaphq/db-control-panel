@@ -27,14 +27,29 @@ apps/control-plane/src/
   index.ts              mode switch (ALLOYDB_MODE)
   config.ts             env schema
   db/                   Drizzle schema, client, migrations
-  crypto/               ed25519 JWT signing, SCRAM-SHA-256 secrets, ids
-  neon/                 storage-controller client, compute spec builder,
-                        compute pod manifests, wake/suspend logic
-  libsql/               sqld admin client, routes, token minting
-  data-api/             PostgREST bootstrap SQL, gateway proxy
+  crypto/               Ed25519 JWT signing and verifying, SCRAM-SHA-256 secrets, ids
+  k8s/                  kube clients and the pod API the compute runtime uses
+  neon/                 storage-controller client, compute spec builder and
+                        service, compute pod manifest, compute_ctl client,
+                        compute runtime (wake, reconfigure, suspend), idle
+                        suspend, safekeeper and pageserver registration, the
+                        NeonStore (Drizzle and in-memory), steps/ (one plan
+                        per Neon operation action)
+  libsql/               sqld admin client, routes, token minting (next work)
+  data-api/             PostgREST bootstrap SQL, gateway proxy (next work)
   modes/                api, neon-glue, worker, data-api-gateway servers
-  operations/           operation runner and step definitions
+  operations/           operation runner, queue, step registry
+packages/control-plane-contract/
+                        zod schemas and types of the public API, shared with
+                        the console (`@repo/control-plane-contract`)
 ```
+
+The contract package builds to `dist/` for the Node runtime; its `types`
+condition points at the TypeScript source, and the control plane's tests alias
+the source, so tests need no prior build. `bun run --filter @repo/control-plane
+build` builds the contract first. The runtime image must therefore also carry
+`packages/control-plane-contract` (its `dist` and `package.json`), because
+`node_modules/@repo/control-plane-contract` is a workspace symlink.
 
 ## Data model
 
@@ -44,25 +59,60 @@ are 32-hex values as Neon requires.
 
 | Table | Key columns |
 | --- | --- |
-| `neon_project` | id, console_project_id, console_org_id, name, tenant_id, pg_version, history_retention_seconds, created_at, deleted_at |
-| `branch` | id, project_id, name, timeline_id, parent_branch_id, parent_lsn, safekeepers (jsonb: generation + `[{id, hostname}]`), is_default |
-| `endpoint` | id (`ep-<word>-<word>-<n>`), branch_id, type (`read_write`, `read_only`), compute_size, suspend_timeout_seconds, state (`idle`, `starting`, `running`, `suspending`), pod_name, pod_ip, last_active_at |
+| `neon_project` | id, console_project_id, console_org_id, name, tenant_id, pg_version, history_retention_seconds, allowed_ips (jsonb CIDR list, null = unrestricted), created_at, deleted_at |
+| `branch` | id, project_id, name, timeline_id, parent_branch_id, parent_lsn, safekeepers (jsonb: generation + `[{id, hostname}]`), is_default, deleted_at |
+| `endpoint` | id (`ep-<word>-<word>-<n>`), branch_id, type (`read_write`, `read_only`), compute_size, suspend_timeout_seconds, state (`idle`, `starting`, `running`, `suspending`), pod_name, pod_ip, last_active_at, deleted_at |
 | `role` | id, branch_id, name, scram_secret (never the plaintext password) |
 | `database` | id, branch_id, name, owner_role, data_api_enabled |
 | `libsql_database` | id, console_project_id, name, namespace, node_id, state, size_limit_bytes |
 | `node` | id (`ALLOYDB_NODE_ID`), name, tailscale_ip, zone, roles, capacity (jsonb), registered_pageserver, registered_safekeepers |
-| `operation` | id, target_type, target_id, action, status (`scheduling`, `running`, `finished`, `failed`, `cancelled`), failures_count, error, created_at, finished_at |
+| `operation` | id, console_project_id, console_org_id, target_type, target_id, action, status (`scheduling`, `running`, `finished`, `failed`, `cancelled`), failures_count, error, params (jsonb), progress (jsonb: completed steps and their outputs), created_at, updated_at, finished_at |
 | `usage_event` | id, project_id, kind, value, idempotency_key (unique), recorded_at |
 
+Constraints worth knowing:
+
+- Live rows are unique by partial index: one live `neon_project` per
+  `console_project_id`, one live branch name per project, one default branch
+  per project. A deleted project frees its console project for a new one.
+- `operation` has a partial unique index on `console_project_id` where status
+  is `scheduling` or `running`: the database, not the application check,
+  guarantees one active operation per console project.
+- Soft deletes (`deleted_at`) keep rows for the worker's cleanup steps; the
+  console API never returns them.
+- `operation.console_org_id` is null only for rows written before migration
+  `0001`; reads require the caller's organization and project to match.
+- `node.registered_safekeepers` is not set yet: safekeepers are pods, not
+  nodes, and are registered by id (below). Only pageservers are written to
+  `node`.
+
 The console stores only its own `project.id` and receives these ids back.
+
+## Configuration
+
+| Variable | Modes | Default | Meaning |
+| --- | --- | --- | --- |
+| `DATABASE_URL` | all | required | `control_plane` database |
+| `ALLOYDB_API_TOKEN` | api | required | bearer token of the console server |
+| `ALLOYDB_PG_HOST_SUFFIX` | api | `pg.alloydb.net` | endpoint hosts are `<endpoint id>.<suffix>` |
+| `STORAGE_CONTROLLER_URL` | neon-glue, worker | required | storage controller base URL |
+| `NEON_JWT_PRIVATE_KEY_PATH` | neon-glue, worker, data-api-gateway | required | Ed25519 PKCS#8 PEM that signs every Neon token |
+| `CONTROL_PLANE_JWT_TOKEN` | neon-glue, worker | required | admin-scoped token: sent to the controller, expected on `/storcon/*` |
+| `NEON_PROXY_TO_CONTROLPLANE_TOKEN` | neon-glue | required | bearer the Neon proxy presents on `/proxy/*` |
+| `ALLOYDB_COMPUTE_IMAGE` | neon-glue, worker | `ghcr.io/snaphq/neon-compute-v17:latest` | image of compute pods (compute_ctl, Postgres, PgBouncer); set it to the built tag |
+| `ALLOYDB_POSTGREST_IMAGE` | neon-glue, worker | `ghcr.io/snaphq/postgrest:latest` | image of Data API sidecars |
+| `ALLOYDB_NEON_GLUE_URL` | neon-glue, worker | `http://neon-glue.alloydb-system:8080` | `--control-plane-uri` of compute_ctl |
+| `ALLOYDB_SAFEKEEPER_COUNT` | worker | `3` | safekeepers to register |
+| `ALLOYDB_IDLE_SWEEP_SECONDS` | worker | `30` | idle-suspend interval |
+| `ALLOYDB_REGISTRATION_SECONDS` | worker | `60` | safekeeper registration and pageserver discovery interval |
 
 ## Operations
 
 Mutations write desired state and an `operation` row in one transaction,
 enqueue a pg-boss job, and return `202` with the operation. A project with an
 operation in `scheduling` or `running` rejects new mutations with `423`.
-Every step is idempotent and safe to retry; the runner stores progress on the
-operation row. Actions:
+Every step is idempotent and safe to retry; the runner stores each step's
+output on the operation row and a retry resumes after the last finished step.
+Actions:
 
 `project.create`, `project.delete`, `branch.create`, `branch.delete`,
 `endpoint.start`, `endpoint.suspend`, `endpoint.update`,
@@ -70,20 +120,62 @@ operation row. Actions:
 `data_api.enable`, `data_api.disable`, `libsql.create`, `libsql.delete`,
 `libsql.fork`.
 
+The Neon plans (the Data API and libSQL actions have no plan yet):
+
+| Action | Steps | Written by the request, in the same transaction |
+| --- | --- | --- |
+| `project.create` | `tenant` (create tenant), `timeline` (root timeline, store safekeepers) | project, default branch `main`, endpoint, role `neondb_owner`, database `neondb` |
+| `project.delete` | `computes` (suspend every endpoint), `tenant` (delete tenant) | `deleted_at` on the project, its branches and endpoints |
+| `branch.create` | `timeline` (fork parent at `parent_lsn`, store safekeepers and the fork LSN) | branch, copies of the parent's roles and databases, optional endpoint |
+| `branch.delete` | `computes`, `timeline` (delete timeline) | `deleted_at` on the branch and its endpoints |
+| `endpoint.start` | `wake` | none |
+| `endpoint.suspend` | `suspend` | none, or `deleted_at` when the endpoint is being deleted |
+| `endpoint.update` | `stop` (only if the size changed), `apply` (start again, or push the spec) | new size and timeout, or the new endpoint row when one is created |
+| `role.reset_password` | `apply` (push the spec to running computes) | new role row, or a new SCRAM secret |
+| `database.create` | `apply` | database row |
+| `database.delete` | `drop` (wake a compute, push the spec with a `delete_db` operation) | row removed |
+
+Some API calls reuse a plan on purpose, so the action list stays small:
+creating a role runs `role.reset_password`, creating or deleting an endpoint
+runs `endpoint.update` or `endpoint.suspend` (the operation's `params` say
+which). Soft-deleted rows stay readable by the worker until its cleanup steps
+finish.
+
+Roles and databases are applied through the compute spec, not SQL.
+compute_ctl creates missing roles and databases, alters a role whose SCRAM
+secret differs, and drops databases named in `delta_operations` on every spec
+it applies (`compute_tools/src/spec_apply.rs`, phases `CreateAndAlterRoles`,
+`RenameAndDeleteDatabases`, `CreateAndAlterDatabases`). That keeps one source
+of truth, needs no superuser connection from the control plane, and means an
+idle endpoint picks the change up on its next start. A dropped database whose
+branch has no `read_write` endpoint stays in the timeline until one exists.
+
 ## Neon flows
 
-**Create project.** `POST /v1/tenant` on the storage controller with a new
-tenant id, then `POST /v1/tenant/:id/timeline` with `{new_timeline_id,
-pg_version: 17}`. The response's `safekeepers` field (present because of
-`--timelines-onto-safekeepers`) is stored on the branch. Create the default
-branch, a `read_write` endpoint, the owner role, and database `neondb`.
+**Create project.** `POST /v1/tenant` on the storage controller with
+`{new_tenant_id, pitr_interval}`, then `POST /v1/tenant/:id/timeline` with
+`{new_timeline_id, pg_version: 17}`. The response's `safekeepers` field
+(present because of `--timelines-onto-safekeepers`) is stored on the branch;
+a response without it fails the step. Re-sending either request is safe: the
+controller treats the same tenant and timeline ids as a retry. The endpoint
+starts idle; the first connection starts it, and compute_ctl then creates the
+role and database from the spec.
 
 **Create branch.** `POST /v1/tenant/:id/timeline` with `{new_timeline_id,
-ancestor_timeline_id, ancestor_start_lsn?}`; point-in-time branches pass the
-LSN.
+ancestor_timeline_id, ancestor_start_lsn?}`. Without an LSN the branch forks
+at the parent's latest LSN and the response's `ancestor_lsn` is recorded as
+`parent_lsn`.
 
 **Compute spec** (`GET /compute/api/v2/computes/:id/spec`, called by
-compute_ctl with a `tenantendpoint`-style bearer token). Returns
+compute_ctl). The bearer token is `NEON_CONTROL_PLANE_TOKEN`, an Ed25519 JWT
+with `scope: "tenantendpoint"`, the project's `tenant_id`, and `compute_id` set
+to the endpoint id (Neon's `Claims.endpoint_id` is a UUID, so the endpoint id
+travels in `compute_id`). The route accepts only a token signed by our key whose
+`compute_id` equals the URL and whose tenant owns that endpoint: a compromised
+compute cannot read another endpoint's spec, which carries a tenant-scoped
+storage token. `401` for a bad token, `403` for another endpoint or tenant,
+`404` for an unknown endpoint, and `503` (which compute_ctl retries) while
+placement is missing or the controller is unreachable. Returns
 `{status: "attached", spec, compute_ctl_config: {jwks}}`:
 
 - `format_version: 1.0`, `suspend_timeout_seconds`, `cluster.roles` (name +
@@ -91,41 +183,88 @@ compute_ctl with a `tenantendpoint`-style bearer token). Returns
   (`wal_level=logical`, `synchronous_standby_names=walproposer`,
   `shared_preload_libraries=neon,pg_cron,pg_stat_statements`,
   `password_encryption=scram-sha-256`, `listen_addresses=*`, `port=5432`,
-  `max_replication_write_lag`, `max_replication_flush_lag`, memory settings
-  from the compute size).
+  `max_replication_write_lag=500MB`, `max_replication_flush_lag=10GB`,
+  `fsync=off`, `restart_after_crash=off`, and `max_connections`,
+  `shared_buffers`, `effective_cache_size`, `maintenance_work_mem` scaled from
+  the compute size). The `neon.*` GUCs are not repeated: compute_ctl writes
+  them from the spec fields (`compute_tools/src/config.rs`).
 - `tenant_id`, `timeline_id`, `project_id`, `branch_id`, `endpoint_id`,
-  `mode` (`Primary` for read-write).
+  `mode` (`Primary` for `read_write`; `Replica` for `read_only`, which gets
+  `primary_conninfo` through the safekeepers instead of walproposer).
 - `pageserver_connection_info` built from the controller's
-  `GET /debug/v1/tenant/:id/locate` response, mirroring
+  `GET /debug/v1/tenant/:id/locate` response (admin scope), mirroring
   `tenant_locate_response_to_conn_info` in Neon's `control_plane/src/endpoint.rs`.
-- `safekeeper_connstrings` and `safekeepers_generation` from the branch row.
+  Shards are keyed by `ShardIndex`, `<2 hex shard><2 hex count>`: `0000` for an
+  unsharded tenant.
+- `safekeeper_connstrings` (`<host>:5454`) and `safekeepers_generation` from the
+  branch row.
 - `storage_auth_token`: a `tenant`-scoped JWT for that tenant.
+- `delta_operations`: `delete_db` entries only while a database is being
+  dropped.
 
 **Wake** (`GET /proxy/wake_compute?endpointish=`). Strip a `-pooler` suffix
-to find the endpoint. If no pod is running, create `compute-<id>`, then poll
-compute_ctl `GET :3080/status` (JWT with `aud: ["compute"]`, `scope:
-"compute_ctl:admin"`) until `Running`. Return `{address:
-"<podIP>:5432"}` (or `:6432` for `-pooler`) with `aux: {endpoint_id,
-project_id, branch_id, compute_id, cold_start_info}`. Concurrent wakes for one
-endpoint share a single in-flight start.
+to find the endpoint. If no pod is running, claim the endpoint (`idle ->
+starting`, a compare-and-set on the endpoint row, so replicas of neon-glue and
+the worker never both start it), create `compute-<id>`, then poll compute_ctl
+`GET :3080/status` (JWT with `aud: ["compute"]`, `scope: "compute_ctl:admin"`)
+until `running`. Return `{address: "<podIP>:5432"}` (or `:6432` for `-pooler`)
+with `aux: {endpoint_id, project_id, branch_id, compute_id, cold_start_info}`;
+`cold_start_info` is `pool_miss` for a start and `warm` otherwise (the proxy
+accepts no other values from a control plane). Concurrent wakes for one
+endpoint share a single in-flight start. A `starting` claim older than six
+minutes is presumed abandoned and taken over; a failed start deletes the pod
+and returns the endpoint to `idle`. Unknown or deleted endpoints answer `404`
+with reason `ENDPOINT_NOT_FOUND`; a start that fails answers `503` with
+`retry_info.retry_delay_ms`, which is how the proxy decides to retry. The error
+body is the proxy's own (`{error, status: {code, message, details: {error_info,
+retry_info}}}`).
 
 **Access control** (`GET /proxy/get_endpoint_access_control?endpointish=&role=`)
-returns `{role_secret}` (empty when the role does not exist) and
-`allowed_ips` when the project restricts them.
+returns `{role_secret, project_id, account_id}` (`role_secret` is empty when
+the role does not exist) and `allowed_ips` when the project restricts them.
+`GET /proxy/endpoints/:id/jwks` returns `{jwks: []}`: JWT login to Postgres is
+not offered. Every `/proxy/*` route requires `NEON_PROXY_TO_CONTROLPLANE_TOKEN`,
+compared in constant time.
 
-**Suspend.** The worker polls every running compute's `/status`; when
-`last_active` is older than the endpoint's `suspend_timeout_seconds`
-(default 300, `0` = never), it calls `POST /terminate?mode=fast` and deletes
-the pod.
+**Suspend.** The worker polls every running compute's `/status` each
+`ALLOYDB_IDLE_SWEEP_SECONDS`. The idle clock is the later of compute_ctl's
+`last_active` and the endpoint's `last_active_at` (stamped when the control
+plane wakes it), so a connection the proxy just opened is not undone by a stale
+value. When it is older than the endpoint's `suspend_timeout_seconds` (default
+300, `0` = never), the worker claims `running -> suspending`, calls `POST
+/terminate?mode=fast` (failure is logged, not fatal) and deletes the pod. A
+compute that reports `failed` or `terminated`, or that stays unreachable for
+three sweeps in a row, is cleaned up the same way.
 
 **Storage-controller hooks.** `PUT /storcon/notify-attach` and
-`PUT /storcon/notify-safekeepers` (bearer `CONTROL_PLANE_JWT_TOKEN`) update
-stored placement and tell a running compute to reload its spec; they return
-200 only after that, 503 when the compute could not be reached.
+`PUT /storcon/notify-safekeepers` require `CONTROL_PLANE_JWT_TOKEN` as the
+bearer. They are the endpoints named in `storage_controller/src/compute_hook.rs`
+and the statuses are the ones the controller acts on:
 
-**Registration.** On start and on every node change, the worker registers
-safekeepers (`POST /control/v1/safekeeper/:id` then scheduling policy
-`Active`) and records pageservers from `GET /control/v1/node`.
+| Status | Meaning |
+| --- | --- |
+| `200` | applied, or nothing was running |
+| `423` | stored, but a compute is still starting and may have the old placement; the controller retries the reconcile later |
+| `503` | a running compute could not be reloaded (or the controller's node list was unavailable); retried |
+| `404` | unknown tenant or timeline; the controller tolerates it while a tenant is being created |
+| `400`, `401` | bad body or token; never retried |
+
+`notify-attach` does not store the pageserver placement: spec building asks
+the controller (locate) each time, so the hook only reloads running computes,
+pushing a spec built from the notification and the controller's node list.
+`notify-safekeepers` stores the placement on the branch row (a notification
+with an older generation than the stored one is ignored; hostnames, which the
+controller marks informational, fall back to `safekeeper-<id - 1>.safekeeper.neon.svc.cluster.local`)
+and then reloads running computes. A reload is `POST /configure` on
+compute_ctl with the new spec, which waits until the compute is `running` again.
+
+**Registration.** Every `ALLOYDB_REGISTRATION_SECONDS` the worker upserts
+safekeepers `1..ALLOYDB_SAFEKEEPER_COUNT` (`POST /control/v1/safekeeper/:id`:
+host `safekeeper-<id - 1>.safekeeper.neon.svc.cluster.local`, ports 5454 and
+7676, zone `az-<id>`) when they are missing or differ, moves any that are
+`Activating` to `Active` (`POST .../scheduling_policy`), and copies the
+pageservers from `GET /control/v1/node` into the `node` table. Safekeepers an
+operator paused or decommissioned keep that policy.
 
 ## Data API
 
@@ -154,12 +293,31 @@ with an expiry the user picks. **Fork** uses
 
 All routes require `Authorization: Bearer <ALLOYDB_API_TOKEN>` (held by the
 console's server code) plus `X-AlloyDB-Org` and `X-AlloyDB-Project` headers
-that the console sets after its own membership checks. Shapes follow Neon's
-v2 API where one exists:
+that the console sets after its own membership checks. Request and response
+bodies are the zod schemas in `@repo/control-plane-contract`; errors are
+`{error: {code, message}}`. Shapes follow Neon's v2 API where one exists.
 
-`/v1/projects` · `/v1/projects/:id` · `/v1/projects/:id/branches[/:branch]` ·
-`/v1/projects/:id/endpoints[/:endpoint][/start|/suspend]` ·
-`/v1/projects/:id/branches/:branch/{roles,databases}` ·
-`/v1/projects/:id/branches/:branch/roles/:role/reset_password` ·
-`/v1/projects/:id/branches/:branch/databases/:db/data_api` ·
-`/v1/libsql/databases[/:id][/tokens|/fork]` · `/v1/operations/:id`.
+Scoping is enforced in every query, not only at the route: a project, branch,
+endpoint, role or database is found only when its project belongs to both the
+given organization and console project, and an id from anywhere else is the
+same `404` as an id that does not exist. Operations are scoped the same way
+(`operation.console_org_id`). Tests cover this for another console project,
+another organization, and the same console project under another organization,
+in memory and against PostgreSQL.
+
+| Route | Result |
+| --- | --- |
+| `POST /v1/projects` | `202`, the project, default branch, endpoint, owner role with its generated password (shown once) and a connection URI; `409` if the console project already has one |
+| `GET /v1/projects`, `GET /v1/projects/:id` | the console project's project |
+| `DELETE /v1/projects/:id` | `202`, `project.delete` |
+| `GET`, `POST /v1/projects/:id/branches`, `GET`, `DELETE .../branches/:branch` | `POST` forks `parent_id` (default branch) at `parent_lsn`; `409` for a duplicate name, the default branch, or a branch with children |
+| `GET`, `POST /v1/projects/:id/endpoints`, `GET`, `PATCH`, `DELETE .../endpoints/:endpoint` | one `read_write` endpoint per branch (`409` otherwise); a size change restarts a running compute |
+| `POST .../endpoints/:endpoint/start`, `/suspend` | `202`, `endpoint.start`, `endpoint.suspend` |
+| `GET`, `POST .../branches/:branch/roles`, `POST .../roles/:role/reset_password` | the password is returned once; only the SCRAM secret is stored |
+| `GET`, `POST .../branches/:branch/databases`, `DELETE .../databases/:db` | `:db` is the database name |
+| `GET /v1/operations/:id` | the operation |
+
+Mutations answer `202` with the changed resource and an `operation`; `423`
+means the project has an operation in flight; `400` names every invalid field.
+
+Not served yet: `.../databases/:db/data_api` and `/v1/libsql/...`.
