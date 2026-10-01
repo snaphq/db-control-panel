@@ -10,7 +10,7 @@ export interface ConnectionStrings {
   direct: string;
   pooled: string;
   sqlOverHttp: string;
-  /** Only when the Data API is enabled for the database. */
+  /** The control plane's `data_api_url`: null unless the Data API is enabled. */
   dataApi: string | null;
 }
 
@@ -18,9 +18,9 @@ const PASSWORD_PLACEHOLDER = "<password>";
 
 /** Hosts follow the control plane's `ep-<id>.<suffix>` scheme. */
 export function connectionStrings(
-  endpoint: Pick<Endpoint, "id" | "host">,
+  endpoint: Pick<Endpoint, "host">,
   role: string,
-  database: Pick<Database, "name" | "data_api_enabled">,
+  database: Pick<Database, "name" | "data_api_url">,
   password: string = PASSWORD_PLACEHOLDER,
 ): ConnectionStrings {
   const credentials = `${encodeURIComponent(role)}:${password}`;
@@ -29,8 +29,6 @@ export function connectionStrings(
     direct: `postgresql://${credentials}@${endpoint.host}${path}`,
     pooled: `postgresql://${credentials}@${pooledHost(endpoint.host)}${path}`,
     sqlOverHttp: `https://${endpoint.host}/sql`,
-    dataApi: database.data_api_enabled
-      ? `https://${endpoint.id}.apirest.alloydb.net/${database.name}/rest/v1`
-      : null,
+    dataApi: database.data_api_url,
   };
 }

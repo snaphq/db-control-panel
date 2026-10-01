@@ -10,6 +10,7 @@ import {
   type ApiEnv,
   type NeonApiDeps,
   apiError,
+  dataApiUrl,
   newPassword,
   notFound,
   parseBody,
@@ -18,13 +19,14 @@ import {
   toOperationResponse,
   toRole,
   toRoleWithPassword,
+  writerEndpointId,
 } from './api-support.js';
 
 export function registerRoleAndDatabaseRoutes(
   v1: Hono<ApiEnv>,
   deps: NeonApiDeps,
 ): void {
-  const { store, secrets } = deps;
+  const { store, secrets, dataApiHostSuffix } = deps;
   const base = '/projects/:project/branches/:branch';
 
   // ---- roles
@@ -154,7 +156,14 @@ export function registerRoleAndDatabaseRoutes(
       return notFound(c, 'Branch');
     }
     const databases = await store.listDatabases(scope, projectId, branchId);
-    return c.json({ databases: databases.map(toDatabase) });
+    const writerId = databases.some((d) => d.dataApiEnabled)
+      ? await writerEndpointId(store, scope, projectId, branchId)
+      : null;
+    return c.json({
+      databases: databases.map((d) =>
+        toDatabase(d, dataApiUrl(d, writerId, dataApiHostSuffix)),
+      ),
+    });
   });
 
   v1.post(`${base}/databases`, async (c) => {
@@ -208,7 +217,10 @@ export function registerRoleAndDatabaseRoutes(
       [{ kind: 'database.insert', row }],
     );
     return c.json(
-      { database: toDatabase(row), operation: toOperationResponse(operation) },
+      {
+        database: toDatabase(row, null),
+        operation: toOperationResponse(operation),
+      },
       202,
     );
   });
@@ -226,6 +238,9 @@ export function registerRoleAndDatabaseRoutes(
       await store.listDatabases(scope, projectId, branch.id)
     ).find((d) => d.name === c.req.param('database'));
     if (!existing) return notFound(c, 'Database');
+    const writerId = existing.dataApiEnabled
+      ? await writerEndpointId(store, scope, projectId, branch.id)
+      : null;
     const operation = await store.commit(
       scope,
       {
@@ -238,7 +253,10 @@ export function registerRoleAndDatabaseRoutes(
     );
     return c.json(
       {
-        database: toDatabase(existing),
+        database: toDatabase(
+          existing,
+          dataApiUrl(existing, writerId, dataApiHostSuffix),
+        ),
         operation: toOperationResponse(operation),
       },
       202,

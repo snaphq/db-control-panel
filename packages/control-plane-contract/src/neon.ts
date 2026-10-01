@@ -129,6 +129,12 @@ export const databaseSchema = z.object({
   name: z.string(),
   owner_name: z.string(),
   data_api_enabled: z.boolean(),
+  /**
+   * `https://<endpoint id>.apirest.alloydb.net/<db>/rest/v1`: set only while the
+   * Data API is enabled and the branch has a `read_write` endpoint to serve it.
+   * The host suffix is the control plane's `ALLOYDB_DATA_API_HOST_SUFFIX`.
+   */
+  data_api_url: z.string().nullable(),
   created_at: timestampSchema,
 });
 export type Database = z.infer<typeof databaseSchema>;

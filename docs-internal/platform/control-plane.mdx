@@ -524,7 +524,7 @@ in memory and against PostgreSQL.
 | `GET`, `POST /v1/projects/:id/endpoints`, `GET`, `PATCH`, `DELETE .../endpoints/:endpoint` | one `read_write` endpoint per branch (`409` otherwise); a size change restarts a running compute |
 | `POST .../endpoints/:endpoint/start`, `/suspend` | `202`, `endpoint.start`, `endpoint.suspend` |
 | `GET`, `POST .../branches/:branch/roles`, `POST .../roles/:role/reset_password` | the password is returned once; only the SCRAM secret is stored |
-| `GET`, `POST .../branches/:branch/databases`, `DELETE .../databases/:db` | `:db` is the database name |
+| `GET`, `POST .../branches/:branch/databases`, `DELETE .../databases/:db` | `:db` is the database name. Every database carries `data_api_url`: `https://<read_write endpoint id>.<ALLOYDB_DATA_API_HOST_SUFFIX>/<db>/rest/v1` while `data_api_enabled` is true, otherwise (or when the branch has no `read_write` endpoint) `null`. Consumers use it as given and never derive the host |
 | `PUT`, `DELETE .../branches/:branch/databases/:db/data_api` | `202`; turns the Data API on (`409` without a `read_write` endpoint, a stored owner password or a free sidecar slot) or off |
 | `GET`, `PUT /v1/projects/:id/data_api/jwks` | the effective keys and their `source` (`platform` or `custom`); `PUT` takes `{jwks}` or `{jwks: null}` and answers `202` with the restart operation |
 | `POST /v1/projects/:id/data_api/token` | `{role?, sub?, expires_in_seconds?}`: a test token signed with the platform key |

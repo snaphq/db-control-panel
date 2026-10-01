@@ -125,7 +125,12 @@ describe('databases', () => {
       await (await call(t.api, 'GET', `${t.base}/databases`)).json(),
     );
     expect(body.databases).toMatchObject([
-      { name: 'neondb', owner_name: 'neondb_owner', data_api_enabled: false },
+      {
+        name: 'neondb',
+        owner_name: 'neondb_owner',
+        data_api_enabled: false,
+        data_api_url: null,
+      },
     ]);
   });
 

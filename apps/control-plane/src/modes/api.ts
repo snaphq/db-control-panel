@@ -36,7 +36,6 @@ const missing = (c: ApiContext, header: string) =>
   );
 
 interface ApiDeps extends NeonApiDeps, LibsqlApiDeps {
-  dataApiHostSuffix: string;
   apiToken: string;
   /** Reads an operation, scoped to the organization and console project that own it. */
   findOperation(id: string, scope: Scope): Promise<OperationRecord | null>;

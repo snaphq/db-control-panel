@@ -3,6 +3,7 @@ import {
   dataApiJwksResponseSchema,
   dataApiToggleResponseSchema,
   dataApiTokenResponseSchema,
+  listDatabasesResponseSchema,
   setDataApiJwksResponseSchema,
 } from '@repo/control-plane-contract';
 import { describe, expect, it } from 'vitest';
@@ -218,6 +219,102 @@ describe('enable', () => {
     const t = await setup();
     await call(t.api, 'PUT', t.dbPath());
     expect((await call(t.api, 'PUT', t.dbPath())).status).toBe(423);
+  });
+});
+
+describe('data_api_url on databases', () => {
+  const list = async (t: T, caller = alice) =>
+    listDatabasesResponseSchema.parse(
+      await (
+        await call(t.api, 'GET', `${t.base}/branches/${t.branchId}/databases`, {
+          caller,
+        })
+      ).json(),
+    ).databases;
+
+  it('is null while the Data API is off', async () => {
+    const t = await setup();
+    const [database] = await list(t);
+    expect(database).toMatchObject({
+      data_api_enabled: false,
+      data_api_url: null,
+    });
+  });
+
+  it('is the gateway URL of the read_write endpoint once enabled', async () => {
+    const t = await setup();
+    const { body } = await enable(t);
+    expect(body.database.data_api_url).toBe(
+      `https://${t.endpointId}.apirest.alloydb.net/neondb/rest/v1`,
+    );
+    const [database] = await list(t);
+    expect(database).toMatchObject({
+      data_api_enabled: true,
+      data_api_url: body.data_api.url,
+    });
+  });
+
+  it('is only set on the databases that have the Data API enabled', async () => {
+    const t = await setup();
+    await call(t.api, 'POST', `${t.base}/branches/${t.branchId}/databases`, {
+      body: { name: 'analytics', owner_name: 'neondb_owner' },
+    });
+    finishOperations(t.api);
+    await enable(t);
+    const byName = Object.fromEntries(
+      (await list(t)).map((d) => [d.name, d.data_api_url]),
+    );
+    expect(byName).toEqual({
+      neondb: `https://${t.endpointId}.apirest.alloydb.net/neondb/rest/v1`,
+      analytics: null,
+    });
+  });
+
+  it('goes back to null after disabling', async () => {
+    const t = await setup();
+    await enable(t);
+    const response = await call(t.api, 'DELETE', t.dbPath());
+    const body = dataApiToggleResponseSchema.parse(await response.json());
+    expect(body.database.data_api_url).toBeNull();
+    finishOperations(t.api);
+    expect((await list(t))[0]?.data_api_url).toBeNull();
+  });
+
+  it('is null when the branch lost its read_write endpoint', async () => {
+    const t = await setup();
+    await enable(t);
+    const writer = t.api.store.endpoints.get(t.endpointId);
+    if (writer) writer.deletedAt = new Date();
+    expect((await list(t))[0]).toMatchObject({
+      data_api_enabled: true,
+      data_api_url: null,
+    });
+  });
+
+  it('uses the configured host suffix', async () => {
+    const api = buildApi(undefined, { dataApiHostSuffix: 'rest.example.test' });
+    const created = await createProject(api);
+    const response = await call(
+      api,
+      'PUT',
+      `/projects/${created.projectId}/branches/${created.branchId}/databases/neondb/data_api`,
+    );
+    const body = dataApiToggleResponseSchema.parse(await response.json());
+    const expected = `https://${created.endpointId}.rest.example.test/neondb/rest/v1`;
+    expect(body.data_api.url).toBe(expected);
+    expect(body.database.data_api_url).toBe(expected);
+  });
+
+  it('never reaches another console project', async () => {
+    const t = await setup();
+    await enable(t);
+    const response = await call(
+      t.api,
+      'GET',
+      `${t.base}/branches/${t.branchId}/databases`,
+      { caller: bob },
+    );
+    expect(response.status).toBe(404);
   });
 });
 

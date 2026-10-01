@@ -19,7 +19,7 @@ describe("connection strings", () => {
   it("builds direct, pooled and SQL over HTTP strings with a password placeholder", () => {
     const urls = connectionStrings(endpoint, "neondb_owner", {
       name: "neondb",
-      data_api_enabled: false,
+      data_api_url: null,
     });
     expect(urls.direct).toBe(
       "postgresql://neondb_owner:<password>@ep-quiet-lake-12.pg.alloydb.net/neondb?sslmode=require",
@@ -32,18 +32,19 @@ describe("connection strings", () => {
     );
   });
 
-  it("offers the Data API URL only when it is enabled", () => {
+  it("offers the Data API URL the control plane sent, and none when it sent null", () => {
     const off = connectionStrings(endpoint, "r", {
       name: "neondb",
-      data_api_enabled: false,
+      data_api_url: null,
     });
     const on = connectionStrings(endpoint, "r", {
       name: "neondb",
-      data_api_enabled: true,
+      data_api_url: "https://ep-quiet-lake-12.rest.example.test/neondb/rest/v1",
     });
     expect(off.dataApi).toBeNull();
+    // The host comes from the control plane's configured suffix, not from the console.
     expect(on.dataApi).toBe(
-      "https://ep-quiet-lake-12.apirest.alloydb.net/neondb/rest/v1",
+      "https://ep-quiet-lake-12.rest.example.test/neondb/rest/v1",
     );
   });
 });

@@ -16,6 +16,7 @@ import {
   type ApiEnv,
   type NeonApiDeps,
   apiError,
+  dataApiUrl,
   newPassword,
   notFound,
   parseBody,
@@ -24,11 +25,6 @@ import {
   toDatabase,
   toOperationResponse,
 } from './api-support.js';
-
-export interface DataApiRouteDeps extends NeonApiDeps {
-  /** Gateway hosts are `<endpoint id>.<suffix>`, e.g. `apirest.alloydb.net`. */
-  dataApiHostSuffix: string;
-}
 
 /** The JWKS ends up in a container environment variable, which Kubernetes caps well above this. */
 const MAX_JWKS_BYTES = 16_000;
@@ -44,7 +40,7 @@ const MAX_JWKS_BYTES = 16_000;
  */
 export function registerDataApiRoutes(
   v1: Hono<ApiEnv>,
-  deps: DataApiRouteDeps,
+  deps: NeonApiDeps,
 ): void {
   const { store, secrets } = deps;
   const dbBase = '/projects/:project/branches/:branch/databases/:db/data_api';
@@ -165,17 +161,12 @@ export function registerDataApiRoutes(
       },
       changes,
     );
+    const enabled = { ...database, dataApiEnabled: true, dataApiIndex: index };
+    const url = dataApiUrl(enabled, writer.id, deps.dataApiHostSuffix);
     return c.json(
       {
-        database: toDatabase({
-          ...database,
-          dataApiEnabled: true,
-          dataApiIndex: index,
-        }),
-        data_api: {
-          enabled: true,
-          url: `https://${writer.id}.${deps.dataApiHostSuffix}/${database.name}/rest/v1`,
-        },
+        database: toDatabase(enabled, url),
+        data_api: { enabled: true, url },
         operation: toOperationResponse(operation),
       },
       202,
@@ -209,7 +200,7 @@ export function registerDataApiRoutes(
     );
     return c.json(
       {
-        database: toDatabase({ ...database, dataApiEnabled: false }),
+        database: toDatabase({ ...database, dataApiEnabled: false }, null),
         data_api: { enabled: false, url: null },
         operation: toOperationResponse(operation),
       },

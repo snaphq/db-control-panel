@@ -36,6 +36,8 @@ export interface NeonApiDeps {
   store: NeonStore;
   /** Domain endpoint hosts live under, e.g. `pg.alloydb.net`. */
   pgHostSuffix: string;
+  /** Data API hosts are `<endpoint id>.<suffix>`, e.g. `apirest.alloydb.net`. */
+  dataApiHostSuffix: string;
   /** Seals the role passwords the Data API bootstrap needs back. */
   secrets: SecretBox;
 }
@@ -181,13 +183,41 @@ export function toRoleWithPassword(
   return { ...toRole(row), password };
 }
 
-export function toDatabase(row: DatabaseRow): Database {
+/**
+ * The public URL of a database's Data API, or null while it is disabled or the
+ * branch has no `read_write` endpoint (`writerId`) for the gateway to route to.
+ */
+export function dataApiUrl(
+  row: Pick<DatabaseRow, 'name' | 'dataApiEnabled'>,
+  writerId: string | null | undefined,
+  hostSuffix: string,
+): string | null {
+  if (!row.dataApiEnabled || !writerId) return null;
+  return `https://${writerId}.${hostSuffix}/${row.name}/rest/v1`;
+}
+
+/** Id of the branch's `read_write` endpoint, which serves its Data API. */
+export async function writerEndpointId(
+  store: NeonStore,
+  scope: Scope,
+  projectId: string,
+  branchId: string,
+): Promise<string | null> {
+  const endpoints = await store.listEndpoints(scope, projectId, { branchId });
+  return endpoints.find((e) => e.type === 'read_write')?.id ?? null;
+}
+
+export function toDatabase(
+  row: DatabaseRow,
+  dataApiUrl: string | null,
+): Database {
   return {
     id: row.id,
     branch_id: row.branchId,
     name: row.name,
     owner_name: row.ownerRole,
     data_api_enabled: row.dataApiEnabled,
+    data_api_url: dataApiUrl,
     created_at: row.createdAt.toISOString(),
   };
 }

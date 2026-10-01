@@ -8,6 +8,7 @@ import {
   createProjectRequestSchema,
   createProjectResponseSchema,
   createRoleRequestSchema,
+  databaseSchema,
   errorResponseSchema,
   operationResponseSchema,
   updateEndpointRequestSchema,
@@ -190,6 +191,7 @@ describe("createProjectResponseSchema", () => {
           name: "neondb",
           owner_name: "neondb_owner",
           data_api_enabled: false,
+          data_api_url: null,
           created_at: now,
         },
       ],
@@ -197,5 +199,30 @@ describe("createProjectResponseSchema", () => {
       operation,
     };
     expect(createProjectResponseSchema.parse(response)).toEqual(response);
+  });
+});
+
+describe("databaseSchema", () => {
+  const database = {
+    id: "db_1",
+    branch_id: "br_1",
+    name: "neondb",
+    owner_name: "neondb_owner",
+    data_api_enabled: true,
+    created_at: now,
+  };
+
+  it("carries the Data API URL, or null when there is none", () => {
+    const url = "https://ep-a-1.apirest.alloydb.net/neondb/rest/v1";
+    expect(
+      databaseSchema.parse({ ...database, data_api_url: url }).data_api_url,
+    ).toBe(url);
+    expect(
+      databaseSchema.parse({ ...database, data_api_url: null }).data_api_url,
+    ).toBeNull();
+  });
+
+  it("requires data_api_url so a server that forgets it is caught", () => {
+    expect(databaseSchema.safeParse(database).success).toBe(false);
   });
 });

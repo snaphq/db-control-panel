@@ -15,7 +15,10 @@ export const testSecrets = createSecretBox(randomBytes(32));
 type Json = any;
 export type TestResponse = Omit<Response, 'json'> & { json(): Promise<Json> };
 
-export function buildApi(store = createMemoryNeonStore()) {
+export function buildApi(
+  store = createMemoryNeonStore(),
+  overrides: ApiOverrides = {},
+) {
   return assembleApi(
     store,
     createMemoryLibsqlStore(store),
@@ -27,8 +30,12 @@ export function buildApi(store = createMemoryNeonStore()) {
         ? record
         : null;
     },
+    overrides,
   );
 }
+
+/** Deps a test may replace on the otherwise standard route tree. */
+type ApiOverrides = Partial<{ dataApiHostSuffix: string }>;
 
 /** The real route tree over any store; `findOperation` decides where operations are read from. */
 export const testLibsqlSigner = newTestSigner();
@@ -37,6 +44,7 @@ export function assembleApi<S extends NeonStore>(
   store: S,
   libsql: LibsqlStore,
   findOperation: Parameters<typeof createApiRoutes>[0]['findOperation'],
+  overrides: ApiOverrides = {},
 ) {
   const app = createBaseApp(async () => {});
   app.route(
@@ -48,7 +56,7 @@ export function assembleApi<S extends NeonStore>(
       store,
       libsql,
       libsqlHostSuffix: 'lite.alloydb.net',
-      dataApiHostSuffix: 'apirest.alloydb.net',
+      dataApiHostSuffix: overrides.dataApiHostSuffix ?? 'apirest.alloydb.net',
       libsqlSigner: testLibsqlSigner,
       findOperation,
     }),

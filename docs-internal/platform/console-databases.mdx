@@ -125,9 +125,10 @@ reloaded on every status change. Five failed polls in a row mark the operation a
 lost. Passwords and tokens live in component state only while the secret dialog
 is open.
 
-The Data API URL is derived from the endpoint id
-(`https://<endpoint id>.apirest.alloydb.net/<db>/rest/v1`) because the database
-schema carries no URL outside the toggle response.
+The Data API URL is the database's `data_api_url`, which the control plane builds
+from its `ALLOYDB_DATA_API_HOST_SUFFIX`; `connection-urls.ts` shows it as given
+and shows nothing while it is `null` (Data API disabled). The console holds no
+copy of the apirest domain.
 
 ## Known gaps
 

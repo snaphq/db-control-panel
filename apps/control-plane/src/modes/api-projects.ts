@@ -134,7 +134,7 @@ export function registerProjectRoutes(
         branch: toBranch(branch),
         endpoints: [toEndpoint(endpoint, project.id, pgHostSuffix)],
         roles: [toRoleWithPassword(role, password)],
-        databases: [toDatabase(database)],
+        databases: [toDatabase(database, null)],
         connection_uris: [
           {
             connection_uri: `postgresql://${OWNER_ROLE}:${encodeURIComponent(password)}@${host}/${DEFAULT_DATABASE}?sslmode=require`,
