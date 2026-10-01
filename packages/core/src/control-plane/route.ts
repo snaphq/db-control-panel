@@ -8,6 +8,7 @@ import {
   ControlPlaneNotFoundError,
   ControlPlaneRequestError,
   ControlPlaneUnavailableError,
+  describeControlPlaneError,
 } from "./errors";
 
 function fail(status: number, error: string, code: string) {
@@ -17,25 +18,21 @@ function fail(status: number, error: string, code: string) {
 /** Maps a control-plane failure to the JSON error the Databases UI shows. */
 function controlPlaneErrorResponse(error: unknown): Response {
   if (error instanceof ControlPlaneBusyError) {
-    return fail(423, "Another change is in progress.", "busy");
+    return fail(423, describeControlPlaneError(error), "busy");
   }
-  if (error instanceof ControlPlaneNotFoundError) {
-    return fail(404, error.message, error.code);
-  }
-  if (error instanceof ControlPlaneRequestError) {
-    return fail(error.status, error.message, error.code);
+  if (
+    error instanceof ControlPlaneNotFoundError ||
+    error instanceof ControlPlaneRequestError
+  ) {
+    return fail(error.status, describeControlPlaneError(error), error.code);
   }
   if (error instanceof ControlPlaneConfigError) {
     console.error(error.message);
-    return fail(503, "Databases are not set up for this site yet.", error.code);
+    return fail(503, describeControlPlaneError(error), error.code);
   }
   if (error instanceof ControlPlaneUnavailableError) {
     console.error("Control plane unavailable:", error.message);
-    return fail(
-      502,
-      "The database service is unavailable. Try again shortly.",
-      "unavailable",
-    );
+    return fail(502, describeControlPlaneError(error), "unavailable");
   }
   console.error("Databases route failed:", error);
   return fail(500, "Internal server error", "internal");

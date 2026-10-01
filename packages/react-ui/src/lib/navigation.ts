@@ -4,6 +4,7 @@ import {
   Bot,
   ClipboardList,
   CreditCard,
+  Database,
   Folder,
   HomeIcon,
   Plug,
@@ -83,6 +84,7 @@ export const projectNav: NavConfig = {
       title: "",
       items: [
         { label: "Home", icon: HomeIcon, segment: "" },
+        { label: "Databases", icon: Database, segment: "databases" },
         { label: "Finance", icon: Folder, segment: "finance" },
         { label: "Integrations", icon: Plug, segment: "integrations" },
       ],

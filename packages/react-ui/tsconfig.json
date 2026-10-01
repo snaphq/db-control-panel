@@ -15,6 +15,7 @@
       "@repo/billing/*": ["../billing/src/*"],
       "@repo/object-storage": ["../object-storage/src"],
       "@repo/object-storage/*": ["../object-storage/src/*"],
+      "@repo/control-plane-contract": ["../control-plane-contract/src"],
       "@repo/core/*": ["../core/src/*"],
       "@repo/react-ui/*": ["../react-ui/src/*"]
     },

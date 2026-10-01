@@ -43,3 +43,16 @@ export class ControlPlaneConfigError extends ControlPlaneError {
     super(message, 0, "not_configured");
   }
 }
+
+/** A message safe to show to a signed-in member; details stay in the server log. */
+export function describeControlPlaneError(error: ControlPlaneError): string {
+  if (error instanceof ControlPlaneBusyError) {
+    return "Another change is in progress.";
+  }
+  if (error instanceof ControlPlaneNotFoundError) return error.message;
+  if (error instanceof ControlPlaneRequestError) return error.message;
+  if (error instanceof ControlPlaneConfigError) {
+    return "Databases are not set up for this site yet.";
+  }
+  return "The database service is unavailable. Try again shortly.";
+}

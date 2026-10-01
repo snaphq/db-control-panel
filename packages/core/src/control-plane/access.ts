@@ -20,7 +20,7 @@ export type ProjectAccessResult =
   | { ok: true; access: ProjectAccess }
   | { ok: false; status: 401 | 403 | 404; message: string };
 
-function canManageDatabases(role: string): boolean {
+export function canManageDatabases(role: string): boolean {
   return WRITE_ROLES.has(role);
 }
 
