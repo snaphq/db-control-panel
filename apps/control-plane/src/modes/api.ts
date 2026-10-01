@@ -12,6 +12,7 @@ import {
 } from '../operations/queue.js';
 import { findOperation } from '../operations/repository.js';
 import type { OperationRecord } from '../operations/store.js';
+import { registerDataApiRoutes } from './api-data-api.js';
 import { registerEndpointRoutes } from './api-endpoints.js';
 import { type LibsqlApiDeps, registerLibsqlRoutes } from './api-libsql.js';
 import { registerProjectRoutes } from './api-projects.js';
@@ -35,6 +36,7 @@ const missing = (c: ApiContext, header: string) =>
   );
 
 interface ApiDeps extends NeonApiDeps, LibsqlApiDeps {
+  dataApiHostSuffix: string;
   apiToken: string;
   /** Reads an operation, scoped to the organization and console project that own it. */
   findOperation(id: string, scope: Scope): Promise<OperationRecord | null>;
@@ -68,6 +70,7 @@ export function createApiRoutes(deps: ApiDeps): Hono<ApiEnv> {
   registerProjectRoutes(v1, deps);
   registerEndpointRoutes(v1, deps);
   registerRoleAndDatabaseRoutes(v1, deps);
+  registerDataApiRoutes(v1, deps);
   registerLibsqlRoutes(v1, deps);
   return v1;
 }
@@ -87,6 +90,7 @@ export function startApi(config: ApiConfig): Promise<RunningMode> {
         store,
         libsql: createDrizzleLibsqlStore(handle.db, queue),
         libsqlHostSuffix: config.libsqlHostSuffix,
+        dataApiHostSuffix: config.dataApiHostSuffix,
         libsqlSigner: config.libsqlJwtSigningKeyPath
           ? loadSigner(config.libsqlJwtSigningKeyPath)
           : null,

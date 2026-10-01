@@ -41,8 +41,8 @@ export type DataApiJwksResponse = z.infer<typeof dataApiJwksResponseSchema>;
 
 /**
  * `jwks: null` returns the project to its platform key. The sidecars read the
- * keys at start, so a change restarts the project's running computes through
- * `operation`; it is null when no database uses the Data API yet.
+ * keys when they start, so a change restarts the project's running computes
+ * that serve the Data API through `operation` (a no-op when there are none).
  */
 export const setDataApiJwksRequestSchema = z.object({
   jwks: jwksSchema.nullable(),
@@ -50,7 +50,7 @@ export const setDataApiJwksRequestSchema = z.object({
 export type SetDataApiJwksRequest = z.infer<typeof setDataApiJwksRequestSchema>;
 
 export const setDataApiJwksResponseSchema = dataApiJwksResponseSchema.extend({
-  operation: operationSchema.nullable(),
+  operation: operationSchema,
 });
 export type SetDataApiJwksResponse = z.infer<
   typeof setDataApiJwksResponseSchema

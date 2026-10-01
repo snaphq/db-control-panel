@@ -48,6 +48,7 @@ export function assembleApi<S extends NeonStore>(
       store,
       libsql,
       libsqlHostSuffix: 'lite.alloydb.net',
+      dataApiHostSuffix: 'apirest.alloydb.net',
       libsqlSigner: testLibsqlSigner,
       findOperation,
     }),
