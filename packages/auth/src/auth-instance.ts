@@ -113,7 +113,7 @@ export function createAuthInstance(options?: BetterAuthServerOptions) {
   });
 
   return betterAuth({
-    appName: "Cold Email Platform",
+    appName: "AlloyDB",
     database: (adapterOptions: Parameters<typeof databaseAdapter>[0]) =>
       withTenantBoundAuthAdapter(databaseAdapter(adapterOptions)),
     secret: config.secret,
@@ -439,7 +439,7 @@ export function createAuthInstance(options?: BetterAuthServerOptions) {
       }),
       twoFactor(),
       passkey({
-        rpName: "Cold Email Platform",
+        rpName: "AlloyDB",
         rpID: process.env.PASSKEY_RP_ID,
         origin: process.env.NEXT_PUBLIC_APP_URL,
       }),
