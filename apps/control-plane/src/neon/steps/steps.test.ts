@@ -1,5 +1,9 @@
+import { randomBytes } from 'node:crypto';
+import { OPERATION_ACTIONS } from '@repo/control-plane-contract';
 import { describe, expect, it } from 'vitest';
 import { newEndpointId, newId, newNeonId } from '../../crypto/ids.js';
+import { createSecretBox } from '../../crypto/secretbox.js';
+import { createFakeSql } from '../../data-api/fakes.js';
 import type { OperationAction } from '../../db/schema.js';
 import { createFakeAdmin, createFakeLibsqlKube } from '../../libsql/fakes.js';
 import { createMemoryLibsqlStore } from '../../libsql/store-memory.js';
@@ -49,6 +53,12 @@ async function setup(seedOptions: Parameters<typeof seedProject>[1] = {}) {
       kube: createFakeLibsqlKube(),
       hostSuffix: 'lite.alloydb.net',
     },
+    dataApi: {
+      store: seeded.store,
+      runtime,
+      secrets: createSecretBox(randomBytes(32)),
+      connect: createFakeSql().connect,
+    },
   });
   const operations = createMemoryOperationStore();
   let counter = 0;
@@ -94,29 +104,11 @@ async function setup(seedOptions: Parameters<typeof seedProject>[1] = {}) {
 }
 
 describe('registry', () => {
-  it('has a plan for every Neon and libSQL action and none for the Data API yet', async () => {
+  it('has a plan for every operation action of the contract', async () => {
     const t = await setup();
-    const actions: OperationAction[] = [
-      'project.create',
-      'project.delete',
-      'branch.create',
-      'branch.delete',
-      'endpoint.start',
-      'endpoint.suspend',
-      'endpoint.update',
-      'role.reset_password',
-      'database.create',
-      'database.delete',
-      'libsql.create',
-      'libsql.fork',
-      'libsql.delete',
-    ];
-    for (const action of actions) {
+    for (const action of OPERATION_ACTIONS) {
       expect(t.registry.planFor(action).length).toBeGreaterThan(0);
     }
-    expect(() => t.registry.planFor('data_api.enable')).toThrowError(
-      /No steps/,
-    );
   });
 });
 

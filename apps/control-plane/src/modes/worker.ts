@@ -1,5 +1,6 @@
 import type { WorkerConfig } from '../config.js';
 import { loadSigner } from '../crypto/ed25519.js';
+import { connectPostgres } from '../data-api/postgres-session.js';
 import { createDatabase } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
 import { createKubeClients } from '../k8s/client.js';
@@ -62,6 +63,12 @@ export async function startWorker(config: WorkerConfig): Promise<RunningMode> {
           admin: createSqldAdminClient({ authKey: config.libsqlAdminAuthKey }),
           kube: createLibsqlKube(kube),
           hostSuffix: config.libsqlHostSuffix,
+        },
+        dataApi: {
+          store: neon.store,
+          runtime: neon.runtime,
+          secrets: neon.secrets,
+          connect: connectPostgres,
         },
       }),
     });

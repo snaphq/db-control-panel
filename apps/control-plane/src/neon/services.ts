@@ -1,5 +1,7 @@
 import type { NeonGlueConfig, WorkerConfig } from '../config.js';
 import type { Ed25519Signer } from '../crypto/ed25519.js';
+import { createSecretBox } from '../crypto/secretbox.js';
+import { createSidecarProvider } from '../data-api/sidecars.js';
 import type { Database } from '../db/client.js';
 import type { KubeClients } from '../k8s/client.js';
 import { createPodApi } from '../k8s/pods.js';
@@ -23,6 +25,7 @@ export function createNeonServices(input: {
     | 'postgrestImage'
     | 'imagePullSecret'
     | 'neonGlueUrl'
+    | 'dataKey'
   >;
   queue?: OperationQueue;
 }) {
@@ -33,6 +36,7 @@ export function createNeonServices(input: {
     token: config.controlPlaneJwtToken,
   });
   const specs = createSpecService({ store, storcon, signer });
+  const secrets = createSecretBox(config.dataKey);
   const computeCtl = createComputeCtlClient({ signer });
   const runtime = createComputeRuntime({
     store,
@@ -40,6 +44,7 @@ export function createNeonServices(input: {
     computeCtl,
     specs,
     signer,
+    sidecars: createSidecarProvider({ store, secrets }),
     config: {
       computeImage: config.computeImage,
       postgrestImage: config.postgrestImage,
@@ -47,5 +52,5 @@ export function createNeonServices(input: {
       pullSecret: config.imagePullSecret,
     },
   });
-  return { store, storcon, specs, computeCtl, runtime };
+  return { store, storcon, specs, computeCtl, runtime, secrets };
 }
