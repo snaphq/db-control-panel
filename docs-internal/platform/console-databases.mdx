@@ -101,7 +101,7 @@ body (the changed resource and an `operation`).
 | `GET databases` | aggregate: projects, branches, endpoints, roles, databases, libSQL |
 | `POST databases` | `POST /v1/projects` (owner password and URI in the response) |
 | `DELETE databases/neon/[neonId]` | `DELETE /v1/projects/:id` |
-| `POST databases/neon/[neonId]/branches` | `POST .../branches` (`parent_lsn` for a past point) |
+| `POST databases/neon/[neonId]/branches` | `POST .../branches` (`parent_lsn` or `parent_timestamp` for a past point; both is `400`) |
 | `DELETE databases/neon/[neonId]/branches/[branchId]` | `DELETE .../branches/:branch` |
 | `POST databases/neon/[neonId]/endpoints/[endpointId]/start`, `/suspend` | `POST .../endpoints/:endpoint/start`, `/suspend` |
 | `POST .../branches/[branchId]/roles/[role]/reset-password` | `POST .../roles/:role/reset_password` |
@@ -129,6 +129,18 @@ every operation that is still in flight (labelled by action, for example
 does not drop the progress display; a failed lookup shows an error alert. Passwords and tokens live in component state only while the secret dialog
 is open.
 
+The **New branch** dialog (`create-branch-dialog.tsx`) offers three starting
+points: now, **From a point in time**, and an LSN. The point in time is a
+`datetime-local` input in the user's own zone; `point-in-time.ts` converts it
+with `new Date(value).toISOString()` to the UTC `parent_timestamp` the control
+plane takes, and shows the UTC value beside the input. It also refuses, before
+submitting, a time that has not happened yet or is older than the project's
+`history_retention_seconds`. The control plane resolves the time to an LSN in
+the background ([Control plane](/platform/control-plane), "Create branch from a
+point in time"), so a time the parent has no history for (for example one before
+the branch was forked) is reported by the operation banner as a failed operation
+with the reason, not as a form error.
+
 The Data API URL is the database's `data_api_url`, which the control plane builds
 from its `ALLOYDB_DATA_API_HOST_SUFFIX`; `connection-urls.ts` shows it as given
 and shows nothing while it is `null` (Data API disabled). The console holds no
@@ -136,8 +148,6 @@ copy of the apirest domain.
 
 ## Known gaps
 
-- Branching from a timestamp needs a `parent_timestamp` field in
-  `createBranchRequestSchema`; only `parent_lsn` exists.
 - libSQL tokens are stateless JWTs, so there is no revoke; the contract has no
   revoke call.
 - libSQL routes and the Data API toggle are not served by the control plane yet.

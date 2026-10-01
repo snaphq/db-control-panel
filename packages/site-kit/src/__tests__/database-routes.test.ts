@@ -328,6 +328,34 @@ describe("database routes authorization", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("forwards a branch point in time to the control plane as given", async () => {
+    const handlers = await import(`${base}/neon/[neonId]/branches/route`);
+    const response = await call(handlers, "POST", {
+      name: "dev",
+      parent_timestamp: "2026-03-01T10:00:00.000Z",
+    });
+    expect(response.status).toBe(202);
+    expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body)).toEqual({
+      name: "dev",
+      parent_timestamp: "2026-03-01T10:00:00.000Z",
+    });
+  });
+
+  it("rejects a branch with both an LSN and a point in time before calling the control plane", async () => {
+    const handlers = await import(`${base}/neon/[neonId]/branches/route`);
+    const response = await call(handlers, "POST", {
+      name: "dev",
+      parent_lsn: "0/16B5A50",
+      parent_timestamp: "2026-03-01T10:00:00.000Z",
+    });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      code: "invalid_request",
+      error: expect.stringContaining("not both"),
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("tells the UI when another change is in progress", async () => {
     fetchMock.mockResolvedValue(
       Response.json(

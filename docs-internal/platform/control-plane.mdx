@@ -148,7 +148,7 @@ The plans, with the Data API and libSQL actions at the end:
 | --- | --- | --- |
 | `project.create` | `tenant` (create tenant), `timeline` (root timeline, store safekeepers) | project, default branch `main`, endpoint, role `neondb_owner`, database `neondb` |
 | `project.delete` | `computes` (suspend every endpoint), `tenant` (delete tenant) | `deleted_at` on the project, its branches and endpoints |
-| `branch.create` | `timeline` (fork parent at `parent_lsn`, store safekeepers and the fork LSN) | branch, copies of the parent's roles and databases, optional endpoint |
+| `branch.create` | `timeline` (with `parentTimestamp` in the params and no LSN yet: resolve the time to an LSN; then fork the parent at the LSN, store safekeepers and the fork LSN) | branch, copies of the parent's roles and databases, optional endpoint; `params` hold `branchId` and, for `parent_timestamp`, `parentTimestamp` (UTC ISO 8601) |
 | `branch.delete` | `computes`, `timeline` (delete timeline) | `deleted_at` on the branch and its endpoints |
 | `endpoint.start` | `wake` | none |
 | `endpoint.suspend` | `suspend` | none, or `deleted_at` when the endpoint is being deleted |
@@ -194,6 +194,55 @@ role and database from the spec.
 ancestor_timeline_id, ancestor_start_lsn?}`. Without an LSN the branch forks
 at the parent's latest LSN and the response's `ancestor_lsn` is recorded as
 `parent_lsn`.
+
+**Create branch from a point in time.** `parent_timestamp` (exclusive with
+`parent_lsn`) is turned into an LSN by the `timeline` step, before the timeline
+is created, with `GET /v1/tenant/:id/timeline/:parent_timeline/get_lsn_by_timestamp?timestamp=<UTC ISO 8601>&with_lease=true`
+on the storage controller (`getLsnByTimestamp` in `neon/storcon-client.ts`).
+
+- Route. The controller does not implement it: the wildcard
+  `GET /v1/tenant/:tenant_id/*` forwards any tenant or timeline GET to the
+  pageserver holding shard zero (`storage_controller/src/http.rs:2672-2681`,
+  handler `handle_tenant_timeline_passthrough` at `:723-856`). The pageserver
+  route is `pageserver/src/http/routes.rs:4093-4096`, handler
+  `get_lsn_by_timestamp_handler` at `:1036-1109`.
+- Scope. The passthrough needs `PageServerApi` (`http.rs:728`), and
+  `check_permissions` accepts an `admin` token for any scope
+  (`http.rs:1811-1821`), so the control plane's admin token
+  (`CONTROL_PLANE_JWT_TOKEN`) is enough, like every other call. The pageserver
+  only answers on shard zero (`routes.rs:1044-1049`), which the passthrough
+  selects.
+- Request. `timestamp` is parsed with `humantime::parse_rfc3339`
+  (`routes.rs:1052-1056`), which takes UTC only (`Z` or `+00:00`) and no local
+  offset, so the client always sends `Date.toISOString()`. `with_lease=true`
+  (`routes.rs:1058`, `:1085-1095`) pins the LSN with a lease of
+  `lsn_lease_length_for_ts`, 60 seconds by default
+  (`libs/pageserver_api/src/models.rs:179-181`), so garbage collection cannot
+  pass it before the timeline exists. The step stores the answer on the branch
+  (`parent_lsn`) before creating the timeline, so a retry forks at the same
+  point and does not ask again.
+- Response. `{lsn, kind, valid_until?}`, `lsn` as `hi/lo` hex
+  (`routes.rs:1069-1076`, `libs/utils/src/lsn.rs:20-31`). `kind` comes from
+  `LsnForTimestamp` (`routes.rs:1078-1083`; semantics in
+  `pageserver/src/pgdatadir_mapping.rs:66-95`, decided at `:1041-1063`):
+
+| `kind` | Meaning | The step |
+| --- | --- | --- |
+| `present` | commits exist before and after the time; `lsn` is the last commit at or before it | forks at `lsn` |
+| `future` | no commit followed the time (`pgdatadir_mapping.rs:1056-1061`); `lsn` is the last commit | forks at `lsn`: the parent's data has not changed since, so this is exactly its state at that time. Times after now never get here, the API refuses them |
+| `past` | the time is before the oldest history kept (retention or the parent's own fork point); `lsn` is the earliest point available | fails the operation, no retry, naming the earliest LSN and the retention |
+| `nodata` | the parent has no commit timestamps yet (`:1041-1045`) | fails the operation, no retry |
+
+  A `400` or `404` from the controller (bad request, missing timeline) fails the
+  operation too; anything else is retried.
+
+The API refuses what it can know without the controller, with `400`
+`bad_request` and the field named: both `parent_lsn` and `parent_timestamp`, a
+value that is not an ISO 8601 date-time, a time later than now, and a time older
+than the project's `history_retention_seconds`. A failure the step finds
+(`past`, `nodata`) shows as the operation's `error`; like any failed
+`branch.create`, it leaves the branch row without a timeline, so delete the
+branch before reusing its name.
 
 **Compute spec** (`GET /compute/api/v2/computes/:id/spec`, called by
 compute_ctl). The bearer token is `NEON_CONTROL_PLANE_TOKEN`, an Ed25519 JWT
@@ -520,7 +569,7 @@ in memory and against PostgreSQL.
 | `POST /v1/projects` | `202`, the project, default branch, endpoint, owner role with its generated password (shown once) and a connection URI; `409` if the console project already has one |
 | `GET /v1/projects`, `GET /v1/projects/:id` | the console project's project |
 | `DELETE /v1/projects/:id` | `202`, `project.delete` |
-| `GET`, `POST /v1/projects/:id/branches`, `GET`, `DELETE .../branches/:branch` | `POST` forks `parent_id` (default branch) at `parent_lsn`; `409` for a duplicate name, the default branch, or a branch with children |
+| `GET`, `POST /v1/projects/:id/branches`, `GET`, `DELETE .../branches/:branch` | `POST` forks `parent_id` (default branch) at `parent_lsn`, at `parent_timestamp` (exclusive with `parent_lsn`; `400` for a future time or one older than the history retention) or at the latest LSN; `409` for a duplicate name, the default branch, or a branch with children |
 | `GET`, `POST /v1/projects/:id/endpoints`, `GET`, `PATCH`, `DELETE .../endpoints/:endpoint` | one `read_write` endpoint per branch (`409` otherwise); a size change restarts a running compute |
 | `POST .../endpoints/:endpoint/start`, `/suspend` | `202`, `endpoint.start`, `endpoint.suspend` |
 | `GET`, `POST .../branches/:branch/roles`, `POST .../roles/:role/reset_password` | the password is returned once; only the SCRAM secret is stored |

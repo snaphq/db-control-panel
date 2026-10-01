@@ -160,15 +160,33 @@ export const createProjectRequestSchema = z.object({
 });
 export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
 
-export const createBranchRequestSchema = z.object({
-  name: z.string().trim().min(1).max(64),
-  /** Defaults to the project's default branch. */
-  parent_id: z.string().optional(),
-  /** Branch from a point in the parent's history; defaults to its latest LSN. */
-  parent_lsn: lsnSchema.optional(),
-  /** When present, a `read_write` endpoint is created for the new branch. */
-  endpoint: z.object(endpointSettings).optional(),
-});
+export const createBranchRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(64),
+    /** Defaults to the project's default branch. */
+    parent_id: z.string().optional(),
+    /** Branch from a point in the parent's history; defaults to its latest LSN. */
+    parent_lsn: lsnSchema.optional(),
+    /**
+     * Branch from the parent's data as of this moment (ISO 8601, any offset; the
+     * control plane works in UTC). Exclusive with `parent_lsn`. It must not be
+     * in the future or older than the project's history retention; the control
+     * plane resolves it to an LSN through the storage controller before it
+     * creates the timeline, and the operation fails if the parent has no
+     * history at that moment.
+     */
+    parent_timestamp: timestampSchema.optional(),
+    /** When present, a `read_write` endpoint is created for the new branch. */
+    endpoint: z.object(endpointSettings).optional(),
+  })
+  .refine(
+    (body) =>
+      body.parent_lsn === undefined || body.parent_timestamp === undefined,
+    {
+      message: "Provide parent_lsn or parent_timestamp, not both",
+      path: ["parent_timestamp"],
+    },
+  );
 export type CreateBranchRequest = z.infer<typeof createBranchRequestSchema>;
 
 export const createEndpointRequestSchema = z.object({

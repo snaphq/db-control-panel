@@ -6,7 +6,7 @@ import type { Hono } from 'hono';
 import { newEndpointId, newId, newNeonId } from '../crypto/ids.js';
 import { buildScramSecret } from '../crypto/scram.js';
 import { sealContext } from '../crypto/secretbox.js';
-import type { DesiredStateChange } from '../neon/store.js';
+import type { DesiredStateChange, ProjectRow } from '../neon/store.js';
 import {
   type ApiEnv,
   type NeonApiDeps,
@@ -29,6 +29,34 @@ const DEFAULT_HISTORY_RETENTION_SECONDS = 86_400;
 const OWNER_ROLE = 'neondb_owner';
 const DEFAULT_DATABASE = 'neondb';
 const DEFAULT_BRANCH = 'main';
+
+/**
+ * A `parent_timestamp` the control plane can refuse without asking the
+ * storage controller: one after now, or older than the project's history
+ * retention (nothing is kept before that). Otherwise the instant in UTC.
+ */
+function checkParentTimestamp(
+  raw: string,
+  project: Pick<ProjectRow, 'historyRetentionSeconds'>,
+): { at: string } | { error: string } {
+  const at = new Date(raw);
+  const now = Date.now();
+  if (Number.isNaN(at.getTime())) {
+    return { error: 'parent_timestamp: not a valid date-time' };
+  }
+  if (at.getTime() > now) {
+    return {
+      error: `parent_timestamp: ${at.toISOString()} is in the future; use a time that has already passed`,
+    };
+  }
+  const earliest = new Date(now - project.historyRetentionSeconds * 1000);
+  if (at < earliest) {
+    return {
+      error: `parent_timestamp: ${at.toISOString()} is older than the project's history retention of ${project.historyRetentionSeconds} seconds (earliest ${earliest.toISOString()})`,
+    };
+  }
+  return { at: at.toISOString() };
+}
 
 export function registerProjectRoutes(
   v1: Hono<ApiEnv>,
@@ -205,6 +233,14 @@ export function registerProjectRoutes(
     const scope = scopeOf(c);
     const project = await store.findProject(scope, c.req.param('project'));
     if (!project) return notFound(c, 'Project');
+    // The LSN is looked up by the worker, which can reach the storage
+    // controller; what is already known to be impossible is refused here.
+    const parentTimestamp = body.data.parent_timestamp
+      ? checkParentTimestamp(body.data.parent_timestamp, project)
+      : null;
+    if (parentTimestamp && 'error' in parentTimestamp) {
+      return apiError(c, 400, 'bad_request', parentTimestamp.error);
+    }
     const branches = await store.listBranches(scope, project.id);
     if (branches.some((b) => b.name === body.data.name)) {
       return apiError(
@@ -279,7 +315,10 @@ export function registerProjectRoutes(
         action: 'branch.create',
         targetType: 'branch',
         targetId: branch.id,
-        params: { branchId: branch.id },
+        params: {
+          branchId: branch.id,
+          ...(parentTimestamp ? { parentTimestamp: parentTimestamp.at } : {}),
+        },
       },
       changes,
     );

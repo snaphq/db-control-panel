@@ -156,6 +156,50 @@ describe("branch, role and database requests", () => {
     ).toBe(false);
   });
 
+  it("accepts parent_timestamp as ISO 8601 with Z or an offset", () => {
+    for (const parent_timestamp of [
+      "2026-03-01T10:00:00Z",
+      "2026-03-01T10:00:00.123Z",
+      "2026-03-01T12:00:00+02:00",
+    ]) {
+      expect(
+        createBranchRequestSchema.parse({ name: "b", parent_timestamp })
+          .parent_timestamp,
+      ).toBe(parent_timestamp);
+    }
+  });
+
+  it("refuses a parent_timestamp that is not an ISO 8601 date-time", () => {
+    for (const parent_timestamp of [
+      "yesterday",
+      "2026-03-01",
+      "2026-03-01 10:00:00",
+      "2026-03-01T10:00:00",
+      "",
+    ]) {
+      expect(
+        createBranchRequestSchema.safeParse({ name: "b", parent_timestamp })
+          .success,
+        parent_timestamp,
+      ).toBe(false);
+    }
+  });
+
+  it("refuses parent_lsn together with parent_timestamp", () => {
+    const result = createBranchRequestSchema.safeParse({
+      name: "b",
+      parent_lsn: "0/16B5A50",
+      parent_timestamp: "2026-03-01T10:00:00Z",
+    });
+    expect(result.success).toBe(false);
+    expect(result.success ? [] : result.error.issues).toMatchObject([
+      {
+        path: ["parent_timestamp"],
+        message: "Provide parent_lsn or parent_timestamp, not both",
+      },
+    ]);
+  });
+
   it("refuses reserved role names", () => {
     for (const name of ["cloud_admin", "Postgres", "pg_monitor", "anonymous"]) {
       expect(createRoleRequestSchema.safeParse({ name }).success).toBe(false);

@@ -12,6 +12,7 @@ import {
 import type { ComputeConfigResponse } from './spec.js';
 import type {
   LocateResponse,
+  LsnByTimestamp,
   StorconClient,
   StorconNode,
 } from './storcon-client.js';
@@ -172,6 +173,8 @@ export interface FakeStorcon extends StorconClient {
   } | null;
   failNext: Map<string, Error>;
   nodes: StorconNode[];
+  /** What `getLsnByTimestamp` answers; an Error is thrown instead. */
+  lsnByTimestamp: LsnByTimestamp | Error;
 }
 
 export function createFakeStorcon(): FakeStorcon {
@@ -197,6 +200,7 @@ export function createFakeStorcon(): FakeStorcon {
       ],
     },
     failNext: new Map(),
+    lsnByTimestamp: { lsn: '0/2000000', kind: 'present' },
     nodes: [
       {
         id: 1,
@@ -240,6 +244,14 @@ export function createFakeStorcon(): FakeStorcon {
             : null,
         safekeepers: fake.timelineSafekeepers,
       };
+    },
+    async getLsnByTimestamp(tenantId, timelineId, timestamp) {
+      fake.calls.push(
+        `getLsnByTimestamp ${tenantId} ${timelineId} ${timestamp.toISOString()}`,
+      );
+      throwIfScripted('getLsnByTimestamp');
+      if (fake.lsnByTimestamp instanceof Error) throw fake.lsnByTimestamp;
+      return fake.lsnByTimestamp;
     },
     async deleteTimeline(tenantId, timelineId) {
       fake.calls.push(`deleteTimeline ${tenantId} ${timelineId}`);

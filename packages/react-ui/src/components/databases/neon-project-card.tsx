@@ -43,6 +43,7 @@ export function NeonProjectCard({ view, actions }: NeonProjectCardProps) {
           <div className="flex gap-2">
             <CreateBranchDialog
               branches={branchChoices}
+              historyRetentionSeconds={project.history_retention_seconds}
               onCreate={(body) => actions.createBranch(project.id, body)}
               trigger={
                 <Button size="sm" variant="outline">

@@ -181,6 +181,99 @@ describe('createTimeline', () => {
   });
 });
 
+describe('getLsnByTimestamp', () => {
+  const at = new Date('2026-03-01T10:00:00.123Z');
+
+  it('asks the passthrough for the LSN with a lease and a UTC timestamp', async () => {
+    const { client, calls } = setup([
+      json({
+        lsn: '0/16B5A50',
+        kind: 'present',
+        valid_until: '2026-03-01T10:01:00.000Z',
+      }),
+    ]);
+    const result = await client.getLsnByTimestamp(tenant, timeline, at);
+    expect(result).toEqual({
+      lsn: '0/16B5A50',
+      kind: 'present',
+      valid_until: '2026-03-01T10:01:00.000Z',
+    });
+    expect(calls).toHaveLength(1);
+    const url = new URL(calls[0]?.url ?? '');
+    expect(url.pathname).toBe(
+      `/v1/tenant/${tenant}/timeline/${timeline}/get_lsn_by_timestamp`,
+    );
+    expect(url.searchParams.get('timestamp')).toBe('2026-03-01T10:00:00.123Z');
+    expect(url.searchParams.get('with_lease')).toBe('true');
+    expect(calls[0]).toMatchObject({
+      method: 'GET',
+      headers: expect.objectContaining({ authorization: 'Bearer admin-jwt' }),
+    });
+  });
+
+  it('never sends a local offset: the pageserver only parses UTC', async () => {
+    const { client, calls } = setup([json({ lsn: '0/1', kind: 'present' })]);
+    await client.getLsnByTimestamp(
+      tenant,
+      timeline,
+      new Date('2026-03-01T12:00:00+02:00'),
+    );
+    expect(new URL(calls[0]?.url ?? '').searchParams.get('timestamp')).toBe(
+      '2026-03-01T10:00:00.000Z',
+    );
+  });
+
+  it.each(['present', 'future', 'past', 'nodata'] as const)(
+    'parses the %s answer',
+    async (kind) => {
+      const { client } = setup([json({ lsn: '0/AB', kind })]);
+      await expect(
+        client.getLsnByTimestamp(tenant, timeline, at),
+      ).resolves.toEqual({ lsn: '0/AB', kind });
+    },
+  );
+
+  it('fails clearly on a kind or LSN it does not know', async () => {
+    for (const body of [
+      { lsn: '0/AB', kind: 'sometime' },
+      { lsn: 'not-an-lsn', kind: 'present' },
+      { kind: 'present' },
+    ]) {
+      const { client } = setup([json(body)]);
+      await expect(
+        client.getLsnByTimestamp(tenant, timeline, at),
+      ).rejects.toThrow(/unexpected body/);
+    }
+  });
+
+  it('reports a missing timeline or bad request with the controller status and message', async () => {
+    for (const status of [400, 404]) {
+      const { client, calls } = setup([
+        json({ msg: 'no such timeline' }, status),
+      ]);
+      const error = await client
+        .getLsnByTimestamp(tenant, timeline, at)
+        .catch((e) => e);
+      expect(error).toBeInstanceOf(StorconError);
+      expect(error).toMatchObject({ status });
+      expect(error.message).toContain('no such timeline');
+      expect(calls).toHaveLength(1);
+    }
+  });
+
+  it('retries while the pageserver is not ready (503)', async () => {
+    const { client, calls, sleeps } = setup([
+      json({ msg: 'migrating' }, 503),
+      json({ lsn: '0/AB', kind: 'present' }),
+    ]);
+    await expect(
+      client.getLsnByTimestamp(tenant, timeline, at),
+    ).resolves.toMatchObject({ lsn: '0/AB' });
+    expect(calls).toHaveLength(2);
+    expect(sleeps).toHaveLength(1);
+  });
+});
+
 describe('retries', () => {
   it('backs off on 503 and 429 and then succeeds', async () => {
     const { client, calls, sleeps } = setup([

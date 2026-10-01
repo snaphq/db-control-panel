@@ -94,6 +94,21 @@ const timelineCreateResponseSchema = z.object({
 });
 type TimelineCreateResponse = z.infer<typeof timelineCreateResponseSchema>;
 
+/**
+ * The `get_lsn_by_timestamp` answer: `Result` in pageserver/src/http/routes.rs:1069-1076,
+ * its `kind` strings from `LsnForTimestamp` (routes.rs:1078-1083; the enum is
+ * pageserver/src/pgdatadir_mapping.rs:66-95). The lease fields are flattened
+ * in when `with_lease=true` (routes.rs:1085-1095).
+ */
+const lsnByTimestampSchema = z.object({
+  /** `hi/lo` hexadecimal, like every serialized `Lsn` (libs/utils/src/lsn.rs:20-31). */
+  lsn: z.string().regex(/^[0-9A-Fa-f]{1,8}\/[0-9A-Fa-f]{1,8}$/),
+  kind: z.enum(['present', 'future', 'past', 'nodata']),
+  /** RFC 3339 end of the LSN lease, present when one was granted. */
+  valid_until: z.string().optional(),
+});
+export type LsnByTimestamp = z.infer<typeof lsnByTimestampSchema>;
+
 /** `NodeDescribeResponse` (controller_api.rs:158-174). */
 const nodeSchema = z.object({
   id: z.number().int(),
@@ -156,6 +171,16 @@ export interface StorconClient {
     tenantId: string,
     input: CreateTimelineInput,
   ): Promise<TimelineCreateResponse>;
+  /**
+   * Maps a wall-clock time to an LSN of the timeline and takes a short LSN
+   * lease on it, so garbage collection cannot overtake the LSN before a branch
+   * is created from it. See {@link LsnByTimestamp} for the `kind` values.
+   */
+  getLsnByTimestamp(
+    tenantId: string,
+    timelineId: string,
+    timestamp: Date,
+  ): Promise<LsnByTimestamp>;
   /** Idempotent: a timeline that is already gone counts as deleted. */
   deleteTimeline(tenantId: string, timelineId: string): Promise<void>;
   /** Idempotent: a tenant that is already gone counts as deleted. */
@@ -344,6 +369,28 @@ export function createStorconClient(
           ok: [200, 201],
         },
         timelineCreateResponseSchema,
+      );
+    },
+
+    async getLsnByTimestamp(tenantId, timelineId, timestamp) {
+      // Not handled by the controller itself: `GET /v1/tenant/:tenant_id/*` is a
+      // passthrough to the pageserver that holds shard zero (http.rs:2672-2681,
+      // handler at 723-856), which needs the PageServerApi scope or admin
+      // (http.rs:728, 1811-1821). The pageserver route is
+      // `.../timeline/:timeline_id/get_lsn_by_timestamp` (routes.rs:4094). It
+      // parses `timestamp` with humantime::parse_rfc3339, which takes UTC only
+      // (`Z` or `+00:00`; routes.rs:1052-1056), hence `toISOString()`.
+      const query = new URLSearchParams({
+        timestamp: timestamp.toISOString(),
+        with_lease: 'true',
+      });
+      return callJson(
+        {
+          method: 'GET',
+          path: `/v1/tenant/${tenantId}/timeline/${timelineId}/get_lsn_by_timestamp?${query}`,
+          ok: [200],
+        },
+        lsnByTimestampSchema,
       );
     },
 

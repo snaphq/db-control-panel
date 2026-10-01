@@ -26,18 +26,22 @@ import {
   SelectValue,
 } from "../ui/select";
 import { errorMessage } from "./api";
+import { checkPointInTime, toLocalInputValue } from "./point-in-time";
 
 interface CreateBranchDialogProps {
   trigger: ReactNode;
   branches: Array<{ id: string; name: string; isDefault: boolean }>;
+  /** How far back a branch can start; the project's `history_retention_seconds`. */
+  historyRetentionSeconds: number;
   onCreate: (body: CreateBranchRequest) => Promise<void>;
 }
 
-type Start = "now" | "lsn";
+type Start = "now" | "time" | "lsn";
 
 export function CreateBranchDialog({
   trigger,
   branches,
+  historyRetentionSeconds,
   onCreate,
 }: CreateBranchDialogProps) {
   const defaultParent = branches.find((b) => b.isDefault) ?? branches[0];
@@ -46,11 +50,14 @@ export function CreateBranchDialog({
   const [parentId, setParentId] = useState(defaultParent?.id ?? "");
   const [start, setStart] = useState<Start>("now");
   const [lsn, setLsn] = useState("");
+  const [moment, setMoment] = useState("");
   const [withCompute, setWithCompute] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const lsnValid = start === "now" || lsnSchema.safeParse(lsn.trim()).success;
+  const lsnValid = start !== "lsn" || lsnSchema.safeParse(lsn.trim()).success;
+  const timeCheck = checkPointInTime(moment, historyRetentionSeconds);
+  const timeValid = start !== "time" || timeCheck.ok;
 
   async function submit() {
     setPending(true);
@@ -60,11 +67,14 @@ export function CreateBranchDialog({
         name: name.trim(),
         parent_id: parentId || undefined,
         parent_lsn: start === "lsn" ? lsn.trim() : undefined,
+        parent_timestamp:
+          start === "time" && timeCheck.ok ? timeCheck.utc : undefined,
         endpoint: withCompute ? {} : undefined,
       });
       setOpen(false);
       setName("");
       setLsn("");
+      setMoment("");
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -121,9 +131,31 @@ export function CreateBranchDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="now">Now (latest data)</SelectItem>
+                <SelectItem value="time">From a point in time</SelectItem>
                 <SelectItem value="lsn">A past point (LSN)</SelectItem>
               </SelectContent>
             </Select>
+            {start === "time" && (
+              <>
+                <Input
+                  type="datetime-local"
+                  value={moment}
+                  onChange={(event) => setMoment(event.target.value)}
+                  min={toLocalInputValue(
+                    new Date(Date.now() - historyRetentionSeconds * 1000),
+                  )}
+                  max={toLocalInputValue(new Date())}
+                  aria-label="Point in time"
+                  aria-invalid={moment !== "" && !timeCheck.ok}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {timeCheck.ok
+                    ? `Your local time, sent as ${timeCheck.utc} (UTC). The branch holds the data as of that moment.`
+                    : (timeCheck.reason ??
+                      "Your local time; it is converted to UTC. Pick a moment inside the project's history window.")}
+                </p>
+              </>
+            )}
             {start === "lsn" && (
               <>
                 <Input
@@ -160,7 +192,7 @@ export function CreateBranchDialog({
           </Button>
           <Button
             onClick={submit}
-            disabled={pending || name.trim() === "" || !lsnValid}
+            disabled={pending || name.trim() === "" || !lsnValid || !timeValid}
           >
             {pending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
             Create branch

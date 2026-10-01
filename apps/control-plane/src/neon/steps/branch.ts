@@ -1,15 +1,24 @@
+import { z } from 'zod';
 import {
   NonRetryableError,
   type StepDefinition,
 } from '../../operations/steps.js';
-import { type NeonStepDeps, gone } from './deps.js';
+import { resolveTimestampLsn } from './branch-point-in-time.js';
+import { type NeonStepDeps, gone, readParams } from './deps.js';
+
+/** What `POST .../branches` writes beside `branchId` when `parent_timestamp` was given. */
+const createParamsSchema = z.object({
+  parentTimestamp: z.string().datetime({ offset: true }).optional(),
+});
 
 export function branchCreateSteps(deps: NeonStepDeps): StepDefinition[] {
   const { store, storcon } = deps;
   return [
     {
       name: 'neon.branch.create.timeline',
-      async run({ operation }) {
+      async run(context) {
+        const { operation } = context;
+        const params = readParams(context, createParamsSchema);
         const branch = await store.getBranch(operation.targetId);
         if (!branch) throw gone('Branch', operation.targetId);
         if (!branch.parentBranchId) {
@@ -23,11 +32,25 @@ export function branchCreateSteps(deps: NeonStepDeps): StepDefinition[] {
         ]);
         if (!parent) throw gone('Parent branch', branch.parentBranchId);
         if (!project) throw gone('Project', branch.projectId);
+        let ancestorStartLsn = branch.parentLsn;
+        if (!ancestorStartLsn && params.parentTimestamp) {
+          ancestorStartLsn = await resolveTimestampLsn({
+            storcon,
+            project,
+            parent,
+            timestamp: new Date(params.parentTimestamp),
+          });
+          // Kept before the timeline exists, so a retry forks at the same point
+          // instead of asking again after the short LSN lease has expired.
+          await store.updateBranchPlacement(branch.id, {
+            parentLsn: ancestorStartLsn,
+          });
+        }
         const created = await storcon.createTimeline(project.tenantId, {
           kind: 'branch',
           timelineId: branch.timelineId,
           ancestorTimelineId: parent.timelineId,
-          ancestorStartLsn: branch.parentLsn ?? undefined,
+          ancestorStartLsn: ancestorStartLsn ?? undefined,
         });
         if (
           !created.safekeepers ||

@@ -20,6 +20,7 @@ import {
   seedProject,
 } from '../fakes.js';
 import { createSpecService } from '../spec-service.js';
+import { StorconError } from '../storcon-client.js';
 
 const signer = newTestSigner();
 const quiet = { info: () => {}, error: () => {} };
@@ -234,6 +235,109 @@ describe('branch.create and branch.delete', () => {
     await t.run('branch.create', child.childId);
     expect(t.store.branches.get(child.childId)?.parentLsn).toBe('0/1000000');
     expect(t.storcon.calls[0]).toContain('@ latest');
+  });
+
+  describe('from a point in time', () => {
+    const parentTimestamp = '2026-03-01T10:00:00.000Z';
+
+    it('resolves the time to an LSN, keeps it on the branch and forks there', async () => {
+      const t = await setup();
+      t.storcon.lsnByTimestamp = { lsn: '0/16B5A50', kind: 'present' };
+      const child = await withChild(t, null);
+      const result = await t.run('branch.create', child.childId, {
+        parentTimestamp,
+      });
+      expect(result.outcome).toBe('finished');
+      expect(t.storcon.calls).toEqual([
+        `getLsnByTimestamp ${t.tenantId} ${t.timelineId} ${parentTimestamp}`,
+        `createTimeline ${t.tenantId} branch ${child.timelineId} from ${t.timelineId} @ 0/16B5A50`,
+      ]);
+      expect(t.store.branches.get(child.childId)?.parentLsn).toBe('0/16B5A50');
+    });
+
+    it('forks an idle parent at its last commit when no commit followed the time', async () => {
+      const t = await setup();
+      t.storcon.lsnByTimestamp = { lsn: '0/3000000', kind: 'future' };
+      const child = await withChild(t, null);
+      const result = await t.run('branch.create', child.childId, {
+        parentTimestamp,
+      });
+      expect(result.outcome).toBe('finished');
+      expect(t.storcon.calls[1]).toContain('@ 0/3000000');
+    });
+
+    it.each([
+      [
+        'past',
+        /no history at 2026-03-01T10:00:00.000Z.*0\/1000000.*86400 seconds/,
+      ],
+      ['nodata', /no committed transactions yet/],
+    ] as const)(
+      'fails the operation without creating a timeline when the answer is %s',
+      async (kind, message) => {
+        const t = await setup();
+        t.storcon.lsnByTimestamp = { lsn: '0/1000000', kind };
+        const child = await withChild(t, null);
+        const result = await t.run('branch.create', child.childId, {
+          parentTimestamp,
+        });
+        expect(result.outcome).toBe('failed');
+        expect(t.record(result.id).error).toMatch(message);
+        expect(t.record(result.id).failuresCount).toBe(1);
+        expect(t.storcon.calls).toEqual([
+          `getLsnByTimestamp ${t.tenantId} ${t.timelineId} ${parentTimestamp}`,
+        ]);
+        expect(t.store.branches.get(child.childId)?.parentLsn).toBeNull();
+      },
+    );
+
+    it('does not retry a request the storage controller refused', async () => {
+      const t = await setup();
+      for (const status of [400, 404]) {
+        t.storcon.failNext.set(
+          'getLsnByTimestamp',
+          new StorconError('nope', 'GET', '/v1/x', status),
+        );
+        const child = await withChild(t, null);
+        const result = await t.run('branch.create', child.childId, {
+          parentTimestamp,
+        });
+        expect(result.outcome, String(status)).toBe('failed');
+        expect(t.record(result.id).error).toContain('Could not resolve');
+      }
+    });
+
+    it('retries when the storage controller is unavailable and reuses the LSN it found', async () => {
+      const t = await setup();
+      t.storcon.lsnByTimestamp = { lsn: '0/16B5A50', kind: 'present' };
+      t.storcon.failNext.set(
+        'createTimeline',
+        new StorconError('down', 'POST', '/v1/x', 503),
+      );
+      const child = await withChild(t, null);
+      const first = await t.run('branch.create', child.childId, {
+        parentTimestamp,
+      });
+      expect(first.outcome).toBe('retry');
+      // The lease on the first answer may be gone by now: the second try must
+      // not ask again, even if the answer would differ.
+      t.storcon.lsnByTimestamp = { lsn: '0/9999999', kind: 'present' };
+      const second = await t.attempt(first.id);
+      expect(second.outcome).toBe('finished');
+      expect(
+        t.storcon.calls.filter((c) => c.startsWith('getLsnByTimestamp')),
+      ).toHaveLength(1);
+      expect(t.storcon.calls.at(-1)).toContain('@ 0/16B5A50');
+    });
+
+    it('asks nothing of the storage controller when no time was requested', async () => {
+      const t = await setup();
+      const child = await withChild(t, '0/16B5A50');
+      await t.run('branch.create', child.childId);
+      expect(
+        t.storcon.calls.some((c) => c.startsWith('getLsnByTimestamp')),
+      ).toBe(false);
+    });
   });
 
   it('fails without retrying when the branch disappeared', async () => {
