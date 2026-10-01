@@ -75,6 +75,14 @@ function validate<T>(
   return { ok: false, response: apiError(c, 400, 'bad_request', message) };
 }
 
+/** Parses the query string with a contract schema; failures answer 400 with every issue named. */
+export function parseQuery<T>(
+  c: ApiContext,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+): Parsed<T> {
+  return validate(c, schema, c.req.query());
+}
+
 /** Parses the JSON body with a contract schema; failures answer 400 with every issue named. */
 export async function parseBody<T>(
   c: ApiContext,

@@ -5,9 +5,11 @@ import type { DatabaseHandle } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
 import { neonProject, operation } from '../db/schema.js';
 import {
+  InvalidCursorError,
   ProjectBusyError,
   createOperation,
   findOperation,
+  listOperations,
 } from './repository.js';
 import { createOperationStore } from './store.js';
 
@@ -190,5 +192,90 @@ describe.skipIf(!url)('operations against PostgreSQL', () => {
     });
     expect(row?.finishedAt).not.toBeNull();
     expect(await store.markRunning(op.id)).toBeNull();
+  });
+
+  describe('listOperations', () => {
+    const store = () => createOperationStore(handle.db);
+    const make = (consoleProjectId: string, consoleOrgId?: string) =>
+      createOperation(handle.db, queue, {
+        consoleProjectId,
+        consoleOrgId,
+        targetType: 'branch',
+        targetId: 'br_1',
+        action: 'branch.create',
+      });
+
+    /** Three finished operations and one still scheduling, oldest first. */
+    async function history(consoleProjectId: string, org: string) {
+      const ids: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const op = await make(consoleProjectId, org);
+        await store().markFinished(op.id);
+        ids.push(op.id);
+      }
+      ids.push((await make(consoleProjectId, org)).id);
+      return ids;
+    }
+
+    it('pages newest first with a cursor and loses no row', async () => {
+      const ids = await history('cp-list-a', 'org_1');
+      const first = await listOperations(handle.db, {
+        consoleProjectId: 'cp-list-a',
+        consoleOrgId: 'org_1',
+        limit: 3,
+      });
+      expect(first.operations.map((o) => o.id)).toEqual(
+        [...ids].reverse().slice(0, 3),
+      );
+      expect(first.nextCursor).toBe(first.operations[2]?.id);
+      const second = await listOperations(handle.db, {
+        consoleProjectId: 'cp-list-a',
+        consoleOrgId: 'org_1',
+        limit: 3,
+        cursor: first.nextCursor ?? undefined,
+      });
+      expect(second.operations.map((o) => o.id)).toEqual([ids[0]]);
+      expect(second.nextCursor).toBeNull();
+    });
+
+    it('filters by active and by one status', async () => {
+      const ids = await history('cp-list-b', 'org_1');
+      const scope = { consoleProjectId: 'cp-list-b', consoleOrgId: 'org_1' };
+      const active = await listOperations(handle.db, {
+        ...scope,
+        limit: 10,
+        status: 'active',
+      });
+      expect(active.operations.map((o) => o.id)).toEqual([ids[3]]);
+      const finished = await listOperations(handle.db, {
+        ...scope,
+        limit: 10,
+        status: 'finished',
+      });
+      expect(finished.operations).toHaveLength(3);
+    });
+
+    it('never returns or accepts rows of another project or organization', async () => {
+      const ids = await history('cp-list-c', 'org_1');
+      const other = { consoleProjectId: 'cp-list-c', consoleOrgId: 'org_2' };
+      expect(
+        (await listOperations(handle.db, { ...other, limit: 10 })).operations,
+      ).toEqual([]);
+      const elsewhere = {
+        consoleProjectId: 'cp-list-d',
+        consoleOrgId: 'org_1',
+      };
+      expect(
+        (await listOperations(handle.db, { ...elsewhere, limit: 10 }))
+          .operations,
+      ).toEqual([]);
+      await expect(
+        listOperations(handle.db, {
+          ...elsewhere,
+          limit: 10,
+          cursor: ids[1],
+        }),
+      ).rejects.toBeInstanceOf(InvalidCursorError);
+    });
   });
 });

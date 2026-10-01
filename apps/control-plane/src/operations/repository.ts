@@ -1,9 +1,10 @@
-import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { newId } from '../crypto/ids.js';
 import type { Database, Transaction } from '../db/client.js';
 import {
   ACTIVE_OPERATION_STATUSES,
   type OperationAction,
+  type OperationStatus,
   operation,
 } from '../db/schema.js';
 import { isUniqueViolation } from './idempotency.js';
@@ -121,4 +122,78 @@ export async function findOperation(
       ),
     );
   return row ?? null;
+}
+
+export interface ListOperationsInput {
+  consoleProjectId: string;
+  consoleOrgId: string;
+  /** `active` is `scheduling` or `running`; absent lists every status. */
+  status?: 'active' | OperationStatus;
+  limit: number;
+  /** The `nextCursor` of the previous page. */
+  cursor?: string;
+}
+
+export interface OperationPage {
+  operations: OperationRecord[];
+  /** Set when more operations follow; pass it back as `cursor`. */
+  nextCursor: string | null;
+}
+
+/** The cursor does not name an operation in the caller's scope. */
+export class InvalidCursorError extends Error {
+  constructor() {
+    super('The cursor is not valid for this list');
+    this.name = 'InvalidCursorError';
+  }
+}
+
+/**
+ * Lists the operations of one console project, newest first, with the same
+ * project and organization filter as {@link findOperation}. Pages are keyed by
+ * `(created_at, id)`: the cursor is the last operation's id and the database
+ * compares against that row's own timestamp, so no precision is lost.
+ */
+export async function listOperations(
+  db: Database,
+  input: ListOperationsInput,
+): Promise<OperationPage> {
+  const inScope = and(
+    eq(operation.consoleProjectId, input.consoleProjectId),
+    or(
+      isNull(operation.consoleOrgId),
+      eq(operation.consoleOrgId, input.consoleOrgId),
+    ),
+  );
+  if (input.cursor !== undefined) {
+    const [anchor] = await db
+      .select({ id: operation.id })
+      .from(operation)
+      .where(and(inScope, eq(operation.id, input.cursor)));
+    if (!anchor) throw new InvalidCursorError();
+  }
+  const rows = await db
+    .select()
+    .from(operation)
+    .where(
+      and(
+        inScope,
+        input.status === undefined
+          ? undefined
+          : input.status === 'active'
+            ? inArray(operation.status, [...ACTIVE_OPERATION_STATUSES])
+            : eq(operation.status, input.status),
+        input.cursor === undefined
+          ? undefined
+          : sql`(${operation.createdAt}, ${operation.id}) < (select o.created_at, o.id from ${operation} o where o.id = ${input.cursor})`,
+      ),
+    )
+    .orderBy(desc(operation.createdAt), desc(operation.id))
+    .limit(input.limit + 1);
+  const page = rows.slice(0, input.limit);
+  const last = page.at(-1);
+  return {
+    operations: page,
+    nextCursor: rows.length > input.limit && last ? last.id : null,
+  };
 }

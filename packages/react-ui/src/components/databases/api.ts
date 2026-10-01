@@ -2,6 +2,7 @@ import type {
   CreateBranchRequest,
   CreateLibsqlTokenRequest,
   CreateProjectRequest,
+  ListOperationsResponse,
   Operation,
 } from "@repo/control-plane-contract";
 import type { ControlPlaneClient } from "@repo/core/control-plane/client";
@@ -81,6 +82,9 @@ export function databasesApi(projectId: string) {
         `${root}/operations/${part(operationId)}`,
         "GET",
       ),
+    /** Operations still `scheduling` or `running`, newest first. */
+    activeOperations: () =>
+      call<ListOperationsResponse>(`${root}/operations?status=active`, "GET"),
     createProject: (body: CreateProjectRequest) =>
       call<CreateProjectResult>(`${root}/databases`, "POST", body),
     deleteProject: (neonId: string) =>

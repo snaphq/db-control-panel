@@ -10,11 +10,15 @@ import {
   createOperationQueue,
   startQueue,
 } from '../operations/queue.js';
-import { findOperation } from '../operations/repository.js';
+import { findOperation, listOperations } from '../operations/repository.js';
 import type { OperationRecord } from '../operations/store.js';
 import { registerDataApiRoutes } from './api-data-api.js';
 import { registerEndpointRoutes } from './api-endpoints.js';
 import { type LibsqlApiDeps, registerLibsqlRoutes } from './api-libsql.js';
+import {
+  type OperationRouteDeps,
+  registerOperationRoutes,
+} from './api-operations.js';
 import { registerProjectRoutes } from './api-projects.js';
 import { registerRoleAndDatabaseRoutes } from './api-roles-databases.js';
 import {
@@ -35,7 +39,7 @@ const missing = (c: ApiContext, header: string) =>
     400,
   );
 
-interface ApiDeps extends NeonApiDeps, LibsqlApiDeps {
+interface ApiDeps extends NeonApiDeps, LibsqlApiDeps, OperationRouteDeps {
   apiToken: string;
   /** Reads an operation, scoped to the organization and console project that own it. */
   findOperation(id: string, scope: Scope): Promise<OperationRecord | null>;
@@ -66,6 +70,7 @@ export function createApiRoutes(deps: ApiDeps): Hono<ApiEnv> {
     return c.json({ operation: toOperationResponse(record) });
   });
 
+  registerOperationRoutes(v1, deps);
   registerProjectRoutes(v1, deps);
   registerEndpointRoutes(v1, deps);
   registerRoleAndDatabaseRoutes(v1, deps);
@@ -95,6 +100,12 @@ export function startApi(config: ApiConfig): Promise<RunningMode> {
           : null,
         findOperation: (id, scope) =>
           findOperation(handle.db, id, scope.consoleProjectId, scope.orgId),
+        listOperations: (scope, query) =>
+          listOperations(handle.db, {
+            consoleProjectId: scope.consoleProjectId,
+            consoleOrgId: scope.orgId,
+            ...query,
+          }),
       }),
     );
     return () => boss.stop({ graceful: true, timeout: 10_000 });

@@ -163,4 +163,41 @@ describe("control-plane client", () => {
       "https://cp.test/v1/projects/p/branches/b/databases/neondb/data_api",
     );
   });
+
+  it("lists operations of the console project, or of one Postgres project", async () => {
+    const page = { operations: [operation], next_cursor: null };
+    const { client, fetchMock } = clientWith(() => json(page));
+    await expect(client.listOperations()).resolves.toEqual(page);
+    await expect(
+      client.listOperations({ status: "active", limit: 10 }, "proj_x"),
+    ).resolves.toEqual(page);
+    await client.listOperations({ cursor: "op_9" });
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "https://cp.test/v1/operations",
+      "https://cp.test/v1/projects/proj_x/operations?status=active&limit=10",
+      "https://cp.test/v1/operations?cursor=op_9",
+    ]);
+    const init = fetchMock.mock.calls[1]?.[1];
+    expect(init?.method).toBe("GET");
+    const headers = init?.headers as Record<string, string>;
+    expect(headers["X-AlloyDB-Org"]).toBe("org_1");
+    expect(headers["X-AlloyDB-Project"]).toBe("proj_1");
+  });
+
+  it("refuses a Postgres project id that could change the path when listing operations", async () => {
+    const { client, fetchMock } = clientWith(() =>
+      json({ operations: [], next_cursor: null }),
+    );
+    await expect(
+      client.listOperations({}, "../projects"),
+    ).rejects.toBeInstanceOf(ControlPlaneRequestError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an operation list that does not match the contract", async () => {
+    const { client } = clientWith(() => json({ operations: [{ id: 1 }] }));
+    await expect(client.listOperations()).rejects.toMatchObject({
+      code: "invalid_response",
+    });
+  });
 });

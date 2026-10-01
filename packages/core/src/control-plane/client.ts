@@ -6,6 +6,7 @@ import {
   type CreateLibsqlDatabaseRequest,
   type CreateLibsqlTokenRequest,
   type CreateProjectRequest,
+  type ListOperationsQuery,
   createBranchResponseSchema,
   createProjectResponseSchema,
   dataApiToggleResponseSchema,
@@ -19,6 +20,7 @@ import {
   listDatabasesResponseSchema,
   listEndpointsResponseSchema,
   listLibsqlDatabasesResponseSchema,
+  listOperationsResponseSchema,
   listProjectsResponseSchema,
   listRolesResponseSchema,
   operationResponseSchema,
@@ -84,6 +86,16 @@ function segment(value: string): string {
     );
   }
   return encodeURIComponent(value);
+}
+
+/** `?status=active&limit=20`, or nothing; parameters left undefined are dropped. */
+function queryString(query: Record<string, string | number | undefined>) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined) params.set(key, String(value));
+  }
+  const text = params.toString();
+  return text ? `?${text}` : "";
 }
 
 async function errorFrom(response: Response): Promise<ControlPlaneError> {
@@ -251,6 +263,20 @@ export function createControlPlaneClient(
         operationResponseSchema,
         "GET",
         `/operations/${segment(operationId)}`,
+      ),
+    /**
+     * Newest first. With `projectId` it is the Postgres project's list
+     * (`/projects/:id/operations`); without, the console project's whole list,
+     * which also holds libSQL operations. Both are scoped by the client's ids.
+     */
+    listOperations: async (
+      query: ListOperationsQuery = {},
+      projectId?: string,
+    ) =>
+      request(
+        listOperationsResponseSchema,
+        "GET",
+        `${projectId === undefined ? "" : project(projectId)}/operations${queryString(query)}`,
       ),
 
     // ---- libSQL (paths under /v1/libsql; not served by the control plane yet)

@@ -5,7 +5,7 @@ import type { DatabaseHandle } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
 import { createDrizzleLibsqlStore } from '../libsql/store-drizzle.js';
 import { createDrizzleNeonStore } from '../neon/store-drizzle.js';
-import { findOperation } from '../operations/repository.js';
+import { findOperation, listOperations } from '../operations/repository.js';
 import { createOperationStore } from '../operations/store.js';
 import { assembleApi, headersFor } from './api.fixture.js';
 
@@ -33,8 +33,16 @@ describe.skipIf(!url)('API tenant isolation against PostgreSQL', () => {
     return assembleApi(
       createDrizzleNeonStore(handle.db, queue),
       createDrizzleLibsqlStore(handle.db, queue),
-      (id, scope) =>
-        findOperation(handle.db, id, scope.consoleProjectId, scope.orgId),
+      {
+        findOperation: (id, scope) =>
+          findOperation(handle.db, id, scope.consoleProjectId, scope.orgId),
+        listOperations: (scope, query) =>
+          listOperations(handle.db, {
+            consoleProjectId: scope.consoleProjectId,
+            consoleOrgId: scope.orgId,
+            ...query,
+          }),
+      },
     );
   }
 

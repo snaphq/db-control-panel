@@ -533,6 +533,7 @@ in memory and against PostgreSQL.
 | `POST /v1/libsql/databases/:id/fork` | `{name, timestamp?}`; the source must be `active` |
 | `POST /v1/libsql/databases/:id/tokens` | `{access?, expires_in_seconds?}`: a token for the namespace (`200`); the database must be `active` |
 | `GET /v1/operations/:id` | the operation |
+| `GET /v1/operations`, `GET /v1/projects/:id/operations` | `{operations, next_cursor}`, newest first (`created_at`, then id). `?status=active` is `scheduling` or `running`; any one status also works. `?limit=` (1-100, default 50) and `?cursor=` (a previous `next_cursor`, which is an operation id; the next page starts after it) page through. An unknown status, a bad limit or a cursor outside the caller's scope is `400`. Both routes read the caller's console project and organization, so they list the same operations, libSQL ones included; the project route answers `404` for a project id that is not the caller's, and the plain route is the one a console project with no Postgres project can use |
 
 Mutations answer `202` with the changed resource and an `operation`; `423`
 means the project has an operation in flight; `400` names every invalid field.

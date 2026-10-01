@@ -10,6 +10,8 @@ import {
   createRoleRequestSchema,
   databaseSchema,
   errorResponseSchema,
+  listOperationsQuerySchema,
+  listOperationsResponseSchema,
   operationResponseSchema,
   updateEndpointRequestSchema,
 } from "./index.js";
@@ -26,6 +28,50 @@ const operation = {
   created_at: now,
   finished_at: null,
 };
+
+describe("operation list", () => {
+  it("defaults to a page of 50 with no status filter", () => {
+    expect(listOperationsQuerySchema.parse({})).toEqual({ limit: 50 });
+  });
+
+  it("accepts active or one status, and coerces the limit from a query string", () => {
+    expect(
+      listOperationsQuerySchema.parse({ status: "active", limit: "10" }),
+    ).toEqual({ status: "active", limit: 10 });
+    expect(listOperationsQuerySchema.parse({ status: "failed" }).status).toBe(
+      "failed",
+    );
+  });
+
+  it("refuses unknown statuses and out-of-range limits", () => {
+    for (const query of [
+      { status: "pending" },
+      { status: "scheduling,running" },
+      { limit: "0" },
+      { limit: "101" },
+      { limit: "ten" },
+      { cursor: "" },
+    ]) {
+      expect(
+        listOperationsQuerySchema.safeParse(query).success,
+        String(query),
+      ).toBe(false);
+    }
+  });
+
+  it("parses a page with and without a next cursor", () => {
+    expect(
+      listOperationsResponseSchema.parse({
+        operations: [operation],
+        next_cursor: "op_1",
+      }).next_cursor,
+    ).toBe("op_1");
+    expect(
+      listOperationsResponseSchema.parse({ operations: [], next_cursor: null })
+        .operations,
+    ).toEqual([]);
+  });
+});
 
 describe("operations", () => {
   it("parses the operation body the API returns", () => {

@@ -1,10 +1,16 @@
 import { randomBytes } from 'node:crypto';
 import { createSecretBox } from '../crypto/secretbox.js';
+import { ACTIVE_OPERATION_STATUSES } from '../db/schema.js';
 import { createMemoryLibsqlStore } from '../libsql/store-memory.js';
 import type { LibsqlStore } from '../libsql/store.js';
 import { newTestSigner } from '../neon/fakes.js';
-import { createMemoryNeonStore } from '../neon/store-memory.js';
-import type { NeonStore } from '../neon/store.js';
+import {
+  type MemoryNeonStore,
+  createMemoryNeonStore,
+} from '../neon/store-memory.js';
+import type { NeonStore, Scope } from '../neon/store.js';
+import { InvalidCursorError } from '../operations/repository.js';
+import type { OperationRecord } from '../operations/store.js';
 import { createApiRoutes } from './api.js';
 import { createBaseApp } from './http.js';
 
@@ -22,14 +28,7 @@ export function buildApi(
   return assembleApi(
     store,
     createMemoryLibsqlStore(store),
-    async (id, scope) => {
-      const record = store.operations.get(id);
-      return record &&
-        record.consoleProjectId === scope.consoleProjectId &&
-        (record.consoleOrgId === null || record.consoleOrgId === scope.orgId)
-        ? record
-        : null;
-    },
+    memoryOperationReads(store),
     overrides,
   );
 }
@@ -37,13 +36,61 @@ export function buildApi(
 /** Deps a test may replace on the otherwise standard route tree. */
 type ApiOverrides = Partial<{ dataApiHostSuffix: string }>;
 
+type OperationReads = Pick<
+  Parameters<typeof createApiRoutes>[0],
+  'findOperation' | 'listOperations'
+>;
+
+/** In-memory twin of `findOperation` and `listOperations` in operations/repository.ts. */
+function memoryOperationReads(store: MemoryNeonStore): OperationReads {
+  const visible = (record: OperationRecord, scope: Scope) =>
+    record.consoleProjectId === scope.consoleProjectId &&
+    (record.consoleOrgId === null || record.consoleOrgId === scope.orgId);
+  return {
+    async findOperation(id, scope) {
+      const record = store.operations.get(id);
+      return record && visible(record, scope) ? record : null;
+    },
+    async listOperations(scope, query) {
+      const all = [...store.operations.values()]
+        .filter((record) => visible(record, scope))
+        .sort(
+          (a, b) =>
+            b.createdAt.getTime() - a.createdAt.getTime() ||
+            (a.id < b.id ? 1 : -1),
+        );
+      let rest = all;
+      if (query.cursor !== undefined) {
+        const at = all.findIndex((record) => record.id === query.cursor);
+        if (at < 0) throw new InvalidCursorError();
+        rest = all.slice(at + 1);
+      }
+      const matching = rest.filter((record) =>
+        query.status === undefined
+          ? true
+          : query.status === 'active'
+            ? ACTIVE_OPERATION_STATUSES.some((s) => s === record.status)
+            : record.status === query.status,
+      );
+      const operations = matching.slice(0, query.limit);
+      return {
+        operations,
+        nextCursor:
+          matching.length > query.limit
+            ? (operations.at(-1)?.id ?? null)
+            : null,
+      };
+    },
+  };
+}
+
 /** The real route tree over any store; `findOperation` decides where operations are read from. */
 export const testLibsqlSigner = newTestSigner();
 
 export function assembleApi<S extends NeonStore>(
   store: S,
   libsql: LibsqlStore,
-  findOperation: Parameters<typeof createApiRoutes>[0]['findOperation'],
+  operations: OperationReads,
   overrides: ApiOverrides = {},
 ) {
   const app = createBaseApp(async () => {});
@@ -58,7 +105,7 @@ export function assembleApi<S extends NeonStore>(
       libsqlHostSuffix: 'lite.alloydb.net',
       dataApiHostSuffix: overrides.dataApiHostSuffix ?? 'apirest.alloydb.net',
       libsqlSigner: testLibsqlSigner,
-      findOperation,
+      ...operations,
     }),
   );
   return { app, store };

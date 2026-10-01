@@ -83,6 +83,9 @@ async function controlPlane(url: string, init?: { method?: string }) {
   const path = new URL(url).pathname;
   const accepted = { status: 202 };
   if (path.includes("/operations/")) return Response.json({ operation });
+  if (path.endsWith("/operations")) {
+    return Response.json({ operations: [operation], next_cursor: null });
+  }
   if (path.endsWith("/branches")) {
     return Response.json({ branch, endpoints: [], operation }, accepted);
   }
@@ -204,6 +207,10 @@ const reads = [
     name: "read operation",
     load: () => import("../app/api/projects/[id]/operations/[opId]/route"),
   },
+  {
+    name: "list operations",
+    load: () => import("../app/api/projects/[id]/operations/route"),
+  },
 ];
 
 function call(
@@ -211,11 +218,12 @@ function call(
   method: string,
   body?: unknown,
   extraHeaders: Record<string, string> = {},
+  url = "https://console.example/api",
 ) {
   const handler = handlers[method];
   if (!handler) throw new Error(`No ${method} handler`);
   return handler(
-    new Request("https://console.example/api", {
+    new Request(url, {
       method,
       headers: { "content-type": "application/json", ...extraHeaders },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -331,5 +339,51 @@ describe("database routes authorization", () => {
     const response = await call(handlers, "DELETE");
     expect(response.status).toBe(423);
     expect(await response.json()).toMatchObject({ code: "busy" });
+  });
+
+  describe("list operations", () => {
+    // Loaded by a computed path, like the other routes: its params are the shared `params` bag.
+    const load = (): Promise<Record<string, Handler>> =>
+      import(`${base}/../operations/route`);
+    const list = async (query: string) =>
+      call(
+        await load(),
+        "GET",
+        undefined,
+        {},
+        `https://console.example/api/projects/console-project/operations${query}`,
+      );
+
+    it("asks the control plane for active operations, scoped by the database's ids", async () => {
+      const response = await list("?status=active");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        operations: [operation],
+        next_cursor: null,
+      });
+      const [url, init] = fetchMock.mock.calls[0] ?? [];
+      expect(url).toBe("https://cp.test/v1/operations?status=active&limit=50");
+      expect(init.method).toBe("GET");
+      expect(init.headers["X-AlloyDB-Org"]).toBe("org-from-db");
+      expect(init.headers["X-AlloyDB-Project"]).toBe("console-project");
+    });
+
+    it("forwards the page size and cursor", async () => {
+      await list("?limit=5&cursor=op_9");
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(
+        "https://cp.test/v1/operations?limit=5&cursor=op_9",
+      );
+    });
+
+    it("rejects an unknown status or page size before calling the control plane", async () => {
+      for (const query of ["?status=pending", "?limit=0", "?limit=1000"]) {
+        const response = await list(query);
+        expect(response.status, query).toBe(400);
+        expect(await response.json()).toMatchObject({
+          code: "invalid_request",
+        });
+      }
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 });

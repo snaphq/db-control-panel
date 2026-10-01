@@ -108,6 +108,7 @@ body (the changed resource and an `operation`).
 | `PUT`, `DELETE .../branches/[branchId]/databases/[db]/data-api` | `.../databases/:db/data_api` |
 | `POST databases/libsql`, `DELETE databases/libsql/[dbId]`, `POST databases/libsql/[dbId]/tokens` | `/v1/libsql/databases...` |
 | `GET operations/[opId]` | `GET /v1/operations/:id` |
+| `GET operations?status=active&limit=&cursor=` | `GET /v1/operations` (the console project's operations, newest first; validated with `listOperationsQuerySchema`) |
 
 Errors are `{error, code}`: `423` has code `busy`, a control-plane outage is
 `502` with a generic message (details go to the server log), invalid input is
@@ -122,7 +123,10 @@ through `use-databases-controller.ts`, which tracks the returned operation with
 `use-operation-tracker.ts`: one interval polls `/operations/:id` every 2.5
 seconds while any operation is `scheduling` or `running`, and the overview is
 reloaded on every status change. Five failed polls in a row mark the operation as
-lost. Passwords and tokens live in component state only while the secret dialog
+lost. On mount the tracker also loads `operations?status=active` and follows
+every operation that is still in flight (labelled by action, for example
+"Creating a branch", because the name the user typed is gone), so a page reload
+does not drop the progress display; a failed lookup shows an error alert. Passwords and tokens live in component state only while the secret dialog
 is open.
 
 The Data API URL is the database's `data_api_url`, which the control plane builds

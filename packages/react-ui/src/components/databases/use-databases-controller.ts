@@ -49,9 +49,16 @@ export function useDatabasesController(
     }
   }, [api]);
 
-  const tracker = useOperationTracker(api, () => {
-    void refresh();
-  });
+  const tracker = useOperationTracker(
+    api,
+    () => {
+      void refresh();
+    },
+    (error) =>
+      setLoadError(
+        `Could not check for running operations: ${errorMessage(error)}`,
+      ),
+  );
 
   const started = useCallback(
     async (label: string, operation: Operation) => {

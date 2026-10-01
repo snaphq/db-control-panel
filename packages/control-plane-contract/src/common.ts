@@ -61,3 +61,33 @@ export type Operation = z.infer<typeof operationSchema>;
 /** Body of `GET /v1/operations/:id`, and the `operation` field of every 202. */
 export const operationResponseSchema = z.object({ operation: operationSchema });
 export type OperationResponse = z.infer<typeof operationResponseSchema>;
+
+/** `GET /v1/operations` and `GET /v1/projects/:project/operations` default and ceiling. */
+export const DEFAULT_OPERATIONS_PAGE_SIZE = 50;
+export const MAX_OPERATIONS_PAGE_SIZE = 100;
+
+/**
+ * Query of the operation list. `status=active` means `scheduling` or `running`,
+ * the operations that still hold the project's lock; any other value is one
+ * status. Results are newest first, and `cursor` is a previous `next_cursor`.
+ */
+export const listOperationsQuerySchema = z.object({
+  status: z.union([z.literal("active"), operationStatusSchema]).optional(),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_OPERATIONS_PAGE_SIZE)
+    .default(DEFAULT_OPERATIONS_PAGE_SIZE),
+  cursor: z.string().min(1).max(128).optional(),
+});
+export type ListOperationsQuery = z.input<typeof listOperationsQuerySchema>;
+
+export const listOperationsResponseSchema = z.object({
+  operations: z.array(operationSchema),
+  /** Pass as `cursor` for the next page; null on the last page. */
+  next_cursor: z.string().nullable(),
+});
+export type ListOperationsResponse = z.infer<
+  typeof listOperationsResponseSchema
+>;
