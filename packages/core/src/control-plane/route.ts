@@ -44,12 +44,13 @@ function controlPlaneErrorResponse(error: unknown): Response {
 /**
  * Runs one control-plane call for a console project: session, tenant and
  * membership first, then the call with the organization and project taken from
- * the console database. Nothing from the request selects either id.
+ * the console database. Nothing from the request selects either id. `run`
+ * may return a ready `Response` (for example a 400 from `parseJsonBody`).
  */
 export async function withProjectControlPlane<T>(
   projectId: string,
   options: { write: boolean; status?: number },
-  run: (cp: ControlPlaneClient, access: ProjectAccess) => Promise<T>,
+  run: (cp: ControlPlaneClient, access: ProjectAccess) => Promise<T | Response>,
 ): Promise<Response> {
   const access = await requireProjectAccess(projectId, {
     write: options.write,
@@ -63,7 +64,13 @@ export async function withProjectControlPlane<T>(
       controlPlaneFor(access.access.scope),
       access.access,
     );
-    return NextResponse.json(result, { status: options.status ?? 200 });
+    // A handler that rejects its own input (bad body) answers directly.
+    if (result instanceof Response) return result;
+    // Responses can carry one-time passwords and tokens: never cache them.
+    return NextResponse.json(result, {
+      status: options.status ?? 200,
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     return controlPlaneErrorResponse(error);
   }

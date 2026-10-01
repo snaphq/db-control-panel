@@ -16,6 +16,7 @@
     "@repo/analytics": "workspace:*",
     "@repo/auth": "workspace:*",
     "@repo/billing": "workspace:*",
+    "@repo/control-plane-contract": "workspace:*",
     "@repo/core": "workspace:*",
     "@repo/database": "workspace:*",
     "@repo/mcp-chatgpt": "workspace:*",

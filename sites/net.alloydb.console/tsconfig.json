@@ -39,6 +39,9 @@
       "@repo/object-storage/*": ["../../packages/object-storage/src/*"],
       "@repo/search": ["../../packages/search/src"],
       "@repo/search/*": ["../../packages/search/src/*"],
+      "@repo/control-plane-contract": [
+        "../../packages/control-plane-contract/src"
+      ],
       "@repo/core/*": ["../../packages/core/src/*"],
       "@repo/react-ui/*": ["../../packages/react-ui/src/*"],
       "@repo/site-kit/*": ["../../packages/site-kit/src/*"],

@@ -11,6 +11,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, "src/test-server-only.ts"),
       },
       {
+        find: /^@repo\/control-plane-contract$/,
+        replacement: `${pkg("control-plane-contract")}/index.ts`,
+      },
+      {
         find: /^@repo\/(core|react-ui|site-kit)\/(.*)$/,
         replacement: `${path.resolve(__dirname, "..")}/$1/src/$2`,
       },
