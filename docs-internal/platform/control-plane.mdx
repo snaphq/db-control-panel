@@ -445,7 +445,7 @@ Verified against `libsql-server-v0.24.33`; file references are in that tree.
 at most 20 characters, else `t` plus ten hex characters of its SHA-256, so two
 organizations never share a team. sqld itself only requires a non-empty name
 (`namespace/name.rs:47-53`), but the name is also the directory name and the
-first label of the Host header (`http/user/db_factory.rs:114-118`), so the
+first label of the Host header (`http/user/db_factory.rs:115-120`), so the
 control plane enforces one DNS label of 1-63 characters (the contract allows
 database names up to 42). Names are unique per organization; the public host is
 `<namespace>.lite.alloydb.net`.

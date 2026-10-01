@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
  * sqld namespace names. The only rule sqld itself enforces is "not empty and
  * UTF-8" (libsql-server/src/namespace/name.rs:47-53), but a namespace is also
  * a directory name on the node and, with `--enable-namespaces`, the first
- * label of the Host header (libsql-server/src/http/user/db_factory.rs:114-118,
+ * label of the Host header (libsql-server/src/http/user/db_factory.rs:115-120,
  * `host.split_once('.')`). So ours must be a DNS label: lowercase letters,
  * digits and hyphens, 1-63 characters, no leading or trailing hyphen.
  */
