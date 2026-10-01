@@ -46,7 +46,9 @@ sites:
 | `BACKEND_SESSION_SECRET` | Protects emailed sign-in codes. Generate with `openssl rand -base64 32`. |
 
 Admins sign in at `/login` with a 6-digit code sent by email (zsend). In
-production, configure `ZSEND_API_KEY`; codes are never printed there.
+production, configure `ZSEND_API_KEY`. Without it, the code is written to the
+admin portal's server log (for example Vercel → Logs), so sign-in still works
+before email is set up.
 
 ## Site admins
 

@@ -54,12 +54,14 @@ export async function requestAdminLoginCode(rawEmail: string): Promise<void> {
   if (recent) return;
 
   if (isProduction() && !isEmailProviderConfigured()) {
-    // The development fallback logs emails to the console; never do that
-    // with a live credential in production logs.
-    console.error(
-      "[backend] ZSEND_API_KEY is not configured; cannot send admin sign-in codes",
+    // zsend is optional. Without it, sendEmail below writes the code to the
+    // server log so allowlisted admins can still sign in. The code is
+    // single-use, expires in 10 minutes, and allows 5 attempts; only people
+    // with access to the deployment's logs can read it. Set ZSEND_API_KEY to
+    // email codes instead.
+    console.warn(
+      "[backend] ZSEND_API_KEY is not configured; writing the admin sign-in code to the server log",
     );
-    return;
   }
 
   const code = randomInt(0, 1_000_000).toString().padStart(6, "0");

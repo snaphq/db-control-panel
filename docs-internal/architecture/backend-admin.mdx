@@ -22,7 +22,9 @@ Platform admins are not tenant users, so the backend does not use
   Codes are stored as an HMAC keyed by `BACKEND_SESSION_SECRET`, expire after
   10 minutes, allow 5 attempts, and can be re-requested once a minute. The
   form responds the same way for unknown emails. Without `ZSEND_API_KEY` the
-  code prints to the console in development and is refused in production.
+  code is written to the server log instead (development and production), so
+  admins can sign in before email is set up; only people with log access can
+  read it.
 - A verified code creates an `admin_session` row (SHA-256 of an opaque
   cookie token, 12-hour lifetime) and the `backend_admin_session` cookie
   (`apps/backend/src/lib/admin-auth.ts`).
