@@ -249,21 +249,6 @@
       ]
     },
     {
-      "id": "public-referrals",
-      "site": "docs-public",
-      "page": "configure/referrals.mdx",
-      "visibility": "public",
-      "sources": [
-        "packages/billing/src/referrals",
-        "packages/site-kit/src/app/api/referral",
-        "packages/site-kit/src/app/r",
-        "packages/react-ui/src/components/referrals",
-        "apps/backend/src/components/admin/referrals",
-        "packages/durable-exec/src/billing/functions/referral-window.ts",
-        "scripts/seed-referrals.ts"
-      ]
-    },
-    {
       "id": "public-project-structure",
       "site": "docs-public",
       "page": "customize/project-structure.mdx",

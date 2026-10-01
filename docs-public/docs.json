@@ -17,11 +17,7 @@
       {
         "tab": "Configure your app",
         "icon": "settings",
-        "pages": [
-          "configure/authentication",
-          "configure/database",
-          "configure/referrals"
-        ]
+        "pages": ["configure/authentication", "configure/database"]
       },
       {
         "tab": "Build your workflow",

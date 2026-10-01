@@ -7,14 +7,7 @@ import {
 import {
   AUDIT_ACTIONS,
   ORG_STATUS,
-  applyCreditGrant,
-  cancelReferral,
-  getReferralConfig,
   logBillingEvent,
-  markReferralTrial,
-  recordCreditGrant,
-  resolveActiveReferralForCustomer,
-  setReferralRefundPeriod,
   updateOrganizationStatus,
 } from "@repo/billing";
 import { cancelPendingOrganization } from "@repo/billing/stripe/checkout";
@@ -72,19 +65,6 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
   }
 
   await syncOrgBillingFromSubscription(org[0].id, subscription);
-
-  // Referral: if trial started, advance referral to "trial" status
-  if (subscription.status === "trialing") {
-    try {
-      const referral = await resolveActiveReferralForCustomer(customerId);
-      if (referral) {
-        await markReferralTrial(referral.id, subscription.id);
-        console.log(`[Webhook] Referral ${referral.id} advanced to trial`);
-      }
-    } catch (err) {
-      console.error("[Webhook] Referral trial hook failed:", err);
-    }
-  }
 
   console.log(`[Webhook] Subscription created for workspace ${org[0].id}`);
 }
@@ -242,21 +222,6 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   await syncOrgBillingOnSubscriptionDeleted(org[0].id, subscription);
 
-  // Referral: cancel any active referral
-  try {
-    const referral = await resolveActiveReferralForCustomer(customerId);
-    if (referral) {
-      await cancelReferral(
-        referral.id,
-        "subscription_deleted",
-        subscription.id,
-      );
-      console.log(`[Webhook] Referral ${referral.id} cancelled`);
-    }
-  } catch (err) {
-    console.error("[Webhook] Referral cancel hook failed:", err);
-  }
-
   console.log(`[Webhook] Subscription cancelled for workspace ${org[0].id}`);
 }
 
@@ -325,48 +290,6 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   });
 
   await syncOrgBillingOnPaymentSucceeded(org[0].id);
-
-  // Referral: on first paid invoice, advance to refund_period and create referrer credit grant
-  try {
-    const referral = await resolveActiveReferralForCustomer(customerId);
-    if (
-      referral &&
-      (referral.status === "pending" || referral.status === "trial")
-    ) {
-      await setReferralRefundPeriod(referral.id, invoice.id ?? undefined);
-      const cfg = await getReferralConfig();
-      if (cfg.enabled && cfg.referrerCreditAmount > 0) {
-        const grant = await recordCreditGrant({
-          referralId: referral.id,
-          recipientUserId: referral.referrerId,
-          recipientRole: "referrer",
-          amountCents: cfg.referrerCreditAmount,
-          currency: cfg.currency,
-          stripeInvoiceId: invoice.id ?? undefined,
-        });
-        if (grant && cfg.autoApply) {
-          await applyCreditGrant(grant.id);
-        }
-      }
-      if (cfg.enabled && cfg.refereeCreditAmount > 0) {
-        const grant = await recordCreditGrant({
-          referralId: referral.id,
-          recipientUserId: referral.refereeId,
-          recipientRole: "referee",
-          amountCents: cfg.refereeCreditAmount,
-          currency: cfg.currency,
-          stripeCustomerId: customerId,
-          stripeInvoiceId: invoice.id ?? undefined,
-        });
-        if (grant && cfg.autoApply) {
-          await applyCreditGrant(grant.id);
-        }
-      }
-      console.log(`[Webhook] Referral ${referral.id} moved to refund_period`);
-    }
-  } catch (err) {
-    console.error("[Webhook] Referral payment hook failed:", err);
-  }
 
   // If workspace was in readonly due to payment issues, reactivate it
   if (org[0].status === ORG_STATUS.READONLY) {

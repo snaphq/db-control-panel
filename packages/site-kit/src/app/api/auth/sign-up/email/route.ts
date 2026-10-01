@@ -4,8 +4,6 @@ import {
   trackServerEvent,
 } from "@repo/analytics";
 import { baseServer } from "@repo/auth/server";
-import { createReferral, getReferralCodeByCode } from "@repo/billing";
-import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -48,25 +46,6 @@ export async function POST(request: Request) {
             name,
             provider: "email",
           });
-
-          // Best-effort referral attribution — never block sign-up on failure.
-          try {
-            const jar = await cookies();
-            const referralCookie = jar.get("referral_code")?.value;
-            if (referralCookie) {
-              const referralCode = await getReferralCodeByCode(referralCookie);
-              if (referralCode && referralCode.userId !== userId) {
-                await createReferral({
-                  codeId: referralCode.id,
-                  referrerId: referralCode.userId,
-                  refereeId: userId,
-                });
-                jar.delete("referral_code");
-              }
-            }
-          } catch {
-            // Referral attribution is non-critical; ignore all errors.
-          }
         }
       } catch {
         // Ignore analytics failures.

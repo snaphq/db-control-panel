@@ -12,76 +12,11 @@ import {
 } from "@repo/react-ui/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@repo/react-ui/components/ui/tabs";
 import { cn } from "@repo/react-ui/lib/utils";
-import { CheckCircle2, X } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { CheckCircle2 } from "lucide-react";
+import { useState } from "react";
 
 interface PricingDisplayProps {
   tiers: PricingTier[];
-}
-
-interface ReferralValidateResponse {
-  valid: boolean;
-  referrerFirstName?: string | null;
-  refereeCreditCents?: number;
-  currency?: string;
-}
-
-function ReferralBanner() {
-  const searchParams = useSearchParams();
-  const refCode = searchParams.get("ref");
-  const [banner, setBanner] = useState<ReferralValidateResponse | null>(null);
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    if (!refCode) return;
-    fetch(`/api/referral/validate/${encodeURIComponent(refCode)}`)
-      .then((res) => {
-        if (!res.ok) return null;
-        return res.json() as Promise<ReferralValidateResponse>;
-      })
-      .then((data) => {
-        if (data?.valid) setBanner(data);
-      })
-      .catch(() => {
-        // Silently ignore — banner is non-critical
-      });
-  }, [refCode]);
-
-  if (!refCode || !banner || dismissed) return null;
-
-  const amount = banner.refereeCreditCents
-    ? (banner.refereeCreditCents / 100).toFixed(2)
-    : null;
-
-  return (
-    <div className="relative flex items-center justify-between gap-3 rounded-lg border border-green-500/40 bg-green-50 dark:bg-green-950/30 px-4 py-3 mb-6 text-sm text-green-800 dark:text-green-300">
-      <span>
-        {amount && (
-          <>
-            You'll get <strong>${amount}</strong> credit when you upgrade
-          </>
-        )}
-        {banner.referrerFirstName && (
-          <>
-            {" "}
-            — referred by <strong>{banner.referrerFirstName}</strong>
-          </>
-        )}
-        {!amount &&
-          !banner.referrerFirstName &&
-          "You've been referred — enjoy your discount!"}
-      </span>
-      <button
-        type="button"
-        onClick={() => setDismissed(true)}
-        className="shrink-0 rounded-sm opacity-70 hover:opacity-100 transition-opacity"
-        aria-label="Dismiss"
-      >
-        <X size={14} />
-      </button>
-    </div>
-  );
 }
 
 const PricingHeader = ({
@@ -227,9 +162,6 @@ export function PricingDisplay({ tiers }: PricingDisplayProps) {
         title="Pricing Plans"
         subtitle="Choose the plan that's right for you"
       />
-      <Suspense>
-        <ReferralBanner />
-      </Suspense>
       <PricingSwitch onSwitch={togglePricingPeriod} />
       <section className="flex flex-col sm:flex-row sm:flex-wrap justify-center gap-8 mt-8">
         {tiers.map((tier) => (

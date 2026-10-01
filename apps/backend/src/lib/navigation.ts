@@ -7,7 +7,6 @@ import {
   DollarSign,
   Filter,
   FolderKanban,
-  Gift,
   Layers,
   LayoutDashboard,
   LineChart,
@@ -95,7 +94,6 @@ export const adminNav: AdminNavConfig = {
           href: "/billing/org-features",
         },
         { label: "Pricing Page", icon: Package, href: "/pricing" },
-        { label: "Referrals", icon: Gift, href: "/referrals" },
       ],
     },
     {

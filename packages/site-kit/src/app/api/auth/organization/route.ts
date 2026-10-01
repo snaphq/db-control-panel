@@ -4,8 +4,7 @@ import {
 } from "@repo/auth/server";
 import { resourceUrlForRequest } from "@repo/core/agent-auth/discovery";
 import { filterOrganizationsForTenant } from "@repo/core/auth/organizations";
-import { and, db, eq, resolveTenantFromHost } from "@repo/database";
-import { organization, referrals } from "@repo/database/schema";
+import { resolveTenantFromHost } from "@repo/database";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -102,33 +101,6 @@ export async function POST(request: Request) {
           headers: requestHeaders,
         }),
     );
-
-    // F3: Link referral record to the newly created organization (non-fatal)
-    const newOrgId: string | undefined =
-      result && typeof result === "object" && "id" in result
-        ? (result as { id: string }).id
-        : undefined;
-    if (newOrgId && session.user?.id) {
-      try {
-        const [createdOrg] = await db()
-          .select({ id: organization.id })
-          .from(organization)
-          .where(
-            and(
-              eq(organization.id, newOrgId),
-              eq(organization.tenantId, tenant.id),
-            ),
-          )
-          .limit(1);
-        if (!createdOrg) throw new Error("Organization tenant binding missing");
-        await db()
-          .update(referrals)
-          .set({ refereeOrganizationId: newOrgId })
-          .where(eq(referrals.refereeId, session.user.id));
-      } catch (err) {
-        console.error("[onboarding] Failed to link referral org:", err);
-      }
-    }
 
     return createSuccessResponse(result);
   } catch (error) {

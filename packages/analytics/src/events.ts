@@ -48,7 +48,6 @@ export interface UserCreatedProperties {
   name: string;
   provider: "email" | "google" | "github" | "microsoft" | "apple";
   organization_id?: string;
-  referral_source?: string;
 }
 
 export interface UserVerifiedProperties {

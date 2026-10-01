@@ -18,17 +18,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-interface ReferralBanner {
-  referrerFirstName: string | null;
-  creditAmountCents: number;
-  currency: string;
-}
-
-interface SignUpFormProps {
-  referralBanner?: ReferralBanner | null;
-}
-
-export function SignUpForm({ referralBanner }: SignUpFormProps) {
+export function SignUpForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -94,29 +84,6 @@ export function SignUpForm({ referralBanner }: SignUpFormProps) {
             <CardDescription>
               Enter your information to create an account
             </CardDescription>
-            {referralBanner && (
-              <div className="mt-2 rounded-md border border-green-500/40 bg-green-50 dark:bg-green-950/30 px-3 py-2 text-sm text-green-800 dark:text-green-300">
-                {referralBanner.referrerFirstName ? (
-                  <>
-                    Referred by{" "}
-                    <strong>{referralBanner.referrerFirstName}</strong> — you'll
-                    get{" "}
-                    <strong>
-                      ${(referralBanner.creditAmountCents / 100).toFixed(2)}
-                    </strong>{" "}
-                    credit on your first paid plan.
-                  </>
-                ) : (
-                  <>
-                    You've been referred — you'll get{" "}
-                    <strong>
-                      ${(referralBanner.creditAmountCents / 100).toFixed(2)}
-                    </strong>{" "}
-                    credit on your first paid plan.
-                  </>
-                )}
-              </div>
-            )}
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">

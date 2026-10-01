@@ -13,8 +13,4 @@ export type DurableEvents = {
   "cron/billing-cleanup-pending": {
     data: Record<string, never>;
   };
-  /** Daily activation of referrals past refund approval window */
-  "cron/billing-referral-window": {
-    data: Record<string, never>;
-  };
 };

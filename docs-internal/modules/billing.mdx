@@ -1,13 +1,13 @@
 ---
 title: Billing module
-description: Stripe, subscriptions, feature limits, referrals, and billing jobs.
+description: Stripe, subscriptions, feature limits, and billing jobs.
 ---
 
 # Billing module
 
 `@repo/billing` owns billing domain logic and exports subscriptions,
 organization state, feature limits, usage checks, audit records, pricing plans,
-referrals, and Stripe adapters. `sites/net.alloydb.console` owns the route/UI composition;
+and Stripe adapters. `sites/net.alloydb.console` owns the route/UI composition;
 Stripe webhooks are handled under `src/app/api/webhooks/stripe`.
 
 ## Data and flow
@@ -17,8 +17,6 @@ Stripe webhooks are handled under `src/app/api/webhooks/stripe`.
 2. Stripe webhook events are verified and synchronized into the shared database.
 3. Subscription and organization helpers derive active/trial/read-only state.
 4. Feature and usage checks gate workspace/member/project mutations.
-5. Referral and credit-grant transitions write audit records and affect billing
-   state through the package APIs.
 
 The package also exposes Inngest runners for trial expiration and pending
 organization cleanup. These are registered through `@repo/durable-exec`, not
