@@ -64,7 +64,7 @@ project exists, set its `project_id` in both deploy workflows
 │   ├── auth/                     # Better Auth wrapper (@repo/auth)
 │   ├── billing/                  # Stripe and billing domain logic
 │   ├── database/                 # Drizzle schemas and DALs
-│   ├── durable-exec/             # Inngest and SEO/AIEO jobs
+│   ├── durable-exec/             # Inngest and billing jobs
 │   ├── mcp-chatgpt/              # MCP context and logging
 │   ├── mcp-server/               # MCP tools and per-site toolsets
 │   └── object-storage/           # Vercel Blob/S3 providers

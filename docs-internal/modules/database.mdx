@@ -6,9 +6,8 @@ description: Drizzle client, schema groups, DALs, and query ownership.
 # Database package
 
 `@repo/database` is the shared persistence boundary. It exports the Drizzle
-client, core/application schemas, agent and agent-auth schemas, analytics and
-SEO schemas, tenant helpers, admin DAL, SEO DAL, and selected Drizzle
-operators.
+client, core/application schemas, agent and agent-auth schemas, analytics
+schemas, tenant helpers, admin DAL, and selected Drizzle operators.
 
 ## Source groups
 
@@ -20,7 +19,6 @@ operators.
   claims, tokens, delegations, replay cache, and audit events.
 - `schema-analytics.ts` and `dal/*`: analytics snapshots, series, and query
   helpers.
-- `schema-seo.ts` and `dal/seo/*`: SEO/AIEO tracking data and accessors.
 
 ## Query rules
 

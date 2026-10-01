@@ -5,9 +5,8 @@ import { WebSocket } from "undici";
 import * as schema from "./schema";
 import * as schemaAgents from "./schema-agents";
 import * as schemaExt from "./schema-ext";
-import * as schemaSeo from "./schema-seo";
 
-const mergedSchema = { ...schema, ...schemaAgents, ...schemaExt, ...schemaSeo };
+const mergedSchema = { ...schema, ...schemaAgents, ...schemaExt };
 
 // The HTTP driver is the default because it is safe to reuse in serverless
 // handlers. Interactive transactions require a WebSocket-backed Pool; the

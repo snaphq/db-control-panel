@@ -43,7 +43,7 @@
           "modules/analytics",
           "modules/billing",
           "modules/database",
-          "modules/durable-exec-seo",
+          "modules/durable-exec",
           "modules/ai-and-storage",
           "modules/integrations",
           "modules/docs-tooling"

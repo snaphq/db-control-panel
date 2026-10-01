@@ -15,9 +15,6 @@
     "paths": {
       "@/*": ["./src/*"],
       "@repo/database": ["../../packages/database/src"],
-      "@repo/database/dal/seo": [
-        "../../packages/database/src/dal/seo/index.ts"
-      ],
       "@repo/database/*": ["../../packages/database/src/*"],
       "@repo/ai": ["../../packages/ai/src"],
       "@repo/ai/*": ["../../packages/ai/src/*"],

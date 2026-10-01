@@ -1,0 +1,26 @@
+---
+title: Durable execution
+description: Inngest functions, retries, and billing jobs.
+---
+
+# Durable execution
+
+`@repo/durable-exec` owns the Inngest client, durable event types, and function
+registration for billing jobs. The Next.js handler at
+`apps/backend/src/app/api/inngest/route.ts` serves every function in
+`allFunctions`.
+
+## Function groups
+
+- Billing: trial expiration, pending-organization cleanup, and referral-window
+  processing.
+
+## Reliability rules
+
+- Assume Inngest delivery can retry; use stable event identifiers and
+  idempotent writes.
+- Keep expensive provider calls behind the function boundary.
+- Record enough status/error context for operator recovery without logging
+  secrets or full provider responses.
+- Test the handler and a representative non-empty job path when changing a
+  schema or function registration.

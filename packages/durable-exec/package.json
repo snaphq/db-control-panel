@@ -13,8 +13,6 @@
   },
   "dependencies": {
     "@repo/billing": "workspace:*",
-    "@repo/database": "workspace:*",
-    "google-auth-library": "catalog:",
     "inngest": "catalog:"
   },
   "peerDependencies": {

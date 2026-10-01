@@ -13,7 +13,6 @@ export default defineConfig({
     "./src/schema-analytics.ts",
     "./src/schema-ext.ts",
     "./src/schema-operators.ts",
-    "./src/schema-seo.ts",
     "./src/schema-admin.ts",
   ],
   schemaFilter: ["public", "archived"],

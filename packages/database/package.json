@@ -8,8 +8,7 @@
     ".": "./src/index.ts",
     "./schema": "./src/schema.ts",
     "./schema-admin": "./src/schema-admin.ts",
-    "./schema-operators": "./src/schema-operators.ts",
-    "./dal/seo": "./src/dal/seo/index.ts"
+    "./schema-operators": "./src/schema-operators.ts"
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",

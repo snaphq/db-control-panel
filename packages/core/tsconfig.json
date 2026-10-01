@@ -6,7 +6,6 @@
     "types": ["node"],
     "paths": {
       "@repo/database": ["../database/src"],
-      "@repo/database/dal/seo": ["../database/src/dal/seo/index.ts"],
       "@repo/database/*": ["../database/src/*"],
       "@repo/auth": ["../auth/src"],
       "@repo/auth/*": ["../auth/src/*"],

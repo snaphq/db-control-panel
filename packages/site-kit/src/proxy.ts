@@ -17,43 +17,6 @@ import {
 const HAS_WORKSPACE_COOKIE = "has_workspace";
 const WORKSPACE_COOKIE_TTL = 5 * 60; // 5 minutes
 
-// AI bot UA patterns — hits are logged to /api/aieo/bot-hit for the
-// AIEO Referrers dashboard.
-const AI_BOT_PATTERNS: RegExp[] = [
-  /GPTBot/i,
-  /OAI-SearchBot/i,
-  /PerplexityBot/i,
-  /ClaudeBot/i,
-  /anthropic-ai/i,
-  /Google-Extended/i,
-  /Applebot-Extended/i,
-  /Bytespider/i,
-  /CCBot/i,
-  /cohere-ai/i,
-  /YouBot/i,
-  /DuckAssistBot/i,
-  /Meta-ExternalAgent/i,
-  /Amazonbot/i,
-];
-
-function isAiBot(userAgent: string): boolean {
-  return AI_BOT_PATTERNS.some((re) => re.test(userAgent));
-}
-
-function recordBotHit(pathname: string, userAgent: string, origin: string) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return;
-  const date = new Date().toISOString().slice(0, 10);
-  fetch(`${origin}/api/aieo/bot-hit`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${cronSecret}`,
-    },
-    body: JSON.stringify({ date, userAgent, path: pathname, hits: 1 }),
-  }).catch(() => {});
-}
-
 /**
  * Check if user has workspaces, using cookie cache when available.
  */
@@ -129,12 +92,6 @@ export async function proxy(request: NextRequest) {
   );
   if (!tenant) {
     return new NextResponse(null, { status: 404 });
-  }
-
-  // AIEO: fire-and-forget bot-hit ingest for AI crawlers
-  const ua = request.headers.get("user-agent") ?? "";
-  if (ua && isAiBot(ua)) {
-    recordBotHit(pathname, ua, request.nextUrl.origin);
   }
 
   // Handle CORS preflight

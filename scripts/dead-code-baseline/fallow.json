@@ -106,8 +106,6 @@
     "unused_exports|packages/react-ui/src/components/ui/sheet.tsx|SheetPortal",
     "unused_exports|packages/react-ui/src/components/ui/tabs.tsx|TabsContent",
     "unused_files|packages/core/src/auth/operator-authorization.ts|-",
-    "unused_server_actions|apps/backend/src/app/(admin)/seo/aieo/prompts/actions.ts|snapshotAllPromptsNowAction",
-    "unused_server_actions|apps/backend/src/app/(admin)/seo/aieo/secrets/actions.ts|markValidationFailureAction",
     "unused_types|apps/backend/src/app/(admin)/agents/_components/agent-form.tsx|AgentFormInitial",
     "unused_types|apps/backend/src/app/(admin)/integrations/_components/integration-form.tsx|IntegrationFormInitial",
     "unused_types|apps/backend/src/hooks/stripe/useProducts.ts|CreateProductInput",

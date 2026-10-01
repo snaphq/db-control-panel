@@ -5,8 +5,6 @@
     "dependencies|packages/fumadocs/package.json|fumadocs-mdx",
     "dependencies|packages/mcp-server/package.json|mcp-handler",
     "devDependencies|package.json|tsx",
-    "exports|apps/backend/src/app/(admin)/seo/aieo/prompts/actions.ts|snapshotAllPromptsNowAction",
-    "exports|apps/backend/src/app/(admin)/seo/aieo/secrets/actions.ts|markValidationFailureAction",
     "exports|apps/backend/src/components/admin/resource-form-fields.tsx|RESOURCE_STATUSES",
     "exports|packages/auth/src/tenant-binding.ts|requiredAuthResource",
     "exports|scripts/lib/dead-code.ts|BASELINE_DIR",

@@ -122,8 +122,8 @@
       "sources": ["packages/database/src"]
     },
     {
-      "id": "durable-exec-seo",
-      "page": "modules/durable-exec-seo.mdx",
+      "id": "durable-exec",
+      "page": "modules/durable-exec.mdx",
       "visibility": "internal",
       "sources": [
         "packages/durable-exec/src",

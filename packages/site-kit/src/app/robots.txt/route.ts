@@ -1,12 +1,12 @@
 /**
- * GET /robots.txt — explicit Allow rules for AI crawlers (GEO/AIEO).
+ * GET /robots.txt — explicit Allow rules for AI crawlers.
  */
 
 export async function GET(): Promise<Response> {
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ?? "https://console.alloydb.net";
 
-  const body = `# AI crawlers — explicitly allowed for GEO/AIEO indexing
+  const body = `# AI crawlers — explicitly allowed
 User-agent: GPTBot
 Allow: /
 
