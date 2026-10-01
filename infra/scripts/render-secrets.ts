@@ -66,6 +66,8 @@ const REQUIRED: Record<string, string> = {
     "sqld admin API key, generate with: openssl rand -hex 32",
   ALLOYDB_NEON_PROXY_TOKEN:
     "proxy to control plane token, generate with: openssl rand -hex 32",
+  ALLOYDB_API_TOKEN:
+    "console to control-plane API token, generate with: openssl rand -hex 32",
 };
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -243,6 +245,9 @@ function render(env: Env, neonKey: KeyObject, libsqlKey: KeyObject): string[] {
     secret("libsql-jwt", "libsql", { "public.pem": publicPem(libsqlKey) }),
     secret("libsql-jwt-signing", "alloydb-system", {
       "private.pem": privatePem(libsqlKey),
+    }),
+    secret("control-plane-api", "alloydb-system", {
+      ALLOYDB_API_TOKEN: env.ALLOYDB_API_TOKEN,
     }),
   ];
 }

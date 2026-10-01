@@ -15,13 +15,12 @@
 # Secrets this kustomization expects in namespace `alloydb-system`.
 # None are in Git; infra/scripts/render-secrets.ts creates them from .env.local
 # and cert-manager issues the TLS Secrets (infra/k8s/platform/config/certificates.yaml).
-# Key names follow render-secrets.ts, except control-plane-api (see TODO below).
+# Key names follow render-secrets.ts.
 #
 #   control-plane-db         DATABASE_URL  postgresql://.../control_plane on the platform Postgres
 #
 #   control-plane-api        ALLOYDB_API_TOKEN  bearer token the console server presents to the
-#                            api mode.
-#                            TODO: render-secrets.ts does not create this Secret yet.
+#                            api mode. The console holds the same value.
 #
 #   neon-jwt                 Ed25519 key material for every Neon token
 #     private.pem              PKCS#8 PEM private key. Mounted as a file at
