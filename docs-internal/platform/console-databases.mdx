@@ -38,6 +38,18 @@ browser (packages/react-ui/src/components/databases)
 Without the token the page shows "Databases are not set up for this site yet"
 and the routes answer `503`.
 
+## Contract resolution
+
+`@repo/control-plane-contract` is resolved through its package exports: types
+come from `src`, the runtime from the built `dist/`. The site's `tsconfig.json`
+therefore has no path alias for it, because Turbopack cannot resolve the
+`./common.js` specifiers inside the contract's TypeScript source. Turbo builds
+the contract first (`build` depends on `^build`, and `core`, `react-ui` and
+`site-kit` declare it as a dependency); running `bun run --filter
+net.alloydb.console build` directly needs `dist/` to exist already
+(`bun run --filter @repo/control-plane-contract build`). Vitest aliases the
+source instead.
+
 ## The client
 
 Every call sends `Authorization: Bearer`, `X-AlloyDB-Org` and
