@@ -348,7 +348,7 @@
       "id": "platform-control-plane",
       "page": "platform/control-plane.mdx",
       "visibility": "internal",
-      "sources": ["apps/control-plane"]
+      "sources": ["apps/control-plane", "packages/control-plane-contract"]
     }
   ]
 }

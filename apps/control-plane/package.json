@@ -7,7 +7,7 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "bun run --filter @repo/control-plane-contract build && tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
@@ -19,6 +19,7 @@
   "dependencies": {
     "@hono/node-server": "catalog:",
     "@kubernetes/client-node": "catalog:",
+    "@repo/control-plane-contract": "workspace:*",
     "drizzle-orm": "0.45.3",
     "hono": "catalog:",
     "pg-boss": "catalog:",

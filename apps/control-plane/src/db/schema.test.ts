@@ -1,0 +1,25 @@
+import {
+  OPERATION_ACTIONS as CONTRACT_ACTIONS,
+  ENDPOINT_STATES as CONTRACT_ENDPOINT_STATES,
+  ENDPOINT_TYPES as CONTRACT_ENDPOINT_TYPES,
+  OPERATION_STATUSES as CONTRACT_STATUSES,
+} from '@repo/control-plane-contract';
+import { describe, expect, it } from 'vitest';
+import {
+  ENDPOINT_STATES,
+  ENDPOINT_TYPES,
+  OPERATION_ACTIONS,
+  OPERATION_STATUSES,
+} from './schema.js';
+
+describe('schema enums match the public contract', () => {
+  it('operation actions and statuses', () => {
+    expect([...OPERATION_ACTIONS]).toEqual([...CONTRACT_ACTIONS]);
+    expect([...OPERATION_STATUSES]).toEqual([...CONTRACT_STATUSES]);
+  });
+
+  it('endpoint types and states', () => {
+    expect([...ENDPOINT_TYPES]).toEqual([...CONTRACT_ENDPOINT_TYPES]);
+    expect([...ENDPOINT_STATES]).toEqual([...CONTRACT_ENDPOINT_STATES]);
+  });
+});

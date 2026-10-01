@@ -1,3 +1,4 @@
+import type { Operation } from '@repo/control-plane-contract';
 import type { Context } from 'hono';
 import { Hono } from 'hono';
 import type { ApiConfig } from '../config.js';
@@ -27,7 +28,7 @@ const missing = (c: Context, header: string) =>
     400,
   );
 
-export function toOperationResponse(record: OperationRecord) {
+export function toOperationResponse(record: OperationRecord): Operation {
   return {
     id: record.id,
     target_type: record.targetType,

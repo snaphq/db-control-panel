@@ -68,6 +68,7 @@
       "dependencies": {
         "@hono/node-server": "catalog:",
         "@kubernetes/client-node": "catalog:",
+        "@repo/control-plane-contract": "workspace:*",
         "drizzle-orm": "0.45.3",
         "hono": "catalog:",
         "pg-boss": "catalog:",
@@ -143,6 +144,17 @@
         "nanoid": "catalog:",
         "stripe": "catalog:",
         "stripe-sync-engine": "catalog:",
+      },
+      "devDependencies": {
+        "typescript": "catalog:",
+        "vitest": "catalog:",
+      },
+    },
+    "packages/control-plane-contract": {
+      "name": "@repo/control-plane-contract",
+      "version": "0.0.0",
+      "dependencies": {
+        "zod": "catalog:",
       },
       "devDependencies": {
         "typescript": "catalog:",
@@ -1106,6 +1118,8 @@
     "@repo/billing": ["@repo/billing@workspace:packages/billing"],
 
     "@repo/control-plane": ["@repo/control-plane@workspace:apps/control-plane"],
+
+    "@repo/control-plane-contract": ["@repo/control-plane-contract@workspace:packages/control-plane-contract"],
 
     "@repo/core": ["@repo/core@workspace:packages/core"],
 
