@@ -1,6 +1,10 @@
 # Mode `data-api-gateway`: wakes a compute and forwards
 # https://ep-<id>.apirest.alloydb.net/<db>/rest/v1/... to its PostgREST sidecar.
-# Public through ingress.yaml (wildcard certificate apirest-wildcard-tls).
+# Public through ingress.yaml (wildcard certificate apirest-wildcard-tls). It
+# shares the compute runtime with neon-glue, so it creates compute pods (RBAC in
+# rbac.yaml), reads the platform database and calls the storage controller. The
+# NetworkPolicy in compute-networkpolicy.yaml lets only these pods reach the
+# PostgREST ports of a compute.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -46,6 +50,10 @@ spec:
       containers:
         - name: data-api-gateway
           image: ghcr.io/snaphq/alloydb-control-plane # tag injected by kustomize `images:`
+          # ALLOYDB_COMPUTE_IMAGE and ALLOYDB_POSTGREST_IMAGE, from the ConfigMap generator.
+          envFrom:
+            - configMapRef:
+                name: control-plane-images
           env:
             - name: ALLOYDB_MODE
               value: "data-api-gateway"
@@ -63,8 +71,17 @@ spec:
                 secretKeyRef:
                   name: control-plane-data
                   key: ALLOYDB_DATA_KEY
+            # A wake builds the compute spec first, which asks the storage controller
+            # where the tenant's pageserver is; both settings mirror neon-glue.
+            - name: STORAGE_CONTROLLER_URL
+              value: "http://storage-controller.neon:1234"
             - name: NEON_JWT_PRIVATE_KEY_PATH
               value: "/etc/alloydb/neon-jwt/private.pem"
+            - name: CONTROL_PLANE_JWT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: neon-jwt
+                  key: CONTROL_PLANE_JWT_TOKEN
           ports:
             - name: http
               containerPort: 8080

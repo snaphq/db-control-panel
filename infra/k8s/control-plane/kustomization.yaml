@@ -11,6 +11,13 @@
 #            kustomize edit set image ghcr.io/snaphq/alloydb-control-plane=ghcr.io/snaphq/alloydb-control-plane:<TAG>
 #          The checked-in placeholder REPLACE_WITH_IMAGE_TAG is not a real tag.
 #
+# Compute images: the control plane creates compute pods itself, so their images
+#          are settings, not container images kustomize could rewrite. They come
+#          from the `control-plane-images` ConfigMap below (ALLOYDB_COMPUTE_IMAGE,
+#          ALLOYDB_POSTGREST_IMAGE) that worker, neon-glue and data-api-gateway
+#          load with envFrom. Replace the placeholder tags with the commit the
+#          images workflow built (neon-compute-v17:<sha>, postgrest:<sha>).
+#
 # ---------------------------------------------------------------------------
 # Secrets this kustomization expects in namespace `alloydb-system`.
 # None are in Git; infra/scripts/render-secrets.ts creates them from .env.local
@@ -44,7 +51,12 @@
 #   api-tls                  kubernetes.io/tls for api.alloydb.net (cert-manager)
 #   apirest-wildcard-tls     kubernetes.io/tls for *.apirest.alloydb.net (cert-manager)
 #
-#   ghcr-pull (optional)     dockerconfigjson, only while ghcr.io/snaphq packages are private
+#   ghcr-pull (optional)     dockerconfigjson, only while ghcr.io/snaphq packages are private.
+#                            Needed in alloydb-system for the control-plane pods and in
+#                            neon-compute for the compute pods. Compute pods name it in
+#                            imagePullSecrets; if it does not exist Kubernetes only logs a
+#                            warning and pulls anonymously. ALLOYDB_IMAGE_PULL_SECRET=none
+#                            leaves it out of the pod spec.
 # ---------------------------------------------------------------------------
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -56,6 +68,18 @@ resources:
   - worker.yaml
   - data-api-gateway.yaml
   - ingress.yaml
+  - compute-networkpolicy.yaml
+
+# kustomize adds a content hash to the name and rewrites the envFrom references,
+# so changing an image rolls the three modes that read it.
+configMapGenerator:
+  - name: control-plane-images
+    # Without the namespace kustomize cannot match the generated name to the
+    # envFrom references in alloydb-system, and leaves them without the hash.
+    namespace: alloydb-system
+    literals:
+      - ALLOYDB_COMPUTE_IMAGE=ghcr.io/snaphq/neon-compute-v17:REPLACE_WITH_IMAGE_TAG
+      - ALLOYDB_POSTGREST_IMAGE=ghcr.io/snaphq/postgrest:REPLACE_WITH_IMAGE_TAG
 
 images:
   - name: ghcr.io/snaphq/alloydb-control-plane

@@ -1,0 +1,55 @@
+# Who may reach a compute pod's ports (namespace neon-compute).
+#
+# Each PostgREST sidecar listens on the pod IP so the data-api-gateway can reach
+# it: API ports 3000-3049, one per Data API database (control-plane code:
+# neon/compute-pod.ts, MAX_DATA_API_DATABASES). Its admin server is on loopback,
+# but ports 3100-3149 are kept closed as well. Nothing else in the cluster
+# should be able to talk to a sidecar, because a sidecar trusts any bearer token
+# signed with the project's keys and the anonymous role.
+#
+# A NetworkPolicy only ever adds allowed traffic, and selecting a pod isolates
+# it for the listed direction. So the first rule re-opens every TCP port outside
+# the PostgREST ranges to all sources, which is what the pods had before: 5432
+# and 6432 for the Neon proxy, 3080 (compute_ctl) for neon-glue, the worker and
+# the gateway, and anything the kubelet probes. The second rule opens the API
+# ports to the gateway pods only. compute_ctl on 3080 sits between the ranges
+# and stays open to everything, as before; it requires a signed JWT.
+#
+# Not verified without a cluster: that k3s's network policy controller
+# (kube-router) honours `endPort` ranges. If it does not, delete this file
+# rather than leave a policy that could cut the proxy off from the computes.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: compute-postgrest-ports
+  namespace: neon-compute
+  labels:
+    app.kubernetes.io/name: compute-postgrest-ports
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: compute
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 1
+          endPort: 2999
+        - protocol: TCP
+          port: 3050
+          endPort: 3099
+        - protocol: TCP
+          port: 3150
+          endPort: 65535
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: alloydb-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: control-plane-data-api-gateway
+      ports:
+        - protocol: TCP
+          port: 3000
+          endPort: 3049

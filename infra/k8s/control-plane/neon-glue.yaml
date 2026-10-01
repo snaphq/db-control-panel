@@ -47,6 +47,10 @@ spec:
       containers:
         - name: neon-glue
           image: ghcr.io/snaphq/alloydb-control-plane # tag injected by kustomize `images:`
+          # ALLOYDB_COMPUTE_IMAGE and ALLOYDB_POSTGREST_IMAGE, from the ConfigMap generator.
+          envFrom:
+            - configMapRef:
+                name: control-plane-images
           env:
             - name: ALLOYDB_MODE
               value: "neon-glue"
