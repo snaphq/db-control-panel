@@ -4,7 +4,7 @@
 #
 # Build:   kustomize build infra/k8s/neon
 # Image:   set the tag first, e.g.  kustomize edit set image ghcr.io/snaphq/neon=ghcr.io/snaphq/neon:<TAG>
-#          The checked-in placeholder REPLACE_WITH_IMAGE_TAG is not a real tag.
+#          Pinned to the images.yml build of that commit; bump it after each green build.
 #
 # ---------------------------------------------------------------------------
 # Secrets this kustomization expects in namespace `neon`.
@@ -63,7 +63,7 @@ configMapGenerator:
 # and proxy; every workload runs a different binary from it.
 images:
   - name: ghcr.io/snaphq/neon
-    newTag: REPLACE_WITH_IMAGE_TAG
+    newTag: d6351a43335885c377f7cb0d8dd5635a1f68eb38
 
 # Equivalent of the classic `commonLabels`, in the non-deprecated form. Labels
 # go on every object and on pod templates, but not on selectors
