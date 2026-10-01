@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { newEndpointId, newId, newNeonId } from '../../crypto/ids.js';
 import type { OperationAction } from '../../db/schema.js';
+import { createFakeAdmin, createFakeLibsqlKube } from '../../libsql/fakes.js';
+import { createMemoryLibsqlStore } from '../../libsql/store-memory.js';
 import { createMemoryOperationStore } from '../../operations/memory-store.js';
 import { createStepRegistry } from '../../operations/registry.js';
 import { runOperation } from '../../operations/runner.js';
@@ -41,6 +43,12 @@ async function setup(seedOptions: Parameters<typeof seedProject>[1] = {}) {
   });
   const registry = createStepRegistry({
     neon: { store: seeded.store, storcon, runtime },
+    libsql: {
+      store: createMemoryLibsqlStore(seeded.store),
+      admin: createFakeAdmin(),
+      kube: createFakeLibsqlKube(),
+      hostSuffix: 'lite.alloydb.net',
+    },
   });
   const operations = createMemoryOperationStore();
   let counter = 0;
@@ -86,7 +94,7 @@ async function setup(seedOptions: Parameters<typeof seedProject>[1] = {}) {
 }
 
 describe('registry', () => {
-  it('has a plan for every Neon action and none for libSQL yet', async () => {
+  it('has a plan for every Neon and libSQL action and none for the Data API yet', async () => {
     const t = await setup();
     const actions: OperationAction[] = [
       'project.create',
@@ -99,11 +107,16 @@ describe('registry', () => {
       'role.reset_password',
       'database.create',
       'database.delete',
+      'libsql.create',
+      'libsql.fork',
+      'libsql.delete',
     ];
     for (const action of actions) {
       expect(t.registry.planFor(action).length).toBeGreaterThan(0);
     }
-    expect(() => t.registry.planFor('libsql.create')).toThrowError(/No steps/);
+    expect(() => t.registry.planFor('data_api.enable')).toThrowError(
+      /No steps/,
+    );
   });
 });
 

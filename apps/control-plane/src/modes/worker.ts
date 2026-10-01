@@ -3,6 +3,10 @@ import { loadSigner } from '../crypto/ed25519.js';
 import { createDatabase } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
 import { createKubeClients } from '../k8s/client.js';
+import { createSqldAdminClient } from '../libsql/admin-client.js';
+import { createLibsqlKube } from '../libsql/kube.js';
+import { syncNodes } from '../libsql/nodes-sync.js';
+import { createDrizzleLibsqlStore } from '../libsql/store-drizzle.js';
 import { createIdleSweeper } from '../neon/idle-suspend.js';
 import { type Loop, startLoop } from '../neon/loops.js';
 import {
@@ -23,7 +27,8 @@ const STOP_TIMEOUT_MS = 25_000;
 
 /**
  * Applies migrations, then works the operations queue and runs the background
- * loops: idle suspend, safekeeper registration and pageserver discovery. The
+ * loops: idle suspend, safekeeper registration, pageserver discovery and the
+ * Kubernetes node sync. The
  * worker is the only mode that migrates, so the API and glue pods never race on
  * schema changes.
  */
@@ -41,15 +46,24 @@ export async function startWorker(config: WorkerConfig): Promise<RunningMode> {
   try {
     await runMigrations(handle);
     await startQueue(boss);
+    const kube = createKubeClients();
     const neon = createNeonServices({
       db: handle.db,
-      kube: createKubeClients(),
+      kube,
       signer: neonSigner,
       config,
     });
     await startOperationWorker(boss, {
       store: createOperationStore(handle.db),
-      registry: createStepRegistry({ neon }),
+      registry: createStepRegistry({
+        neon,
+        libsql: {
+          store: createDrizzleLibsqlStore(handle.db, null),
+          admin: createSqldAdminClient({ authKey: config.libsqlAdminAuthKey }),
+          kube: createLibsqlKube(kube),
+          hostSuffix: config.libsqlHostSuffix,
+        },
+      }),
     });
     const sweeper = createIdleSweeper({
       store: neon.store,
@@ -67,6 +81,9 @@ export async function startWorker(config: WorkerConfig): Promise<RunningMode> {
       ),
       startLoop('pageserver discovery', config.registrationSeconds * 1000, () =>
         discoverPageservers(neon.storcon, neon.store),
+      ),
+      startLoop('node sync', config.registrationSeconds * 1000, () =>
+        syncNodes(kube.core, neon.store),
       ),
     );
   } catch (error) {
