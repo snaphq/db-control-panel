@@ -1,0 +1,37 @@
+---
+# Round-robin A records, DNS only (never proxied): the Neon proxy speaks the
+# Postgres protocol on 5432 and terminates its own TLS, and cert-manager uses
+# the Cloudflare DNS-01 solver. Runs on the controller; the API is called from
+# there, not from the node.
+- name: Validate Cloudflare inputs
+  ansible.builtin.assert:
+    that:
+      - cloudflare_dns_api_token | length > 0
+      - cloudflare_dns_zone | length > 0
+      - public_ip is defined
+      - public_ip is match('^([0-9]{1,3}\.){3}[0-9]{1,3}$')
+      - cloudflare_dns_state in ['present', 'absent']
+    fail_msg: >-
+      Set ALLOYDB_CLOUDFLARE_API_TOKEN, a zone, and a public_ip for
+      {{ inventory_hostname }}.
+    quiet: true
+  delegate_to: localhost
+  become: false
+
+- name: Manage this node's A records
+  community.general.cloudflare_dns:
+    api_token: "{{ cloudflare_dns_api_token }}"
+    zone: "{{ cloudflare_dns_zone }}"
+    record: "{{ cloudflare_dns_record }}"
+    type: A
+    value: "{{ public_ip }}"
+    proxied: false
+    ttl: "{{ cloudflare_dns_ttl }}"
+    comment: "alloydb node {{ inventory_hostname }}"
+    state: "{{ cloudflare_dns_state }}"
+  loop: "{{ cloudflare_dns_records }}"
+  loop_control:
+    loop_var: cloudflare_dns_record
+  delegate_to: localhost
+  become: false
+  when: cloudflare_dns_enabled | bool

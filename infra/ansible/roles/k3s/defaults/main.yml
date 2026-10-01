@@ -1,0 +1,35 @@
+---
+# k3s_version and k3s_token have no defaults on purpose: the inventory must
+# set them (version pinned in Git, token read from ALLOYDB_K3S_TOKEN).
+k3s_binary: /usr/local/bin/k3s
+k3s_config_dir: /etc/rancher/k3s
+k3s_api_port: 6443
+k3s_node_name: "{{ inventory_hostname }}"
+# Empty means "use the first k3s_servers host's Tailscale IPv4".
+k3s_registration_address: ""
+k3s_first_server: "{{ groups['k3s_servers'][0] }}"
+k3s_is_first_server: "{{ inventory_hostname == k3s_first_server }}"
+
+# Official installer: https://docs.k3s.io/installation/configuration
+# (INSTALL_K3S_VERSION / INSTALL_K3S_EXEC / K3S_URL / K3S_TOKEN are documented
+# at https://docs.k3s.io/reference/env-variables).
+k3s_install_script_url: https://get.k3s.io
+k3s_install_script_path: /usr/local/lib/alloydb/k3s-install.sh
+
+# Flannel VXLAN runs over the Tailscale interface. tailscale0 has an MTU of
+# 1280 and VXLAN adds 50 bytes, so pods get 1230. Do not raise pod MTU above
+# that. The verify step prints the MTUs and warns when they do not add up.
+k3s_flannel_iface: tailscale0
+k3s_vxlan_overhead: 50
+
+# Labels from the node contract. Roles map to alloydb.net/<role>="true".
+k3s_known_roles: [pageserver, libsql, compute]
+k3s_extra_node_labels: []
+k3s_node_labels: >-
+  {{ ['alloydb.net/node-id=' ~ alloydb_node_id,
+      'topology.kubernetes.io/zone=' ~ alloydb_az]
+     + (alloydb_roles | map('regex_replace', '^(.*)$', 'alloydb.net/\1=true') | list)
+     + k3s_extra_node_labels }}
+
+k3s_node_ready_retries: 30
+k3s_node_ready_delay: 10

@@ -1,0 +1,35 @@
+---
+- name: Create the k3s config directory
+  ansible.builtin.file:
+    path: "{{ k3s_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write the k3s agent config
+  ansible.builtin.copy:
+    dest: "{{ k3s_config_dir }}/config.yaml"
+    content: "{{ k3s_agent_config | to_nice_yaml(indent=2) }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart k3s agent
+
+- name: Install k3s as an agent
+  ansible.builtin.include_role:
+    name: k3s
+    tasks_from: install
+  vars:
+    k3s_install_exec: agent
+    k3s_install_env:
+      K3S_URL: "https://{{ k3s_join_host }}:{{ k3s_api_port }}"
+      K3S_TOKEN: "{{ k3s_token }}"
+
+- name: Apply a pending restart before verifying
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify the agent joined and report MTUs
+  ansible.builtin.include_role:
+    name: k3s
+    tasks_from: verify

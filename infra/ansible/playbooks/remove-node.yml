@@ -1,0 +1,79 @@
+---
+# Take one node out of service:
+#   ansible-playbook playbooks/remove-node.yml -e target_node=node-3 -e confirm_remove=true
+# Order: remove the node's A records (stop new public traffic), cordon and drain
+# it from a control host, delete the Node object, optionally uninstall k3s.
+#
+# Extra variables
+#   target_node           inventory hostname to remove (required)
+#   confirm_remove=true   required acknowledgement
+#   control_host          server used for kubectl (default: first k3s_servers host)
+#   allow_server_removal=true   required to remove a k3s server (see below)
+#   uninstall_k3s=true    also run the k3s uninstall script on the node (needs SSH to it)
+#
+# Removing a server shrinks the etcd cluster: only do it when the remaining
+# servers still form a quorum, and keep the total odd. Deleting a Node does not
+# move pageserver/sqld data; migrate it through the control plane first.
+
+- name: Check the removal request
+  hosts: "{{ control_host | default('k3s_servers[0]') }}"
+  gather_facts: false
+  tasks:
+    - name: Validate target and acknowledgement
+      ansible.builtin.assert:
+        that:
+          - target_node is defined
+          - target_node in groups['all']
+          - target_node != inventory_hostname
+          - confirm_remove | default(false) | bool
+          - target_node in groups['k3s_agents'] or (allow_server_removal | default(false) | bool)
+        fail_msg: >-
+          Pass -e target_node=<inventory host> -e confirm_remove=true. The target
+          must differ from the control host, and a k3s server additionally needs
+          -e allow_server_removal=true.
+        quiet: true
+
+- name: Remove the node's DNS records
+  hosts: "{{ target_node | default('target_node_unset') }}"
+  gather_facts: false
+  roles:
+    - role: cloudflare_dns
+      vars:
+        cloudflare_dns_state: absent
+      tags: [dns]
+
+- name: Drain and delete the node from Kubernetes
+  hosts: "{{ control_host | default('k3s_servers[0]') }}"
+  become: true
+  gather_facts: false
+  vars:
+    remove_node_name: "{{ hostvars[target_node].k3s_node_name | default(target_node) }}"
+  tasks:
+    - name: Cordon and drain the node
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/k3s
+          - kubectl
+          - drain
+          - "{{ remove_node_name }}"
+          - --ignore-daemonsets
+          - --delete-emptydir-data
+          - --timeout=10m
+      changed_when: true
+
+    - name: Delete the Node object
+      ansible.builtin.command:
+        argv: [/usr/local/bin/k3s, kubectl, delete, node, "{{ remove_node_name }}", --ignore-not-found]
+      changed_when: true
+
+- name: Uninstall k3s from the node
+  hosts: "{{ target_node | default('target_node_unset') }}"
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Run the k3s uninstall script
+      ansible.builtin.command:
+        argv:
+          - "{{ '/usr/local/bin/k3s-agent-uninstall.sh' if inventory_hostname in groups['k3s_agents'] else '/usr/local/bin/k3s-uninstall.sh' }}"
+      when: uninstall_k3s | default(false) | bool
+      changed_when: true

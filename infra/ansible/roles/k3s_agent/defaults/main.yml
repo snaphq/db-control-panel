@@ -1,0 +1,15 @@
+---
+k3s_agent_service: k3s-agent
+
+# Agents read their join settings from the environment the installer writes
+# into /etc/systemd/system/k3s-agent.service.env (K3S_URL / K3S_TOKEN, see
+# https://docs.k3s.io/reference/env-variables); everything else is in
+# config.yaml. Changing the token or URL later therefore requires re-running
+# the installer (remove /usr/local/bin/k3s or bump the version) or editing
+# that env file.
+k3s_agent_config:
+  node-name: "{{ k3s_node_name }}"
+  node-ip: "{{ tailscale_ipv4 }}"
+  node-external-ip: "{{ public_ip }}"
+  flannel-iface: "{{ k3s_flannel_iface }}"
+  node-label: "{{ k3s_node_labels }}"

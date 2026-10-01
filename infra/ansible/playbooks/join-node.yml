@@ -1,0 +1,50 @@
+---
+# Join exactly one new host to the cluster: add it to inventory/hosts.yml
+# (k3s_servers or k3s_agents) with alloydb_node_id, alloydb_az, alloydb_roles
+# and public_ip, then run
+#   ansible-playbook playbooks/join-node.yml --limit node-3
+# The playbook refuses to run without --limit naming a single host. Servers go
+# through a `serial: 1` play so etcd membership changes one member at a time.
+# See playbooks/site.yml for setup, environment variables and limitations.
+
+- name: Prepare the new host
+  hosts: all
+  become: true
+  pre_tasks:
+    - name: Require --limit with exactly one host
+      ansible.builtin.assert:
+        that:
+          - ansible_limit is defined
+          - ansible_play_hosts_all | length == 1
+        fail_msg: "Run with --limit <one inventory host>, for example --limit node-3."
+        quiet: true
+      run_once: true
+  roles:
+    - role: base
+      tags: [base]
+    - role: tailscale
+      tags: [tailscale]
+    - role: node_contract
+      tags: [node_contract]
+
+- name: Join as a k3s server
+  hosts: k3s_servers
+  become: true
+  serial: 1
+  roles:
+    - role: k3s_server
+      tags: [k3s]
+
+- name: Join as a k3s agent
+  hosts: k3s_agents
+  become: true
+  roles:
+    - role: k3s_agent
+      tags: [k3s]
+
+- name: Publish DNS records for the new host
+  hosts: all
+  gather_facts: false
+  roles:
+    - role: cloudflare_dns
+      tags: [dns]

@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: k3s
+  author: AlloyDB platform
+  description: Shared k3s preflight, install, verification and label reconciliation
+  license: Apache-2.0
+  min_ansible_version: "2.16"
+  platforms:
+    - name: Ubuntu
+      versions: [jammy, noble]
+    - name: Debian
+      versions: [bookworm, trixie]
+  galaxy_tags: []
+dependencies: []

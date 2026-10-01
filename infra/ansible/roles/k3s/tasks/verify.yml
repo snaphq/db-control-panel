@@ -1,0 +1,70 @@
+---
+# Runs kubectl on the first server, so it also works for agents.
+- name: Wait for the node to be Ready
+  ansible.builtin.command:
+    argv:
+      - "{{ k3s_binary }}"
+      - kubectl
+      - get
+      - node
+      - "{{ k3s_node_name }}"
+      - -o
+      - 'jsonpath={.status.conditions[?(@.type=="Ready")].status}'
+  delegate_to: "{{ k3s_first_server }}"
+  register: k3s_node_ready
+  until: k3s_node_ready.rc == 0 and k3s_node_ready.stdout == 'True'
+  retries: "{{ k3s_node_ready_retries }}"
+  delay: "{{ k3s_node_ready_delay }}"
+  changed_when: false
+  check_mode: false
+
+- name: Read the current node labels
+  ansible.builtin.command:
+    argv: ["{{ k3s_binary }}", kubectl, get, node, "{{ k3s_node_name }}", -o, json]
+  delegate_to: "{{ k3s_first_server }}"
+  register: k3s_node_json
+  changed_when: false
+  check_mode: false
+
+# --node-label only adds labels at registration; it never removes one, so a
+# role dropped from alloydb_roles has to be unlabeled explicitly.
+- name: Remove role labels this node no longer has
+  ansible.builtin.command:
+    argv: ["{{ k3s_binary }}", kubectl, label, node, "{{ k3s_node_name }}", "alloydb.net/{{ k3s_stale_role }}-"]
+  delegate_to: "{{ k3s_first_server }}"
+  loop: "{{ k3s_known_roles | difference(alloydb_roles) }}"
+  loop_control:
+    loop_var: k3s_stale_role
+  when: "('alloydb.net/' ~ k3s_stale_role) in (k3s_node_json.stdout | from_json).metadata.labels"
+  changed_when: true
+
+- name: Read link details for the underlay and the flannel VXLAN device
+  ansible.builtin.command: "ip -o link show dev {{ k3s_mtu_dev }}"
+  loop: ["{{ k3s_flannel_iface }}", flannel.1]
+  loop_control:
+    loop_var: k3s_mtu_dev
+  register: k3s_mtu_links
+  until: k3s_mtu_links.rc == 0
+  retries: 12
+  delay: 5
+  changed_when: false
+  check_mode: false
+
+- name: Print interface MTUs
+  ansible.builtin.debug:
+    msg: "{{ k3s_mtu_link.k3s_mtu_dev }} MTU {{ k3s_mtu_link.stdout | regex_search('mtu ([0-9]+)', '\\1') | first }}"
+  loop: "{{ k3s_mtu_links.results }}"
+  loop_control:
+    loop_var: k3s_mtu_link
+    label: "{{ k3s_mtu_link.k3s_mtu_dev }}"
+
+- name: Warn when the VXLAN MTU does not fit inside the underlay MTU
+  vars:
+    k3s_underlay_mtu: "{{ k3s_mtu_links.results[0].stdout | regex_search('mtu ([0-9]+)', '\\1') | first | int }}"
+    k3s_overlay_mtu: "{{ k3s_mtu_links.results[1].stdout | regex_search('mtu ([0-9]+)', '\\1') | first | int }}"
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: flannel.1 MTU {{ k3s_overlay_mtu }} exceeds {{ k3s_flannel_iface }}
+      MTU {{ k3s_underlay_mtu }} minus {{ k3s_vxlan_overhead }} bytes of VXLAN
+      overhead. Large packets between pods on different nodes will be dropped.
+  when: (k3s_overlay_mtu | int) > ((k3s_underlay_mtu | int) - (k3s_vxlan_overhead | int))

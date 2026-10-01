@@ -1,0 +1,4 @@
+# Real inventory (public IPs, node ids) and downloaded collections stay local.
+inventory/hosts.yml
+collections/
+*.retry

@@ -1,0 +1,35 @@
+---
+- name: Create the k3s config directory
+  ansible.builtin.file:
+    path: "{{ k3s_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# The file holds the cluster token, hence 0600 and no_log.
+- name: Write the k3s server config
+  ansible.builtin.copy:
+    dest: "{{ k3s_config_dir }}/config.yaml"
+    content: "{{ k3s_server_config | to_nice_yaml(indent=2) }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart k3s server
+
+- name: Install k3s as a server
+  ansible.builtin.include_role:
+    name: k3s
+    tasks_from: install
+  vars:
+    k3s_install_exec: server
+    k3s_install_env: {}
+
+- name: Apply a pending restart before verifying
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify the server joined and report MTUs
+  ansible.builtin.include_role:
+    name: k3s
+    tasks_from: verify

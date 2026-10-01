@@ -1,0 +1,44 @@
+---
+base_packages:
+  - ca-certificates
+  - conntrack
+  - curl
+  - gnupg
+  - iproute2
+  - iptables
+  - jq
+  - socat
+  - ufw
+
+# Modules k3s/flannel need. br_netfilter must load before the bridge sysctls.
+base_kernel_modules:
+  - overlay
+  - br_netfilter
+
+base_sysctl_file: /etc/sysctl.d/90-alloydb-k3s.conf
+base_sysctls:
+  net.ipv4.ip_forward: "1"
+  net.ipv6.conf.all.forwarding: "1"
+  net.bridge.bridge-nf-call-iptables: "1"
+  net.bridge.bridge-nf-call-ip6tables: "1"
+  # kubelet and many pods (pageserver, sqld, computes) hold many inotify watches.
+  fs.inotify.max_user_watches: "524288"
+  fs.inotify.max_user_instances: "8192"
+
+# kubelet refuses to start with swap on (failSwapOn). Turn it off now and
+# comment it out of /etc/fstab. systemd .swap units and zram are not touched.
+base_disable_swap: true
+
+# Firewall. Public: only the TCP ports below. Everything on tailscale0 is
+# trusted. SSH (22) is reachable only on tailscale0, plus the bootstrap CIDRs.
+base_ssh_port: 22
+base_tailscale_iface: tailscale0
+base_public_tcp_ports: [80, 443, 5432]
+# Lockout guard: with no bootstrap CIDR and no tailscale0 interface yet, the
+# role fails instead of enabling a firewall that would cut off SSH.
+base_ssh_bootstrap_cidrs: []
+# CIDRs whose bootstrap rule should be deleted (set after onboarding).
+base_ssh_bootstrap_revoke_cidrs: []
+# k3s pod/service traffic. Interface-scoped rules replace the CIDR rules in
+# https://docs.k3s.io/installation/requirements#networking ("firewall").
+base_cluster_ifaces: [cni0, flannel.1]

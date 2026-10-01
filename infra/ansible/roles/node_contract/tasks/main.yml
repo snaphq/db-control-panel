@@ -1,0 +1,62 @@
+---
+- name: Validate the node identity variables
+  ansible.builtin.assert:
+    that:
+      - alloydb_node_id is defined
+      - alloydb_node_id | string is match('^[1-9][0-9]*$')
+      - alloydb_az is defined
+      - alloydb_az is match('^az-[0-9]+$')
+      - alloydb_roles is defined
+      - alloydb_roles is sequence
+      - alloydb_roles is not string
+      - alloydb_roles | difference(node_contract_valid_roles) | length == 0
+      - >-
+        groups['all']
+        | map('extract', hostvars, 'alloydb_node_id')
+        | map('string')
+        | select('eq', alloydb_node_id | string)
+        | list | length == 1
+    fail_msg: >-
+      {{ inventory_hostname }}: alloydb_node_id must be a unique positive integer,
+      alloydb_az must look like az-<n>, and alloydb_roles must be a list drawn from
+      {{ node_contract_valid_roles }}.
+    quiet: true
+
+- name: Resolve the Tailscale IPv4 address
+  ansible.builtin.include_role:
+    name: tailscale
+    tasks_from: ip
+  when: tailscale_ipv4 is not defined
+
+- name: Create the contract directory
+  ansible.builtin.file:
+    path: "{{ node_contract_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Host-network pods read this file through a read-only hostPath mount.
+# ALLOYDB_ROLES is comma separated, e.g. pageserver,libsql,compute.
+- name: Write node.env
+  ansible.builtin.copy:
+    dest: "{{ node_contract_env_path }}"
+    content: |
+      ALLOYDB_NODE_ID={{ alloydb_node_id }}
+      ALLOYDB_AZ={{ alloydb_az }}
+      ALLOYDB_TAILSCALE_IP={{ tailscale_ipv4 }}
+      ALLOYDB_ROLES={{ alloydb_roles | join(',') }}
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Create the data directories
+  ansible.builtin.file:
+    path: "{{ node_contract_data_root }}/{{ node_contract_dir_name }}"
+    state: directory
+    owner: "{{ node_contract_data_owner }}"
+    group: "{{ node_contract_data_group }}"
+    mode: "{{ node_contract_data_mode }}"
+  loop: "{{ node_contract_data_dirs }}"
+  loop_control:
+    loop_var: node_contract_dir_name

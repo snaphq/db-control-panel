@@ -1,0 +1,38 @@
+---
+# Expects: k3s_install_exec (server|agent) and k3s_install_env (dict, may be
+# empty) from the including role. Config in /etc/rancher/k3s/config.yaml must
+# already be written so the first service start picks it up.
+- name: Read the installed k3s version
+  ansible.builtin.command: "{{ k3s_binary }} --version"
+  register: k3s_installed_version
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Install or upgrade k3s with the official install script
+  when: k3s_version not in (k3s_installed_version.stdout | default(''))
+  block:
+    - name: Create the installer directory
+      ansible.builtin.file:
+        path: "{{ k3s_install_script_path | dirname }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Download the install script
+      ansible.builtin.get_url:
+        url: "{{ k3s_install_script_url }}"
+        dest: "{{ k3s_install_script_path }}"
+        owner: root
+        group: root
+        mode: "0700"
+        force: true
+
+    - name: Run the install script
+      ansible.builtin.command:
+        argv: ["sh", "{{ k3s_install_script_path }}"]
+      environment: "{{ {'INSTALL_K3S_VERSION': k3s_version, 'INSTALL_K3S_EXEC': k3s_install_exec} | combine(k3s_install_env) }}"
+      register: k3s_install_result
+      changed_when: true
+      no_log: true

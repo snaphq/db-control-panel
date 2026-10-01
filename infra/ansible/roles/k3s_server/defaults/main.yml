@@ -1,0 +1,39 @@
+---
+k3s_server_service: k3s
+# Escape hatch for extra config.yaml keys. Do NOT set `disable: [traefik]` or
+# `disable-servicelb: true`: the platform uses Traefik (443/80, libSQL
+# IngressRoutes) and ServiceLB (5432 for the Neon proxy).
+k3s_server_extra_config: {}
+
+k3s_server_tls_sans: >-
+  {{ ([tailscale_ipv4]
+      + ([tailscale_fqdn] if tailscale_fqdn | length > 0 else [])
+      + ([k3s_registration_address] if k3s_registration_address | length > 0 else []))
+     | unique }}
+
+# Keys are the k3s server flags from https://docs.k3s.io/cli/server written as
+# config-file keys (https://docs.k3s.io/installation/configuration#configuration-file).
+k3s_server_config_common:
+  node-name: "{{ k3s_node_name }}"
+  # Cluster traffic stays on the tailnet: node-ip is the Tailscale address,
+  # node-external-ip the public one (shown in `kubectl get nodes -o wide`).
+  node-ip: "{{ tailscale_ipv4 }}"
+  node-external-ip: "{{ public_ip }}"
+  # Without this the API server advertises node-external-ip (the public
+  # address) to the other members, and ufw blocks 6443 there.
+  advertise-address: "{{ tailscale_ipv4 }}"
+  # flannel-external-ip stays off, so flannel peers use node-ip (Tailscale).
+  flannel-iface: "{{ k3s_flannel_iface }}"
+  tls-san: "{{ k3s_server_tls_sans }}"
+  node-label: "{{ k3s_node_labels }}"
+  token: "{{ k3s_token }}"
+
+# The first server (first host of k3s_servers) bootstraps embedded etcd; the
+# rest join it (https://docs.k3s.io/datastore/ha-embedded). Keep cluster-init
+# in place on the first server after the cluster exists.
+k3s_server_config_topology: >-
+  {{ {'cluster-init': true}
+     if k3s_is_first_server | bool
+     else {'server': 'https://' ~ k3s_join_host ~ ':' ~ k3s_api_port} }}
+
+k3s_server_config: "{{ k3s_server_config_common | combine(k3s_server_config_topology) | combine(k3s_server_extra_config) }}"

@@ -1,0 +1,9 @@
+# Install with: ansible-galaxy collection install -r requirements.yml -p collections
+---
+collections:
+  # cloudflare_dns module (A records, multiple values per name).
+  - name: community.general
+    version: "==13.4.0"
+  # sysctl module.
+  - name: ansible.posix
+    version: "==2.2.2"

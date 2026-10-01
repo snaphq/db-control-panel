@@ -1,0 +1,8 @@
+---
+# A restart right after a fresh install would be redundant: the installer
+# already started the service with the config in place.
+- name: Restart k3s server
+  ansible.builtin.systemd_service:
+    name: "{{ k3s_server_service }}"
+    state: restarted
+  when: k3s_install_result is not changed

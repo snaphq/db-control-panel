@@ -1,0 +1,48 @@
+---
+- name: Assert a supported distribution
+  ansible.builtin.assert:
+    that: ansible_facts['distribution'] in ['Ubuntu', 'Debian']
+    fail_msg: "Only Ubuntu and Debian are supported (found {{ ansible_facts['distribution'] }})"
+    quiet: true
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Persist kernel modules required by k3s
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/alloydb-k3s.conf
+    content: "{{ base_kernel_modules | join('\n') }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Load kernel modules now
+  community.general.modprobe:
+    name: "{{ base_module }}"
+    state: present
+  loop: "{{ base_kernel_modules }}"
+  loop_control:
+    loop_var: base_module
+
+- name: Apply sysctls required by k3s
+  ansible.posix.sysctl:
+    name: "{{ base_sysctl.key }}"
+    value: "{{ base_sysctl.value }}"
+    sysctl_file: "{{ base_sysctl_file }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop: "{{ base_sysctls | dict2items }}"
+  loop_control:
+    loop_var: base_sysctl
+
+- name: Disable swap
+  when: base_disable_swap | bool
+  ansible.builtin.include_tasks: swap.yml
+
+- name: Configure the firewall
+  ansible.builtin.include_tasks: firewall.yml

@@ -1,0 +1,6 @@
+---
+- name: Restart k3s agent
+  ansible.builtin.systemd_service:
+    name: "{{ k3s_agent_service }}"
+    state: restarted
+  when: k3s_install_result is not changed

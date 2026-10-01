@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: node_contract
+  author: AlloyDB platform
+  description: Write /etc/alloydb/node.env and the node data directories
+  license: Apache-2.0
+  min_ansible_version: "2.16"
+  platforms:
+    - name: Ubuntu
+      versions: [jammy, noble]
+    - name: Debian
+      versions: [bookworm, trixie]
+  galaxy_tags: []
+dependencies: []

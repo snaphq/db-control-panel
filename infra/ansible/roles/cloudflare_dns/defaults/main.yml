@@ -1,0 +1,18 @@
+---
+# present: ensure this node's public_ip is one of the A values for each name.
+# absent: remove only this node's public_ip from each name (other nodes' values
+# are untouched, because community.general.cloudflare_dns matches records by
+# name + type + content).
+cloudflare_dns_state: present
+cloudflare_dns_api_token: ""
+cloudflare_dns_zone: alloydb.net
+# Names relative to the zone. Wildcards cover ep-<id>.pg, <db>-<team>.lite and
+# ep-<id>.apirest hostnames (docs-internal/platform/architecture.mdx).
+cloudflare_dns_records:
+  - "*.pg"
+  - "*.lite"
+  - "*.apirest"
+  - api
+cloudflare_dns_ttl: 120
+# Per-host opt-out, e.g. a node that should not receive public traffic.
+cloudflare_dns_enabled: true

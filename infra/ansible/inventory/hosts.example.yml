@@ -1,0 +1,54 @@
+---
+# Copy to inventory/hosts.yml (gitignored) and edit. Secrets are never stored
+# here: they are read from the controller's environment at run time. Export
+# them from the root .env.local before running:
+#
+#   ALLOYDB_K3S_TOKEN             shared k3s cluster secret (openssl rand -hex 32)
+#   ALLOYDB_TAILSCALE_AUTHKEY     tagged, pre-approved, reusable Tailscale auth key
+#   ALLOYDB_CLOUDFLARE_API_TOKEN  Zone:DNS:Edit + Zone:Zone:Read (same token cert-manager uses)
+#   ALLOYDB_CLOUDFLARE_ZONE       optional, defaults to alloydb.net
+all:
+  vars:
+    ansible_user: ubuntu
+    # k3s release. v1.36.4+k3s1 is the "stable" channel head at the time of
+    # writing (https://update.k3s.io/v1-release/channels) and a non-prerelease
+    # tag on https://github.com/k3s-io/k3s/releases. Upgrades are a deliberate
+    # edit of this line followed by a serial run of site.yml.
+    k3s_version: "v1.36.4+k3s1"
+    k3s_token: "{{ lookup('ansible.builtin.env', 'ALLOYDB_K3S_TOKEN') }}"
+    # Address (no scheme, no port) that joining nodes use to reach a server's
+    # supervisor port 6443. Leave empty to use the first k3s_servers host's
+    # Tailscale IPv4. Once there are three servers, point this at a stable
+    # name (a MagicDNS name or a Tailscale-only DNS record) instead.
+    k3s_registration_address: ""
+    tailscale_authkey: "{{ lookup('ansible.builtin.env', 'ALLOYDB_TAILSCALE_AUTHKEY') }}"
+    cloudflare_dns_api_token: "{{ lookup('ansible.builtin.env', 'ALLOYDB_CLOUDFLARE_API_TOKEN') }}"
+    cloudflare_dns_zone: "{{ lookup('ansible.builtin.env', 'ALLOYDB_CLOUDFLARE_ZONE') | default('alloydb.net', true) }}"
+    # Source networks allowed to reach SSH (22) on the public interface until
+    # the host is reachable over Tailscale. Required on the first run: the
+    # base role refuses to enable the firewall without it (lockout guard).
+    # After onboarding, switch ansible_host to the Tailscale name and empty
+    # this list (list the old CIDRs in base_ssh_bootstrap_revoke_cidrs once to
+    # delete their rules).
+    base_ssh_bootstrap_cidrs:
+      - 198.51.100.7/32
+
+  children:
+    k3s_servers:
+      # Stage A: one server. Stage B: three servers (embedded etcd needs an
+      # odd count). The FIRST host listed here runs `cluster-init`.
+      hosts:
+        node-1:
+          ansible_host: 203.0.113.11
+          public_ip: 203.0.113.11
+          alloydb_node_id: 1 # unique positive integer, never reused
+          alloydb_az: az-1
+          alloydb_roles: [pageserver, libsql, compute]
+    k3s_agents:
+      hosts:
+        node-2:
+          ansible_host: 203.0.113.12
+          public_ip: 203.0.113.12
+          alloydb_node_id: 2
+          alloydb_az: az-2
+          alloydb_roles: [pageserver, libsql, compute]

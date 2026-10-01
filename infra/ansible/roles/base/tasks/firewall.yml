@@ -1,0 +1,109 @@
+---
+# ufw rules are added before the firewall is enabled and the default policy
+# flips to deny, so a first run never leaves a window with no allow rules.
+- name: Refuse to enable the firewall without a way back in
+  ansible.builtin.assert:
+    that: >-
+      base_ssh_bootstrap_cidrs | length > 0
+      or base_tailscale_iface in ansible_facts['interfaces']
+    fail_msg: >-
+      Lockout guard: set base_ssh_bootstrap_cidrs (your admin source CIDRs)
+      for the first run. SSH is otherwise allowed only on {{ base_tailscale_iface }},
+      which does not exist until the tailscale role has run.
+    quiet: true
+
+- name: Allow all traffic arriving on the Tailscale interface
+  community.general.ufw:
+    rule: allow
+    direction: in
+    interface: "{{ base_tailscale_iface }}"
+    comment: alloydb tailnet
+
+- name: Allow SSH from bootstrap CIDRs
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    src: "{{ base_cidr }}"
+    port: "{{ base_ssh_port }}"
+    comment: alloydb ssh bootstrap
+  loop: "{{ base_ssh_bootstrap_cidrs }}"
+  loop_control:
+    loop_var: base_cidr
+
+- name: Remove SSH bootstrap rules that were revoked
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    src: "{{ base_cidr }}"
+    port: "{{ base_ssh_port }}"
+    delete: true
+  loop: "{{ base_ssh_bootstrap_revoke_cidrs }}"
+  loop_control:
+    loop_var: base_cidr
+
+# Public ports: 80/443 (Traefik, Neon proxy WSS by SNI) and 5432 (Neon proxy).
+- name: Allow public TCP ports
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "{{ base_port }}"
+    comment: alloydb public
+  loop: "{{ base_public_tcp_ports }}"
+  loop_control:
+    loop_var: base_port
+
+# Pod-to-host traffic arrives on cni0 (local pods) or flannel.1 (pods on other
+# nodes, decapsulated VXLAN). k3s documents that ufw blocks it otherwise.
+- name: Allow input from the cluster network interfaces
+  community.general.ufw:
+    rule: allow
+    direction: in
+    interface: "{{ base_iface }}"
+    comment: alloydb k3s pods
+  loop: "{{ base_cluster_ifaces }}"
+  loop_control:
+    loop_var: base_iface
+
+# Routed (forwarded) traffic: hostPort/ServiceLB DNAT from the public NIC into
+# pods, and pod egress out through tailscale0. flannel also inserts its own
+# FORWARD accepts; these rules keep ufw's default routed deny from shadowing
+# them. They are not exercised by any test here (no hosts), so verify with
+# `ufw status verbose` and a curl to :443 after the first real join.
+- name: Allow forwarded traffic into cluster interfaces
+  community.general.ufw:
+    rule: allow
+    route: true
+    interface_in: "{{ base_iface }}"
+    comment: alloydb k3s forward in
+  loop: "{{ base_cluster_ifaces }}"
+  loop_control:
+    loop_var: base_iface
+
+- name: Allow forwarded traffic out of cluster interfaces
+  community.general.ufw:
+    rule: allow
+    route: true
+    interface_out: "{{ base_iface }}"
+    comment: alloydb k3s forward out
+  loop: "{{ base_cluster_ifaces }}"
+  loop_control:
+    loop_var: base_iface
+
+- name: Set default incoming policy to deny
+  community.general.ufw:
+    default: deny
+    direction: incoming
+
+- name: Set default routed policy to deny
+  community.general.ufw:
+    default: deny
+    direction: routed
+
+- name: Set default outgoing policy to allow
+  community.general.ufw:
+    default: allow
+    direction: outgoing
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled

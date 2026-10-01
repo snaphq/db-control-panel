@@ -1,0 +1,12 @@
+---
+# Contract: docs-internal/platform/architecture.mdx ("Node contract").
+node_contract_dir: /etc/alloydb
+node_contract_env_path: /etc/alloydb/node.env
+node_contract_data_root: /var/lib/alloydb
+node_contract_data_dirs: [pageserver, sqld]
+# Pods that write to these hostPaths run with their own uid; adjust owner/mode
+# here (or chown from the workload) if the data-plane images drop root.
+node_contract_data_owner: root
+node_contract_data_group: root
+node_contract_data_mode: "0755"
+node_contract_valid_roles: [pageserver, libsql, compute]

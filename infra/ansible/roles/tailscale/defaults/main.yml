@@ -1,0 +1,13 @@
+---
+# Tailscale auth key (tagged, pre-approved, reusable). Provided by the
+# inventory from ALLOYDB_TAILSCALE_AUTHKEY; never stored in Git.
+tailscale_authkey: ""
+tailscale_hostname: "{{ inventory_hostname }}"
+# Do not let tailscaled rewrite /etc/resolv.conf: CoreDNS inherits the host
+# resolver and would forward cluster DNS to 100.100.100.100. The MagicDNS name
+# is still read from `tailscale status` for the k3s tls-san list.
+tailscale_accept_dns: false
+tailscale_up_extra_args: []
+tailscale_keyring_path: /usr/share/keyrings/tailscale-archive-keyring.gpg
+tailscale_repo_base_url: https://pkgs.tailscale.com/stable
+tailscale_up_timeout: 90s

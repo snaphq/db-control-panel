@@ -1,0 +1,90 @@
+---
+# AlloyDB node automation: prepare bare-metal servers and join them to the
+# k3s cluster. Contracts (node.env keys, labels, public ports) are defined in
+# docs-internal/platform/architecture.mdx; this file is the usage guide.
+#
+# SETUP (once, from infra/ansible)
+#   ansible-galaxy collection install -r requirements.yml -p collections
+#   cp inventory/hosts.example.yml inventory/hosts.yml     # gitignored; edit it
+#   export ALLOYDB_K3S_TOKEN=$(openssl rand -hex 32)       # keep it: every node needs the same one
+#   export ALLOYDB_TAILSCALE_AUTHKEY=tskey-auth-...        # tagged, pre-approved, reusable
+#   export ALLOYDB_CLOUDFLARE_API_TOKEN=...                # Zone:DNS:Edit + Zone:Zone:Read
+#   (these come from the root .env.local; nothing secret is stored in Git)
+#
+# COMMON RUNS
+#   ansible-playbook playbooks/site.yml                    # converge every host
+#   ansible-playbook playbooks/site.yml --limit node-2     # one host (prefer join-node.yml)
+#   ansible-playbook playbooks/join-node.yml --limit node-3    # add one new host
+#   ansible-playbook playbooks/remove-node.yml -e target_node=node-3 -e confirm_remove=true
+#   ansible-playbook playbooks/site.yml --tags dns         # only the Cloudflare records
+#
+# WHAT RUNS, IN ORDER
+#   1. every host: base (packages, sysctls, swap off, ufw) -> tailscale ->
+#      node_contract (/etc/alloydb/node.env, /var/lib/alloydb/{pageserver,sqld})
+#   2. k3s_servers, one at a time: the FIRST host in the group runs
+#      `cluster-init`; the others join it. Add servers only in odd totals (1 or 3).
+#   3. k3s_agents
+#   4. every host: cloudflare_dns (adds the host's public_ip to *.pg, *.lite,
+#      *.apirest and api; DNS only, never proxied)
+#
+# FIRST RUN LOCKOUT GUARD
+#   SSH (22) is allowed only on tailscale0 plus base_ssh_bootstrap_cidrs. Set
+#   that list to your admin CIDRs for the first run; the base role refuses to
+#   enable ufw otherwise. After the host is reachable over Tailscale, point
+#   ansible_host at its Tailscale name and clear the list (put the old CIDRs
+#   in base_ssh_bootstrap_revoke_cidrs for one run to delete their rules).
+#
+# NETWORK NOTE
+#   k3s flannel runs VXLAN over tailscale0 (MTU 1280), so pod MTU is 1230.
+#   Each k3s role prints the tailscale0 and flannel.1 MTUs after install and
+#   warns if they do not fit.
+#
+# LIMITATIONS
+#   * An agent cannot be promoted to a server in place: remove it with
+#     remove-node.yml (uninstall_k3s=true), move the host to k3s_servers, and
+#     run join-node.yml again (wipe and rejoin).
+#   * Moving data off a pageserver/sqld node before removal is a control-plane
+#     operation, not done here; remove-node.yml only drains pods.
+#   * Role labels are reconciled (added or removed) on every run; the node-id
+#     and zone labels are only applied when a node first registers.
+#
+# Verified references: k3s https://docs.k3s.io/installation/configuration,
+# https://docs.k3s.io/cli/server, https://docs.k3s.io/datastore/ha-embedded,
+# https://docs.k3s.io/reference/env-variables; Tailscale
+# https://tailscale.com/kb/1031/install-linux, https://pkgs.tailscale.com/stable/;
+# Cloudflare module
+# https://docs.ansible.com/ansible/latest/collections/community/general/cloudflare_dns_module.html
+
+- name: Prepare every host
+  hosts: all
+  become: true
+  roles:
+    - role: base
+      tags: [base]
+    - role: tailscale
+      tags: [tailscale]
+    - role: node_contract
+      tags: [node_contract]
+
+- name: Install k3s servers one at a time
+  hosts: k3s_servers
+  become: true
+  serial: 1
+  any_errors_fatal: true
+  roles:
+    - role: k3s_server
+      tags: [k3s]
+
+- name: Install k3s agents
+  hosts: k3s_agents
+  become: true
+  roles:
+    - role: k3s_agent
+      tags: [k3s]
+
+- name: Publish DNS records
+  hosts: all
+  gather_facts: false
+  roles:
+    - role: cloudflare_dns
+      tags: [dns]
