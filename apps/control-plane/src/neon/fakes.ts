@@ -293,7 +293,12 @@ export interface SeededProject {
 /** A store holding one finished project: default branch with safekeepers, one idle endpoint, one role and database. */
 export async function seedProject(
   store: MemoryNeonStore = createMemoryNeonStore(),
-  overrides: { consoleProjectId?: string; orgId?: string } = {},
+  overrides: {
+    consoleProjectId?: string;
+    orgId?: string;
+    /** Leave the default branch without a safekeeper placement, as before project.create ran. */
+    withoutSafekeepers?: boolean;
+  } = {},
 ): Promise<SeededProject> {
   const scope: Scope = {
     orgId: overrides.orgId ?? 'org_1',
@@ -326,23 +331,15 @@ export async function seedProject(
           name: 'main',
           timelineId,
           isDefault: true,
-          safekeepers: {
-            generation: 1,
-            safekeepers: [
-              {
-                id: 1,
-                hostname: 'safekeeper-0.safekeeper.neon.svc.cluster.local',
+          safekeepers: overrides.withoutSafekeepers
+            ? null
+            : {
+                generation: 1,
+                safekeepers: [1, 2, 3].map((id) => ({
+                  id,
+                  hostname: `safekeeper-${id - 1}.safekeeper.neon.svc.cluster.local`,
+                })),
               },
-              {
-                id: 2,
-                hostname: 'safekeeper-1.safekeeper.neon.svc.cluster.local',
-              },
-              {
-                id: 3,
-                hostname: 'safekeeper-2.safekeeper.neon.svc.cluster.local',
-              },
-            ],
-          },
         },
       },
       { kind: 'endpoint.insert', row: { id: endpointId, branchId } },

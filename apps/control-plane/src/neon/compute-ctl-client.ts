@@ -7,7 +7,7 @@ import { mintComputeAdminToken } from './tokens.js';
  * Client for compute_ctl's external HTTP API (compute_tools/src/http/server.rs).
  * Every route used here sits behind the `Authorize` middleware, which accepts a
  * token with `scope: "compute_ctl:admin"` and `aud: ["compute"]` signed by a key
- * in the JWKS the compute received (middleware/authorize.rs:84-103).
+ * in the JWKS the compute received (middleware/authorize.rs:101-115).
  */
 
 export class ComputeCtlError extends Error {
@@ -20,7 +20,7 @@ export class ComputeCtlError extends Error {
   }
 }
 
-/** The `ComputeStatus` values compute_ctl reports (libs/compute_api/src/responses.rs:166-202, snake_case). */
+/** The `ComputeStatus` values compute_ctl reports (libs/compute_api/src/responses.rs:174-202, snake_case). */
 export type ComputeCtlStatus =
   | 'empty'
   | 'configuration_pending'
@@ -164,7 +164,7 @@ export function createComputeCtlClient(
         method: 'POST',
         timeoutMs: options.actionTimeoutMs ?? 120_000,
       });
-      // 201 means it had already terminated (terminate.rs:25-30).
+      // 201 means it had already terminated (terminate.rs:25-31).
       if (!response.ok) {
         throw new ComputeCtlError(
           `compute_ctl /terminate returned ${response.status}: ${await errorText(response)}`,

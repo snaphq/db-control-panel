@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * Typed client for the Neon storage controller (storage_controller/src/http.rs).
  * Every call carries the admin-scoped token, which `check_permissions` accepts
- * for every route used here (http.rs:1811: the required scope, or `admin`).
+ * for every route used here (http.rs:1811-1821: the required scope, or `admin`).
  */
 
 export class StorconError extends Error {
@@ -120,7 +120,7 @@ const safekeeperSchema = z.object({
   availability_zone_id: z.string(),
   scheduling_policy: z.enum(SK_POLICIES),
 });
-type StorconSafekeeper = z.infer<typeof safekeeperSchema>;
+export type StorconSafekeeper = z.infer<typeof safekeeperSchema>;
 
 /** `SafekeeperUpsert` (storage_controller/src/persistence.rs:2519-2533). */
 interface SafekeeperUpsert {

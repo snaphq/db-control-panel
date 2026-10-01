@@ -1,8 +1,4 @@
-import type { WorkerConfig } from '../config.js';
-import type { Ed25519Signer } from '../crypto/ed25519.js';
-import type { Database } from '../db/client.js';
 import type { OperationAction } from '../db/schema.js';
-import type { KubeClients } from '../k8s/client.js';
 import type { OperationRecord } from './store.js';
 
 interface StepContext {
@@ -84,17 +80,3 @@ export const noopStep: StepDefinition = {
   name: 'noop',
   run: async () => ({ ok: true }),
 };
-
-/** What real steps close over: the database, cluster access, signing keys, and config. */
-export interface StepDeps {
-  db: Database;
-  kube: KubeClients;
-  neonSigner: Ed25519Signer;
-  libsqlSigner: Ed25519Signer;
-  config: WorkerConfig;
-}
-
-/** Registry for the worker. Real Neon and libSQL steps register here in later work. */
-export function createStepRegistry(_deps: StepDeps): StepRegistry {
-  return new StepRegistry().registerStep(noopStep);
-}
