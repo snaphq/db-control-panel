@@ -1,6 +1,5 @@
 import PageWrapper from "@/components/Container/PageWrapper";
 import { AccordionComponent } from "@/components/LandingPage/AccordionComponent";
-import BlogSample from "@/components/LandingPage/BlogSamples";
 import Footer from "@/components/LandingPage/Footer";
 import HeroSection from "@/components/LandingPage/HeroSection";
 import MarketingCards from "@/components/LandingPage/MarketingCards";
@@ -14,9 +13,6 @@ export default function Home() {
       </div>
       <div className="flex flex-col my-32 p-2 w-full justify-center items-center">
         <MarketingCards />
-      </div>
-      <div className="max-w-[1200px] p-8">
-        <BlogSample />
       </div>
       <div className="my-32">
         <PricingPage />

@@ -84,13 +84,6 @@ export function NavBar({
                   </Link>
                 </SheetClose>
                 <SheetClose asChild>
-                  <Link href="/blog">
-                    <Button variant="outline" className="w-full">
-                      Blog
-                    </Button>
-                  </Link>
-                </SheetClose>
-                <SheetClose asChild>
                   <Link
                     href={user ? "/dashboard" : "/auth/sign-in"}
                     legacyBehavior
@@ -135,9 +128,6 @@ export function NavBar({
             <NavigationMenuList>
               <Link className="max-[825px]:hidden" href="/docs">
                 <Button variant="ghost">Docs</Button>
-              </Link>
-              <Link className="max-[825px]:hidden" href="/blog">
-                <Button variant="ghost">Blog</Button>
               </Link>
             </NavigationMenuList>
           </NavigationMenuList>

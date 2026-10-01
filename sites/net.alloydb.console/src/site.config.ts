@@ -27,7 +27,7 @@ export const siteConfig: SiteConfig = {
       "- Authentication and onboarding",
       "- Billing and Stripe integration",
       "- Workspace dashboards",
-      "- Blog and docs publishing",
+      "- Docs publishing",
       "- MCP and AI-agent integration",
     ].join("\n"),
     "/help": "# Help\n\nSupport and self-serve guidance.",

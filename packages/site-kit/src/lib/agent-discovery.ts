@@ -1,7 +1,7 @@
 import { absoluteUrl, normalizePathname, sha256 } from "@repo/core/site-config";
-import { blog, docsSource } from "@site/lib/source";
+import { docsSource } from "@site/lib/source";
 import { siteConfig } from "@site/site.config";
-import { getPublicBlogPaths, getPublicDocsPaths } from "./site-content";
+import { getPublicDocsPaths } from "./site-content";
 
 export function isMarkdownRequest(request: Request): boolean {
   return request.headers.get("accept")?.includes("text/markdown") ?? false;
@@ -23,9 +23,7 @@ export function isPublicMarkdownPath(pathname: string): boolean {
 
   return new Set([
     ...siteConfig.publicPaths,
-    "/blog",
     "/docs",
-    ...getPublicBlogPaths(),
     ...getPublicDocsPaths(),
   ]).has(normalized);
 }
@@ -39,45 +37,8 @@ export function getMarkdownContent(pathname: string): string | null {
         `# ${siteConfig.name}\n\n${siteConfig.description}`,
       "",
       `Docs: ${absoluteUrl("/docs")}`,
-      `Blog: ${absoluteUrl("/blog")}`,
       `Get started: ${absoluteUrl("/auth/sign-in")}`,
     ].join("\n");
-  }
-
-  if (normalized === "/blog") {
-    return [
-      "# Blog",
-      "",
-      "Explore the latest blog posts on this site.",
-      "",
-      ...blog
-        .slice()
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .map((post) => {
-          const slug = post.info.path.replace(/\.mdx$/, "");
-          return `- [${post.title}](${absoluteUrl(`/blog/${slug}`)}): ${post.excerpt ?? ""}`;
-        }),
-    ].join("\n");
-  }
-
-  if (normalized.startsWith("/blog/")) {
-    const slug = normalized.replace("/blog/", "");
-    const post = blog.find(
-      (entry) => entry.info.path.replace(/\.mdx$/, "") === slug,
-    );
-    if (!post) return null;
-
-    return [
-      `# ${post.title}`,
-      "",
-      `URL: ${absoluteUrl(normalized)}`,
-      `Date: ${post.date}`,
-      post.author ? `Author: ${post.author}` : null,
-      "",
-      post.excerpt ?? "",
-    ]
-      .filter(Boolean)
-      .join("\n");
   }
 
   if (normalized === "/docs") {

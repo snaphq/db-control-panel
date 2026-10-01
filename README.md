@@ -50,7 +50,7 @@ project exists, set its `project_id` in both deploy workflows
 │   └── backend/                  # Admin portal for every site (port 8800)
 │
 ├── sites/                        # One Next.js 16 app per tenant site
-│   └── net.alloydb.console/      # AlloyDB console site (port 8801): config, brand, pages, blog
+│   └── net.alloydb.console/      # AlloyDB console site (port 8801): config, brand, pages
 │
 ├── docs-public/                  # Public, task-oriented Mintlify docs
 ├── docs-internal/                # Private developer and agent Mintlify docs

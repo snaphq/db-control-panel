@@ -24,7 +24,7 @@ export interface SiteConfigBase {
   description: string;
   /** Production host, stored as the tenant's primary `tenant_domain`. */
   domain: string;
-  /** Site-owned public pages to list in the sitemap (besides /blog, /docs). */
+  /** Site-owned public pages to list in the sitemap (besides /docs). */
   publicPaths: readonly string[];
 }
 
@@ -37,7 +37,7 @@ export interface SiteConfig extends SiteConfigBase {
   stack?: "site-kit";
   /**
    * Markdown served to agents for site-owned pages (`Accept: text/markdown`).
-   * "/" is the site summary; links to docs, blog, and sign-in are appended.
+   * "/" is the site summary; links to docs and sign-in are appended.
    */
   markdown: Readonly<Record<string, string>>;
   /** What this site's /mcp endpoint exposes to agents. */

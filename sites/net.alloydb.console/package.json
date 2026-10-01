@@ -27,8 +27,7 @@
     "react-dom": "catalog:",
     "react-hook-form": "^7.51.3",
     "react-icons": "^4.11.0",
-    "tailwindcss": "catalog:",
-    "zod": "catalog:"
+    "tailwindcss": "catalog:"
   },
   "devDependencies": {
     "@types/mdx": "^2.0.13",

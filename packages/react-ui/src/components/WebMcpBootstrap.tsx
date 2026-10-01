@@ -32,15 +32,6 @@ export function WebMcpBootstrap() {
                     : '/docs';
                   return { url: path };
                 }
-              },
-              {
-                name: 'open_blog',
-                description: 'Open the public blog index for this site.',
-                inputSchema: {
-                  type: 'object',
-                  properties: {}
-                },
-                execute: async () => ({ url: '/blog' })
               }
             ]
           });

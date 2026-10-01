@@ -22,12 +22,6 @@ const config: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "seo-heist.s3.amazonaws.com",
-        port: "",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
         hostname: "github.com",
         port: "",
         pathname: "/**",

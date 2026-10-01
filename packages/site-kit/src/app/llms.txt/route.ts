@@ -5,8 +5,6 @@
  * llms.txt convention (https://llmstxt.org).
  */
 
-import { blog } from "@site/lib/source";
-
 export async function GET(): Promise<Response> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://example.com";
 
@@ -15,21 +13,9 @@ export async function GET(): Promise<Response> {
     "",
     "> Auto-generated index for AI crawlers. Set NEXT_PUBLIC_APP_URL to your production URL.",
     "",
-    "## Blog",
-    "",
   ];
 
-  const sortedPosts = [...blog].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  );
-
-  for (const post of sortedPosts) {
-    const slug = post.info.path.replace(/\.mdx$/, "");
-    const url = `${baseUrl}/blog/${slug}`;
-    lines.push(`- [${post.title}](${url}): ${post.excerpt ?? ""}`);
-  }
-
-  lines.push("", "## Product pages", "");
+  lines.push("## Product pages", "");
   const staticPages = [
     { title: "Home", path: "/" },
     { title: "Pricing", path: "/pricing" },
