@@ -55,6 +55,7 @@
         "pages": [
           "platform/architecture",
           "platform/control-plane",
+          "platform/console-databases",
           "platform/images"
         ]
       },

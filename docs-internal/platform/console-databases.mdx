@@ -1,0 +1,126 @@
+---
+title: Console database management
+description: How the console's Databases tab reaches the control plane - the server-only client, the authorization boundary, the project routes and the polling UI.
+---
+
+# Console database management
+
+The console never talks to the data plane. Its **Databases** tab calls the
+control-plane API ([Control plane](/platform/control-plane)) through server code
+only. `ALLOYDB_API_TOKEN` never reaches the browser.
+
+## Layers
+
+```text
+browser (packages/react-ui/src/components/databases)
+  -> /api/projects/[id]/databases/** and /operations/[opId]   (packages/site-kit)
+     -> withProjectControlPlane                                (packages/core/src/control-plane)
+        -> requireProjectAccess  (session, tenant, membership)
+        -> createControlPlaneClient -> https://api.alloydb.net/v1/**
+```
+
+| File | Role |
+| --- | --- |
+| `packages/core/src/control-plane/client.ts` | `createControlPlaneClient(config, scope)`, `controlPlaneFor(scope)`, `readControlPlaneConfig()` |
+| `.../errors.ts` | `ControlPlaneBusyError` (423), `ControlPlaneNotFoundError` (404), `ControlPlaneRequestError` (other 4xx), `ControlPlaneUnavailableError` (5xx, network, bad shape), `ControlPlaneConfigError` |
+| `.../access.ts` | `requireProjectAccess(projectId, {write})` |
+| `.../route.ts` | `withProjectControlPlane` and the error to HTTP mapping |
+| `.../body.ts` | `parseJsonBody`, validating with the contract's request schemas |
+| `.../overview.ts` | `loadDatabasesOverview`, the server-side aggregate used by the page and `GET /databases` |
+
+## Configuration
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `ALLOYDB_API_URL` | `https://api.alloydb.net` | Control-plane base URL; a trailing slash is ignored |
+| `ALLOYDB_API_TOKEN` | required | Bearer token; must equal the control plane's `ALLOYDB_API_TOKEN` |
+
+Without the token the page shows "Databases are not set up for this site yet"
+and the routes answer `503`.
+
+## The client
+
+Every call sends `Authorization: Bearer`, `X-AlloyDB-Org` and
+`X-AlloyDB-Project` (names from `@repo/control-plane-contract`), a 15 second
+timeout and `cache: "no-store"`. Responses are parsed with the contract schemas;
+a body that does not match throws `ControlPlaneUnavailableError` with code
+`invalid_response`. Path segments must match `^[A-Za-z0-9_][A-Za-z0-9_.:-]*$`,
+so an id such as `..` is refused before any request is made.
+
+The control plane answering `401` or `403` means the console's token is wrong,
+which is an operator problem, so it is reported as unavailable rather than as the
+user's error.
+
+libSQL paths (`/v1/libsql/databases`, `.../:id`, `.../:id/tokens`) are assumed:
+the control plane does not serve them yet. The overview treats a failing libSQL
+list as a message in the libSQL tab, not as a page failure.
+
+## Authorization
+
+`requireProjectAccess` runs one query that joins `project`, `organization` and
+`member`, filtered by the project id, the caller's user id and the tenant
+resolved from the request host.
+
+- No session: `401`.
+- No row (unknown project, another tenant, or a project in an organization the
+  caller has not joined): `404`. These cases are indistinguishable.
+- A member who is not `owner` or `admin` on a mutation: `403`.
+- Otherwise the scope sent to the control plane is
+  `{organizationId, projectId}` **from that row**. Nothing in the URL, query or
+  body selects either id; the `[id]` segment is only the console project id that
+  the query must match.
+
+Reads (`GET`) are open to every member; every `POST`, `PUT` and `DELETE`
+requires `write: true`.
+
+Tests: `packages/core/src/control-plane/access.test.ts`,
+`route.test.ts`, `client.test.ts` and
+`packages/site-kit/src/__tests__/database-routes.test.ts`, which run every route
+and assert that another organization's member gets `404`, a plain member gets
+`403`, and the control plane is not called in either case.
+
+## Routes
+
+All under `/api/projects/[id]`. Mutations answer `202` with the control plane's
+body (the changed resource and an `operation`).
+
+| Method and path | Calls |
+| --- | --- |
+| `GET databases` | aggregate: projects, branches, endpoints, roles, databases, libSQL |
+| `POST databases` | `POST /v1/projects` (owner password and URI in the response) |
+| `DELETE databases/neon/[neonId]` | `DELETE /v1/projects/:id` |
+| `POST databases/neon/[neonId]/branches` | `POST .../branches` (`parent_lsn` for a past point) |
+| `DELETE databases/neon/[neonId]/branches/[branchId]` | `DELETE .../branches/:branch` |
+| `POST databases/neon/[neonId]/endpoints/[endpointId]/start`, `/suspend` | `POST .../endpoints/:endpoint/start`, `/suspend` |
+| `POST .../branches/[branchId]/roles/[role]/reset-password` | `POST .../roles/:role/reset_password` |
+| `PUT`, `DELETE .../branches/[branchId]/databases/[db]/data-api` | `.../databases/:db/data_api` |
+| `POST databases/libsql`, `DELETE databases/libsql/[dbId]`, `POST databases/libsql/[dbId]/tokens` | `/v1/libsql/databases...` |
+| `GET operations/[opId]` | `GET /v1/operations/:id` |
+
+Errors are `{error, code}`: `423` has code `busy`, a control-plane outage is
+`502` with a generic message (details go to the server log), invalid input is
+`400`. Responses carry `Cache-Control: no-store` because they can include
+one-time passwords and tokens.
+
+## UI behavior
+
+The page (`dashboard/[workspaceSlug]/[projectSlug]/databases/page.tsx`) loads the
+overview in a server component and hands it to `DatabasesPanel`. Mutations go
+through `use-databases-controller.ts`, which tracks the returned operation with
+`use-operation-tracker.ts`: one interval polls `/operations/:id` every 2.5
+seconds while any operation is `scheduling` or `running`, and the overview is
+reloaded on every status change. Five failed polls in a row mark the operation as
+lost. Passwords and tokens live in component state only while the secret dialog
+is open.
+
+The Data API URL is derived from the endpoint id
+(`https://<endpoint id>.apirest.alloydb.net/<db>/rest/v1`) because the database
+schema carries no URL outside the toggle response.
+
+## Known gaps
+
+- Branching from a timestamp needs a `parent_timestamp` field in
+  `createBranchRequestSchema`; only `parent_lsn` exists.
+- libSQL tokens are stateless JWTs, so there is no revoke; the contract has no
+  revoke call.
+- libSQL routes and the Data API toggle are not served by the control plane yet.

@@ -349,6 +349,28 @@
       "page": "platform/control-plane.mdx",
       "visibility": "internal",
       "sources": ["apps/control-plane", "packages/control-plane-contract"]
+    },
+    {
+      "id": "platform-console-databases",
+      "page": "platform/console-databases.mdx",
+      "visibility": "internal",
+      "sources": [
+        "packages/core/src/control-plane",
+        "packages/site-kit/src/app/api/projects/[id]/databases",
+        "packages/site-kit/src/app/api/projects/[id]/operations",
+        "packages/site-kit/src/app/dashboard/[workspaceSlug]/[projectSlug]/databases",
+        "packages/react-ui/src/components/databases"
+      ]
+    },
+    {
+      "id": "public-databases",
+      "site": "docs-public",
+      "page": "configure/databases.mdx",
+      "visibility": "public",
+      "sources": [
+        "packages/site-kit/src/app/dashboard/[workspaceSlug]/[projectSlug]/databases",
+        "packages/react-ui/src/components/databases"
+      ]
     }
   ]
 }

@@ -1,0 +1,97 @@
+---
+title: Manage databases
+description: Create a Postgres or libSQL database from a project's Databases tab, connect to it, branch it, turn on the Data API and issue libSQL tokens.
+---
+
+# Manage databases
+
+Every project has a **Databases** tab in the dashboard sidebar. It lists the
+project's serverless Postgres database and its libSQL databases. Every member
+of the workspace can view them; only workspace **owners and admins** can create,
+change or delete anything.
+
+## Create a Postgres database
+
+1. Open the project and choose **Databases**, then **Create Postgres database**.
+2. Enter a name, pick a compute size and when the compute should suspend. The
+   Postgres version is fixed at 17.
+3. Choose **Create database**. A dialog shows the owner role, its password and a
+   ready-to-use connection string.
+
+Copy the password now. It is shown once and cannot be retrieved later; if you
+lose it, reset it (see below).
+
+A project has one Postgres database. It starts with a `main` branch, a compute
+endpoint, an owner role (`neondb_owner`) and a database (`neondb`). The compute
+starts idle and wakes on the first connection.
+
+While the database is being created, a progress bar at the top of the tab
+follows the operation until it finishes. If you start a second change while one
+is running, the tab says **Another change is in progress**: wait for the first
+to finish and try again.
+
+## Connect
+
+Open the endpoint with **Connect**, choose a role and a database, then copy one
+of the strings. Replace `<password>` with the role's password.
+
+| String | Use it for |
+| --- | --- |
+| Direct connection `ep-<id>.pg.alloydb.net` | Long-lived connections, migrations, `psql` |
+| Pooled connection `ep-<id>-pooler.pg.alloydb.net` | Serverless functions and many short connections (PgBouncer) |
+| SQL over HTTP `https://ep-<id>.pg.alloydb.net/sql` | Environments that cannot open a TCP connection |
+| Data API URL | REST access, shown only after you enable the Data API |
+
+Use **Start** and **Suspend** on an endpoint to wake or stop its compute by
+hand. A suspended endpoint wakes by itself on the next connection.
+
+## Reset a role password
+
+Choose **Reset password** next to a role and confirm. Applications that use the
+old password lose access until you update them. The new password is shown once.
+
+## Branch a database
+
+Choose **New branch** on the database card.
+
+- **Now** forks the parent's latest data.
+- **A past point (LSN)** forks from an earlier Postgres log sequence number
+  (for example `0/16B5A50`) inside the project's history window.
+
+Leave **Create a compute endpoint** ticked to connect to the branch straight
+away. You can delete a branch (not the default one, and not one that has
+branches of its own) by typing its name to confirm.
+
+## Turn on the Data API
+
+Choose **Enable Data API** next to a database. When the operation finishes, the
+database shows a **Data API** badge and the endpoint's connection panel lists
+the URL, which has the form
+`https://ep-<id>.apirest.alloydb.net/<database>/rest/v1`. Choose **Disable Data
+API** to turn it off again.
+
+## Create a libSQL database and issue tokens
+
+1. Open the **libSQL** tab and choose **New libSQL database**. Use lowercase
+   letters, digits and hyphens.
+2. Copy the database URL, `libsql://<name>.lite.alloydb.net`.
+3. Choose **Issue token**, pick read-only or read-write access and an expiry.
+   The token is shown once.
+4. Pass both to any libSQL client:
+
+```ts
+import { createClient } from "@libsql/client";
+
+const client = createClient({
+  url: "libsql://notes-acme.lite.alloydb.net",
+  authToken: process.env.LIBSQL_TOKEN,
+});
+```
+
+Tokens are signed, not stored, so a single token cannot be revoked. It works
+until it expires, so prefer short expiries and issue a new token when you rotate.
+
+## Delete
+
+Deleting a Postgres database, a branch or a libSQL database asks you to type its
+name first. Deletion removes the data permanently.
