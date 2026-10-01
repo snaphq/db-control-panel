@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   fallow:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
@@ -84,7 +84,7 @@ jobs:
             fallow-health.json
 
   knip:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -112,7 +112,7 @@ jobs:
 
   baseline-shrink:
     if: github.event_name == 'pull_request'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
