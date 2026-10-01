@@ -343,6 +343,12 @@
       "page": "platform/architecture.mdx",
       "visibility": "internal",
       "sources": ["infra"]
+    },
+    {
+      "id": "platform-control-plane",
+      "page": "platform/control-plane.mdx",
+      "visibility": "internal",
+      "sources": ["apps/control-plane"]
     }
   ]
 }

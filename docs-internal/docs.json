@@ -52,7 +52,11 @@
       {
         "tab": "Platform",
         "icon": "server",
-        "pages": ["platform/architecture", "platform/images"]
+        "pages": [
+          "platform/architecture",
+          "platform/control-plane",
+          "platform/images"
+        ]
       },
       {
         "tab": "Operations",
