@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Nextjs Starter Kit Admin",
+  title: "AlloyDB Admin",
   description: "Platform administration for every site.",
   robots: { index: false, follow: false },
 };

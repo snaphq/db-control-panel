@@ -12,7 +12,7 @@ export function AnimatedGradientTextComponent() {
             "inline animate-gradient bg-linear-to-r from-[#ffaa40] via-[#9c40ff] to-[#ffaa40] [background-size:var(--bg-size)_100%] bg-clip-text text-transparent",
           )}
         >
-          Introducing Next Starter
+          Introducing AlloyDB
         </span>
         <ChevronRight className="ml-1 size-3 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
       </AnimatedGradientText>

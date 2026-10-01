@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Next.js 16 Starter Kit",
+  "name": "AlloyDB",
   "theme": "mint",
   "colors": {
     "primary": "#0f766e",

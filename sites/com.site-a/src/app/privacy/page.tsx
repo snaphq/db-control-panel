@@ -2,8 +2,8 @@ import PageWrapper from "@/components/Container/PageWrapper";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Nextjs 16 Starter Template",
-  description: "Privacy Policy for Nextjs 16 Starter Template",
+  title: "Privacy Policy | AlloyDB",
+  description: "Privacy Policy for AlloyDB",
 };
 
 export default function PrivacyPage() {

@@ -4,11 +4,11 @@
  * drift independently.
  */
 export const MCP_SERVER_INFO = {
-  name: "nextjs-starter-kit-mcp",
+  name: "alloydb-mcp",
   version: "0.1.0",
 } as const;
 
 export const MCP_ADMIN_SERVER_INFO = {
-  name: "nextjs-starter-kit-admin-mcp",
+  name: "alloydb-admin-mcp",
   version: "0.1.0",
 } as const;

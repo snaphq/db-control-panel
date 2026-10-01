@@ -17,7 +17,7 @@ export default function HeroSection() {
         <AnimatedGradientTextComponent />
       </div>
       <h1 className="scroll-m-20 text-4xl sm:text-4xl md:text-6xl font-semibold tracking-tight lg:text-6xl text-center max-w-[1000px]">
-        Nextjs Starter Kit
+        AlloyDB
       </h1>
       <p className="mx-auto max-w-[700px] text-gray-500 md:text-lg text-center mt-2 dark:text-gray-400">
         Build a SAAS with a solid foundation.

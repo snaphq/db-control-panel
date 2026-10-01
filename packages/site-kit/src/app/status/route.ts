@@ -4,7 +4,7 @@ export async function GET(): Promise<Response> {
   return Response.json(
     {
       status: "ok",
-      service: "nextjs-starter-kit",
+      service: "alloydb",
       url: absoluteUrl("/"),
       timestamp: new Date().toISOString(),
     },

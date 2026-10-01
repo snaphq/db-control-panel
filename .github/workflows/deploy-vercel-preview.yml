@@ -48,12 +48,12 @@ jobs:
           - app: site-b
             project_id: ''
             project_name: 'site-b'
-            alias_prefix: 'nextjs-starter-kit-site-b'
+            alias_prefix: 'alloydb-site-b'
             node_version: '22'
           - app: backend
             project_id: 'prj_4uAEmRzCIIyMJJ9I3RnOirbcrley'
             project_name: 'backend'
-            alias_prefix: 'nextjs-starter-kit-backend'
+            alias_prefix: 'alloydb-backend'
             node_version: '22'
           # SolidStart 2 requires Node 24+, so this row must not inherit 22.
           - app: site-c

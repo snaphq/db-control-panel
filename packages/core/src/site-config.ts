@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-const DEFAULT_PRODUCTION_URL = "https://nextjs-starter-kit-app.vercel.app";
+const DEFAULT_PRODUCTION_URL = "https://console.alloydb.net";
 
 export function getSiteUrl(): string {
   const envUrl =

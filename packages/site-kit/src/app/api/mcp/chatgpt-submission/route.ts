@@ -13,7 +13,7 @@ import {
  * only the public-facing widget tools appear in the submission.
  *
  * Override app info via environment variables:
- *   CHATGPT_APP_DISPLAY_NAME  (default: "NextJS Starter MCP")
+ *   CHATGPT_APP_DISPLAY_NAME  (default: "AlloyDB MCP")
  *   CHATGPT_APP_SUBTITLE      (default: placeholder)
  *   CHATGPT_APP_DESCRIPTION   (default: placeholder)
  *   CHATGPT_APP_CATEGORY      (default: "PRODUCTIVITY")
@@ -34,7 +34,7 @@ const ADMIN_TOOL_NAMES: McpToolName[] = [
 
 function getAppInfo(): ChatGPTAppInfo {
   return {
-    displayName: process.env.CHATGPT_APP_DISPLAY_NAME ?? "NextJS Starter MCP",
+    displayName: process.env.CHATGPT_APP_DISPLAY_NAME ?? "AlloyDB MCP",
     subtitle:
       process.env.CHATGPT_APP_SUBTITLE ??
       "If you are seeing this, replace the subtitle",

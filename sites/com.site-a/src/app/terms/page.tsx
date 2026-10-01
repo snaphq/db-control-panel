@@ -2,8 +2,8 @@ import PageWrapper from "@/components/Container/PageWrapper";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions | Nextjs 16 Starter Template",
-  description: "Terms and Conditions for Nextjs 16 Starter Template",
+  title: "Terms & Conditions | AlloyDB",
+  description: "Terms and Conditions for AlloyDB",
 };
 
 export default function TermsPage() {

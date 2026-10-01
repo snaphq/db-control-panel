@@ -4,8 +4,7 @@
 
 export async function GET(): Promise<Response> {
   const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    "https://nextjs-starter-kit-app.vercel.app";
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://console.alloydb.net";
 
   const body = `# AI crawlers — explicitly allowed for GEO/AIEO indexing
 User-agent: GPTBot

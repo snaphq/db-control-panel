@@ -112,7 +112,7 @@ describe("OAuth and MCP tool contracts", () => {
 
   it("keeps the MCP initialize identity aligned with discovery metadata", () => {
     expect(MCP_SERVER_INFO).toEqual({
-      name: "nextjs-starter-kit-mcp",
+      name: "alloydb-mcp",
       version: "0.1.0",
     });
   });

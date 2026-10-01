@@ -6,9 +6,9 @@ export const siteConfig: SiteConfig = {
   id: "com.site-a",
   tenantId: "default",
   tenantSlug: "default",
-  name: "Nextjs Starter Kit",
+  name: "AlloyDB",
   description: "Build your next SAAS product",
-  domain: "nextjs-starter-kit-app.vercel.app",
+  domain: "console.alloydb.net",
   publicPaths: [
     "/",
     "/help",
@@ -19,7 +19,7 @@ export const siteConfig: SiteConfig = {
   ],
   markdown: {
     "/": [
-      "# Nextjs Starter Kit",
+      "# AlloyDB",
       "",
       "Build a SAAS with a solid foundation.",
       "",
@@ -37,7 +37,7 @@ export const siteConfig: SiteConfig = {
     "/marketing-page": "# Marketing Page\n\nAlternative public marketing page.",
   },
   mcp: {
-    serverName: "nextjs-starter-kit-mcp",
+    serverName: "alloydb-mcp",
     toolsets: ["content", "account"],
   },
 };

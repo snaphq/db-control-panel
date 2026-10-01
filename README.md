@@ -1,4 +1,4 @@
-# Next.js 16 SaaS Monorepo
+# AlloyDB
 
 <!-- setup:start -->
 > **New project from this template?** Follow [SETUP.md](./SETUP.md), or ask
@@ -19,7 +19,7 @@ to `main`. Status as of 2026-09-27:
 
 | App | Folder | Stack | Production URL |
 | --- | --- | --- | --- |
-| Site A | `sites/com.site-a` | Next.js 16 | https://nextjs-starter-kit-app.vercel.app |
+| Site A | `sites/com.site-a` | Next.js 16 | https://console.alloydb.net |
 | Site C | `sites/com.site-c` | SolidStart 2 | https://starter-solid-stack.vercel.app |
 | Admin portal | `apps/backend` | Next.js 16 | https://starter-admin-eight.vercel.app (admins sign in at `/login`) |
 | Site B | `sites/com.site-b` | Next.js 16 | Not deployed yet (no Vercel project id) |

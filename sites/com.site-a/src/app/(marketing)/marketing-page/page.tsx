@@ -5,7 +5,7 @@ import Link from "next/link";
 import React from "react";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://nextjs-starter-kit-app.vercel.app"),
+  metadataBase: new URL("https://console.alloydb.net"),
   keywords: [""],
   title: "Marketing page",
   openGraph: {
@@ -39,7 +39,7 @@ export default async function MarketingPage() {
         </Link>
         <div className="my-3">
           <iframe
-            title="Starter kit marketing video"
+            title="AlloyDB marketing video"
             width="900"
             height="506"
             src="https://www.youtube.com/embed/ml9Fz2aUx9k"
