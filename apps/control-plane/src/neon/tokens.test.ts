@@ -1,11 +1,13 @@
 import { createPublicKey, generateKeyPairSync, verify } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { createEd25519Signer } from '../crypto/ed25519.js';
-import { newNeonId } from '../crypto/ids.js';
+import { newEndpointId, newNeonId } from '../crypto/ids.js';
 import {
   COMPUTE_ADMIN_TOKEN_TTL_SECONDS,
   mintComputeAdminToken,
+  mintComputeSpecToken,
   mintStorageToken,
+  verifyComputeSpecToken,
 } from './tokens.js';
 
 const signer = createEd25519Signer(generateKeyPairSync('ed25519').privateKey);
@@ -116,5 +118,60 @@ describe('mintComputeAdminToken', () => {
 
   it('rejects an empty compute id', () => {
     expect(() => mintComputeAdminToken(signer, '')).toThrowError(/computeId/);
+  });
+});
+
+describe('compute spec tokens', () => {
+  const tenantId = newNeonId();
+  const endpointId = newEndpointId();
+
+  it('carries a tenantendpoint scope bound to the tenant and endpoint', () => {
+    const { claims, header, validSignature } = decode(
+      mintComputeSpecToken(signer, { tenantId, endpointId }, NOW),
+    );
+    expect(header).toEqual({ alg: 'EdDSA', typ: 'JWT' });
+    expect(validSignature).toBe(true);
+    expect(claims).toEqual({
+      scope: 'tenantendpoint',
+      tenant_id: tenantId,
+      compute_id: endpointId,
+      iat: NOW_SECONDS,
+    });
+  });
+
+  it('verifies back to the same ids', () => {
+    expect(
+      verifyComputeSpecToken(
+        signer,
+        mintComputeSpecToken(signer, { tenantId, endpointId }),
+      ),
+    ).toEqual({ tenantId, endpointId });
+  });
+
+  it('refuses tokens of another scope or another key', () => {
+    const storage = mintStorageToken(signer, { scope: 'tenant', tenantId });
+    expect(verifyComputeSpecToken(signer, storage)).toBeNull();
+    expect(
+      verifyComputeSpecToken(signer, mintComputeAdminToken(signer, endpointId)),
+    ).toBeNull();
+    const stranger = createEd25519Signer(
+      generateKeyPairSync('ed25519').privateKey,
+    );
+    expect(
+      verifyComputeSpecToken(
+        signer,
+        mintComputeSpecToken(stranger, { tenantId, endpointId }),
+      ),
+    ).toBeNull();
+    expect(verifyComputeSpecToken(signer, 'garbage')).toBeNull();
+  });
+
+  it('rejects malformed ids when minting', () => {
+    expect(() =>
+      mintComputeSpecToken(signer, { tenantId: 'x', endpointId }),
+    ).toThrowError(/32 hex/);
+    expect(() =>
+      mintComputeSpecToken(signer, { tenantId, endpointId: 'compute-1' }),
+    ).toThrowError(/endpoint id/);
   });
 });

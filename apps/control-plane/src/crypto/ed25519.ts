@@ -4,6 +4,7 @@ import {
   createPrivateKey,
   createPublicKey,
   sign,
+  verify,
 } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
@@ -33,6 +34,12 @@ export interface Ed25519Signer {
   /** SPKI PEM, the format Neon services read from `PUBLIC_KEY`. */
   readonly publicKeyPem: string;
   sign(claims: object, options?: JwtSignOptions): string;
+  /**
+   * Checks the signature, the `EdDSA` algorithm and `exp` (when present) of a
+   * token this key pair issued and returns its claims, or null for anything
+   * else. It never throws on bad input.
+   */
+  verify(token: string, now?: Date): Record<string, unknown> | null;
 }
 
 const base64Url = (input: Buffer | string): string =>
@@ -80,7 +87,17 @@ function thumbprint(x: string): string {
   return createHash('sha256').update(canonical).digest('base64url');
 }
 
+function decodeJson(part: string): Record<string, unknown> | null {
+  const value: unknown = JSON.parse(
+    Buffer.from(part, 'base64url').toString('utf8'),
+  );
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
 export function createEd25519Signer(privateKey: KeyObject): Ed25519Signer {
+  const publicKey = createPublicKey(privateKey);
   const x = base64Url(rawPublicKey(privateKey));
   const keyId = thumbprint(x);
   const jwk: Ed25519Jwk = {
@@ -107,6 +124,32 @@ export function createEd25519Signer(privateKey: KeyObject): Ed25519Signer {
       const signingInput = `${base64Url(JSON.stringify(header))}.${base64Url(JSON.stringify(claims))}`;
       const signature = sign(null, Buffer.from(signingInput), privateKey);
       return `${signingInput}.${base64Url(signature)}`;
+    },
+    verify(token, now = new Date()) {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      const [header, payload, signature] = parts as [string, string, string];
+      try {
+        if (decodeJson(header)?.alg !== 'EdDSA') return null;
+        const valid = verify(
+          null,
+          Buffer.from(`${header}.${payload}`),
+          publicKey,
+          Buffer.from(signature, 'base64url'),
+        );
+        if (!valid) return null;
+        const claims = decodeJson(payload);
+        if (!claims) return null;
+        if (
+          typeof claims.exp === 'number' &&
+          claims.exp * 1000 <= now.getTime()
+        ) {
+          return null;
+        }
+        return claims;
+      } catch {
+        return null;
+      }
     },
   };
 }

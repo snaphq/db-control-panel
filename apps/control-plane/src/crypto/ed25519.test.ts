@@ -89,6 +89,44 @@ describe('createEd25519Signer', () => {
   });
 });
 
+describe('verify', () => {
+  const signer = createEd25519Signer(privateKey);
+  const other = createEd25519Signer(generateKeyPairSync('ed25519').privateKey);
+  const now = new Date('2026-01-01T00:00:00Z');
+
+  it('returns the claims of a token it signed', () => {
+    expect(signer.verify(signer.sign({ scope: 'admin' }))).toEqual({
+      scope: 'admin',
+    });
+  });
+
+  it('rejects a token signed by another key', () => {
+    expect(signer.verify(other.sign({ scope: 'admin' }))).toBeNull();
+  });
+
+  it('rejects tampered payloads, other algorithms and garbage', () => {
+    const [header, , signature] = signer.sign({ scope: 'tenant' }).split('.');
+    const forged = Buffer.from('{"scope":"admin"}').toString('base64url');
+    expect(signer.verify(`${header}.${forged}.${signature}`)).toBeNull();
+    const none = Buffer.from('{"alg":"none"}').toString('base64url');
+    expect(signer.verify(`${none}.${forged}.`)).toBeNull();
+    for (const junk of ['', 'a.b', 'a.b.c', '...', 'x'.repeat(50)]) {
+      expect(signer.verify(junk)).toBeNull();
+    }
+  });
+
+  it('enforces exp only when the token has one', () => {
+    const expiring = signer.sign({
+      exp: Math.floor(now.getTime() / 1000) + 60,
+    });
+    expect(signer.verify(expiring, now)).not.toBeNull();
+    expect(
+      signer.verify(expiring, new Date(now.getTime() + 61_000)),
+    ).toBeNull();
+    expect(signer.verify(signer.sign({ scope: 'tenant' }), now)).not.toBeNull();
+  });
+});
+
 describe('loadEd25519PrivateKey', () => {
   it('loads a PEM file', () => {
     const path = join(dir, 'private.pem');
