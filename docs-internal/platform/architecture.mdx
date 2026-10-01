@@ -127,16 +127,19 @@ One pod per running endpoint, named `compute-<endpoint-id>`, labeled
   Ports 5432 and 3080.
 - `pgbouncer` container: same image, runs `/usr/local/bin/pgbouncer
   /etc/pgbouncer.ini` on 6432 (Neon's VM image starts it, compute_ctl does not).
-- `postgrest-<db>` containers: one per database with the Data API enabled,
-  ports 3000 + n and admin 3100 + n, connecting to `127.0.0.1:5432` as
-  `authenticator`.
+- `postgrest-<db>` containers: one per database with the Data API enabled, at
+  the database's stored index n (0-49): API on the pod IP at 3000 + n, admin
+  server on loopback at 3100 + n, connecting to `127.0.0.1:5432` as
+  `authenticator`. A NetworkPolicy (`infra/k8s/control-plane`) opens 3000-3049 to
+  the data-api-gateway pods only.
 - Resources from the endpoint's compute size; `topologySpreadConstraints` on
   `kubernetes.io/hostname`; scheduled only on `alloydb.net/compute=true` nodes.
 
 Roles created from the compute spec get `BYPASSRLS` and `neon_superuser`
 membership (`compute_tools/src/spec_apply.rs`), so the Data API roles
 (`authenticator`, `anonymous`, `authenticated`) are created by the control
-plane with SQL after the compute reports `Running`, never through the spec.
+plane with SQL after the compute reports `Running`, never through the spec
+(see [Control plane](/platform/control-plane#data-api)).
 
 ## libSQL plane (namespace `libsql`)
 
@@ -182,3 +185,14 @@ S3 settings are `ALLOYDB_S3_ENDPOINT`, `ALLOYDB_S3_REGION`,
 `ALLOYDB_S3_BUCKET`, `ALLOYDB_S3_ACCESS_KEY_ID`, and
 `ALLOYDB_S3_SECRET_ACCESS_KEY`, with fixed prefixes per component:
 `pageserver/`, `safekeeper/`, `sqld/`, `platform-backups/`.
+
+`ALLOYDB_DATA_KEY` (32 random bytes, base64) becomes the Secret
+`control-plane-data` in `alloydb-system`. The control plane seals the credentials
+it must read back with it: role passwords (the Data API bootstrap logs in as the
+owner), the `authenticator` password and the Data API signing key.
+
+The compute and PostgREST images the control plane puts in pods are settings of
+the `control-plane-images` ConfigMap, not container images kustomize can
+rewrite; set their tags together with the control-plane image tag. Compute pods
+name the optional pull Secret `ghcr-pull`; while the images are public a missing
+Secret is only a warning event.

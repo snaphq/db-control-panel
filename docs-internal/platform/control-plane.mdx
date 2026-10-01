@@ -27,7 +27,8 @@ apps/control-plane/src/
   index.ts              mode switch (ALLOYDB_MODE)
   config.ts             env schema
   db/                   Drizzle schema, client, migrations
-  crypto/               Ed25519 JWT signing and verifying, SCRAM-SHA-256 secrets, ids
+  crypto/               Ed25519 JWT signing and verifying, SCRAM-SHA-256 secrets,
+                        AES-256-GCM sealing of stored credentials, ids
   k8s/                  kube clients and the pod API the compute runtime uses
   neon/                 storage-controller client, compute spec builder and
                         service, compute pod manifest, compute_ctl client,
@@ -35,9 +36,14 @@ apps/control-plane/src/
                         suspend, safekeeper and pageserver registration, the
                         NeonStore (Drizzle and in-memory), steps/ (one plan
                         per Neon operation action)
-  libsql/               sqld admin client, routes, token minting (next work)
-  data-api/             PostgREST bootstrap SQL, gateway proxy (next work)
-  modes/                api, neon-glue, worker, data-api-gateway servers
+  libsql/               sqld admin client, namespace naming, placement, token
+                        minting, Service/EndpointSlice/IngressRoute builders,
+                        node sync from Kubernetes, the libSQL store, steps
+  data-api/             PostgREST bootstrap SQL and runner, sidecar provider,
+                        platform JWT key, enable/disable steps, gateway
+                        (routing, CORS, streaming proxy)
+  modes/                api, neon-glue, worker, data-api-gateway servers; the
+                        /v1 route files (api-*.ts)
   operations/           operation runner, queue, step registry
 packages/control-plane-contract/
                         zod schemas and types of the public API, shared with
@@ -59,13 +65,13 @@ are 32-hex values as Neon requires.
 
 | Table | Key columns |
 | --- | --- |
-| `neon_project` | id, console_project_id, console_org_id, name, tenant_id, pg_version, history_retention_seconds, allowed_ips (jsonb CIDR list, null = unrestricted), created_at, deleted_at |
-| `branch` | id, project_id, name, timeline_id, parent_branch_id, parent_lsn, safekeepers (jsonb: generation + `[{id, hostname}]`), is_default, deleted_at |
+| `neon_project` | id, console_project_id, console_org_id, name, tenant_id, pg_version, history_retention_seconds, allowed_ips (jsonb CIDR list, null = unrestricted), data_api_jwks (public JWKS of the platform key), data_api_signing_key_enc (sealed private key), data_api_custom_jwks (keys the project brought; wins when set), created_at, deleted_at |
+| `branch` | id, project_id, name, timeline_id, parent_branch_id, parent_lsn, safekeepers (jsonb: generation + `[{id, hostname}]`), authenticator_password_enc (sealed), is_default, deleted_at |
 | `endpoint` | id (`ep-<word>-<word>-<n>`), branch_id, type (`read_write`, `read_only`), compute_size, suspend_timeout_seconds, state (`idle`, `starting`, `running`, `suspending`), pod_name, pod_ip, last_active_at, deleted_at |
-| `role` | id, branch_id, name, scram_secret (never the plaintext password) |
-| `database` | id, branch_id, name, owner_role, data_api_enabled |
-| `libsql_database` | id, console_project_id, name, namespace, node_id, state, size_limit_bytes |
-| `node` | id (`ALLOYDB_NODE_ID`), name, tailscale_ip, zone, roles, capacity (jsonb), registered_pageserver, registered_safekeepers |
+| `role` | id, branch_id, name, scram_secret, password_enc (the password sealed with `ALLOYDB_DATA_KEY`; never plaintext) |
+| `database` | id, branch_id, name, owner_role, data_api_enabled, data_api_index (sidecar position, 0-49, never reused within a branch) |
+| `libsql_database` | id, console_org_id, console_project_id, name, namespace (`<name>-<team>`), node_id, state (`creating`, `active`, `deleting`), size_limit_bytes, created_at, deleted_at |
+| `node` | id (`ALLOYDB_NODE_ID`), name, tailscale_ip, zone, roles, capacity (jsonb: `ready`, optional `libsqlMaxDatabases`), registered_pageserver, registered_safekeepers |
 | `operation` | id, console_project_id, console_org_id, target_type, target_id, action, status (`scheduling`, `running`, `finished`, `failed`, `cancelled`), failures_count, error, params (jsonb), progress (jsonb: completed steps and their outputs), created_at, updated_at, finished_at |
 | `usage_event` | id, project_id, kind, value, idempotency_key (unique), recorded_at |
 
@@ -81,9 +87,19 @@ Constraints worth knowing:
   console API never returns them.
 - `operation.console_org_id` is null only for rows written before migration
   `0001`; reads require the caller's organization and project to match.
-- `node.registered_safekeepers` is not set yet: safekeepers are pods, not
-  nodes, and are registered by id (below). Only pageservers are written to
-  `node`.
+- `node.registered_safekeepers` is not set: safekeepers are pods, not nodes,
+  and are registered by id (below). The `node` table is filled by two loops:
+  pageserver discovery (from the storage controller) and the node sync (from
+  Kubernetes Node labels, below), which owns `roles` and `capacity.ready`.
+- A live libSQL namespace is unique across the platform (partial unique
+  index); a deleted row frees it.
+- The database never holds a password in the clear. `role.password_enc`,
+  `branch.authenticator_password_enc` and `neon_project.data_api_signing_key_enc`
+  are AES-256-GCM values (`v1.<iv>.<tag>.<ciphertext>`) bound to what they are
+  through the GCM additional data (`role-password:<name>`,
+  `data-api-authenticator-password`, `data-api-signing-key`), so a value copied
+  into another place does not open. Roles created before migration `0002` have
+  no sealed password; resetting it fills it in.
 
 The console stores only its own `project.id` and receives these ids back.
 
@@ -92,18 +108,24 @@ The console stores only its own `project.id` and receives these ids back.
 | Variable | Modes | Default | Meaning |
 | --- | --- | --- | --- |
 | `DATABASE_URL` | all | required | `control_plane` database |
+| `ALLOYDB_DATA_KEY` | all | required | 32 random bytes, base64 (`openssl rand -base64 32`): the AES-256-GCM key that seals stored credentials. Secret `control-plane-data`. Rotating it makes every sealed value unreadable (reset role passwords and re-enable the Data API afterwards), so keep a copy |
 | `ALLOYDB_API_TOKEN` | api | required | bearer token of the console server |
 | `ALLOYDB_PG_HOST_SUFFIX` | api | `pg.alloydb.net` | endpoint hosts are `<endpoint id>.<suffix>` |
-| `STORAGE_CONTROLLER_URL` | neon-glue, worker | required | storage controller base URL |
+| `ALLOYDB_LIBSQL_HOST_SUFFIX` | api, worker | `lite.alloydb.net` | libSQL hosts are `<namespace>.<suffix>` |
+| `ALLOYDB_DATA_API_HOST_SUFFIX` | api, data-api-gateway | `apirest.alloydb.net` | Data API hosts are `<endpoint id>.<suffix>` |
+| `LIBSQL_JWT_SIGNING_KEY_PATH` | api (optional), worker | none / required | Ed25519 PKCS#8 PEM that signs libSQL tokens; the api answers `503` on the token route without it |
+| `LIBSQL_ADMIN_AUTH_KEY` | worker | required | sqld admin API key |
+| `STORAGE_CONTROLLER_URL` | neon-glue, worker, data-api-gateway | required | storage controller base URL |
 | `NEON_JWT_PRIVATE_KEY_PATH` | neon-glue, worker, data-api-gateway | required | Ed25519 PKCS#8 PEM that signs every Neon token |
-| `CONTROL_PLANE_JWT_TOKEN` | neon-glue, worker | required | admin-scoped token: sent to the controller, expected on `/storcon/*` |
+| `CONTROL_PLANE_JWT_TOKEN` | neon-glue, worker, data-api-gateway | required | admin-scoped token: sent to the controller, expected on `/storcon/*` |
 | `NEON_PROXY_TO_CONTROLPLANE_TOKEN` | neon-glue | required | bearer the Neon proxy presents on `/proxy/*` |
-| `ALLOYDB_COMPUTE_IMAGE` | neon-glue, worker | `ghcr.io/snaphq/neon-compute-v17:latest` | image of compute pods (compute_ctl, Postgres, PgBouncer); set it to the built tag |
-| `ALLOYDB_POSTGREST_IMAGE` | neon-glue, worker | `ghcr.io/snaphq/postgrest:latest` | image of Data API sidecars |
-| `ALLOYDB_NEON_GLUE_URL` | neon-glue, worker | `http://neon-glue.alloydb-system:8080` | `--control-plane-uri` of compute_ctl |
+| `ALLOYDB_COMPUTE_IMAGE` | neon-glue, worker, data-api-gateway | `ghcr.io/snaphq/neon-compute-v17:latest` | image of compute pods (compute_ctl, Postgres, PgBouncer). The manifests set it, with the other image, from the `control-plane-images` ConfigMap |
+| `ALLOYDB_POSTGREST_IMAGE` | neon-glue, worker, data-api-gateway | `ghcr.io/snaphq/postgrest:latest` | image of Data API sidecars |
+| `ALLOYDB_IMAGE_PULL_SECRET` | neon-glue, worker, data-api-gateway | `ghcr-pull` | pull Secret named on compute pods; `none` omits it. A Secret that does not exist only produces a warning event, so the default is safe while the images are public |
+| `ALLOYDB_NEON_GLUE_URL` | neon-glue, worker, data-api-gateway | `http://neon-glue.alloydb-system:8080` | `--control-plane-uri` of compute_ctl |
 | `ALLOYDB_SAFEKEEPER_COUNT` | worker | `3` | safekeepers to register |
 | `ALLOYDB_IDLE_SWEEP_SECONDS` | worker | `30` | idle-suspend interval |
-| `ALLOYDB_REGISTRATION_SECONDS` | worker | `60` | safekeeper registration and pageserver discovery interval |
+| `ALLOYDB_REGISTRATION_SECONDS` | worker | `60` | safekeeper registration, pageserver discovery and node sync interval |
 
 ## Operations
 
@@ -120,7 +142,7 @@ Actions:
 `data_api.enable`, `data_api.disable`, `libsql.create`, `libsql.delete`,
 `libsql.fork`.
 
-The Neon plans (the Data API and libSQL actions have no plan yet):
+The plans, with the Data API and libSQL actions at the end:
 
 | Action | Steps | Written by the request, in the same transaction |
 | --- | --- | --- |
@@ -134,6 +156,11 @@ The Neon plans (the Data API and libSQL actions have no plan yet):
 | `role.reset_password` | `apply` (push the spec to running computes) | new role row, or a new SCRAM secret |
 | `database.create` | `apply` | database row |
 | `database.delete` | `drop` (wake a compute, push the spec with a `delete_db` operation) | row removed |
+| `data_api.enable` | `wake`, `bootstrap` (SQL as the owner), `restart` (the sidecar joins the pod) | `data_api_enabled`, `data_api_index`; the branch's authenticator password and the project's platform key when missing. With `targetType` `project` (new JWKS) only `restart` acts: it restarts the running computes that serve a Data API |
+| `data_api.disable` | `restart` (running computes lose the sidecar) | `data_api_enabled = false`; the index stays reserved |
+| `libsql.create` | `create.namespace` (admin API), `service`, `route`, `activate` | `libsql_database` row in state `creating` |
+| `libsql.fork` | `fork.namespace`, then the same `service`, `route`, `activate` | the new row, on the source's node |
+| `libsql.delete` | `delete.route`, `delete.namespace` | `deleted_at` and state `deleting`; params `keepBackup` |
 
 Some API calls reuse a plan on purpose, so the action list stays small:
 creating a role runs `role.reset_password`, creating or deleting an endpoint
@@ -149,6 +176,8 @@ it applies (`compute_tools/src/spec_apply.rs`, phases `CreateAndAlterRoles`,
 of truth, needs no superuser connection from the control plane, and means an
 idle endpoint picks the change up on its next start. A dropped database whose
 branch has no `read_write` endpoint stays in the timeline until one exists.
+The Data API roles are the one exception: they are created with SQL (see
+[Data API](#data-api)).
 
 ## Neon flows
 
@@ -268,26 +297,207 @@ operator paused or decommissioned keep that policy.
 
 ## Data API
 
-Enabling it for a database: run bootstrap SQL as the owner role (create
-`authenticator` LOGIN NOINHERIT with a generated password, `anonymous` and
-`authenticated` NOLOGIN, grants, `GRANT anonymous, authenticated TO
-authenticator`), add a `postgrest-<db>` container to the endpoint's pod spec,
-and restart the compute. The gateway serves
-`https://ep-<id>.apirest.alloydb.net/<db>/rest/v1/…`: it wakes the endpoint
-(same in-process path as the proxy wake), strips `/<db>/rest/v1`, and
-forwards to that container. JWTs are verified by PostgREST against the
-project's JWKS (`PGRST_JWT_SECRET`), with `PGRST_DB_ANON_ROLE=anonymous`.
+PostgREST (`v16.4`) runs as one sidecar container per Data API database inside
+the endpoint's compute pod. Enabling and disabling go through the operations
+above; serving goes through the gateway.
+
+Settings were checked in the PostgREST tree at tag `v16.4`:
+`docs/references/configuration.rst` (`db-uri` 612, `db-pool` 436,
+`db-channel-enabled` 319, `jwt-secret` 696, `jwt-role-claim-key` 675,
+`server-host` 893, `admin-server-host` 149), `docs/references/auth.rst`
+(asymmetric keys and JWKS, 114-170), `docs/references/schema_cache.rst`
+(reloading, 51-170), `docs/references/admin_server.rst` and
+`src/library/PostgREST/Cors.hs`. `GHCRTS` is honoured because the binary is
+linked with `-rtsopts` (`postgrest.cabal:201`).
+
+### Roles and why they come from SQL
+
+compute_ctl creates every role in the spec with `CREATEROLE CREATEDB BYPASSRLS
+REPLICATION IN ROLE neon_superuser` (`compute_tools/src/spec_apply.rs`, the
+`CREATE ROLE` at the end of phase `CreateAndAlterRoles`), and a spec role
+cannot be `NOLOGIN` or `NOBYPASSRLS`. A spec role would therefore ignore
+row-level security, which is the point of the `anonymous` and `authenticated`
+roles. So the control plane creates the three Data API roles with SQL after the
+compute reports `running`, connecting to the pod IP on 5432 as the database's
+**owner role** (it has `CREATEROLE` from the spec). Roles that are not in the
+spec are left alone by later spec applies, and the Neon proxy only admits roles
+whose SCRAM secret `get_endpoint_access_control` returns, so none of the three
+can log in from outside the pod.
+
+`data_api.enable.bootstrap` runs these statements (`data-api/bootstrap.ts`),
+each idempotent:
+
+- `authenticator`: `LOGIN NOINHERIT`, password given as a SCRAM secret so the
+  plaintext never appears in a statement the server could log. If the role
+  exists the password is set again where the owner may, which repairs drift.
+- `anonymous` and `authenticated`: `NOLOGIN`, no other attribute, created only
+  when missing. `GRANT anonymous, authenticated TO authenticator`, only when
+  `pg_has_role(...,'MEMBER')` says it is missing: the roles are cluster-wide, so
+  a second database with another owner may lack `ADMIN` on them.
+- `GRANT USAGE ON SCHEMA public` to both. `GRANT ALL` on the tables, sequences
+  and routines that exist in `public`, and `ALTER DEFAULT PRIVILEGES IN SCHEMA
+  public GRANT ALL` for the ones the owner creates later, to `authenticated`
+  only. `anonymous` gets no table privileges: an unauthenticated request sees
+  nothing until the project grants it `SELECT` on what it wants public.
+  `GRANT ALL ON ALL ...` only warns for objects the owner cannot grant on, and
+  default privileges apply to objects created by the role that ran the
+  statement, so tables created by other roles need their own `GRANT`.
+- The owner must have a sealed password (`role.password_enc`). The enable route
+  answers `409` otherwise and says to reset the role's password first; a login
+  rejected with `28P01` fails the operation for good with the same advice.
+
+### Schema cache reload
+
+PostgREST caches the schema. Its documented reload is `NOTIFY pgrst, 'reload
+schema'`, fired automatically by an event trigger
+(`docs/references/schema_cache.rst`, "Automatic Schema Cache Reloading"). The
+bootstrap installs the documented functions (in a schema `alloydb_data_api`, so
+they are not exposed as API routes) and tries to create the two event triggers
+`pgrst_ddl_watch` and `pgrst_drop_watch`. Stock PostgreSQL only lets a
+superuser create an event trigger, and the owner role is not one. The step
+treats SQLSTATE `42501` on that statement as a known limit, records
+`schemaReload: "manual"` in its output, and carries on. **Limitation:** where
+the triggers cannot be created, DDL does not refresh the API by itself; run
+`NOTIFY pgrst, 'reload schema'` (any role can) after changing the schema. The
+bootstrap sends one itself at the end. Whether Neon's Postgres build lets
+`neon_superuser` create event triggers is not verified; the step works either
+way.
+
+### Sidecars
+
+The compute runtime's `sidecars` hook (`data-api/sidecars.ts`) builds the
+containers on every cold start from the current database state: one per
+database with `data_api_enabled`, named `postgrest-<db>`, with
+
+| Setting | Value |
+| --- | --- |
+| `PGRST_DB_URI` | `postgres://authenticator:<password>@127.0.0.1:5432/<db>`: direct to Postgres, not PgBouncer, because PostgREST needs `LISTEN` for `NOTIFY pgrst` |
+| `PGRST_DB_SCHEMAS`, `PGRST_DB_ANON_ROLE` | `public`, `anonymous` |
+| `PGRST_JWT_SECRET` | the project's JWKS as JSON (custom keys if set, else the platform key) |
+| `PGRST_JWT_ROLE_CLAIM_KEY` | `$.role` |
+| `PGRST_SERVER_HOST`, `PGRST_SERVER_PORT` | `!4` (any IPv4, so the gateway can reach the pod IP), `3000 + data_api_index` |
+| `PGRST_ADMIN_SERVER_HOST`, `PGRST_ADMIN_SERVER_PORT` | `127.0.0.1`, `3100 + data_api_index` |
+| `PGRST_DB_POOL`, `GHCRTS` | `5`, `-N1` (one Haskell capability) |
+
+The index is stored on the database row, assigned once as the branch's highest
+index plus one and never reused, and limited to 0-49 so that the API ports stop
+below compute_ctl's 3080. If a request could reach a sidecar through a stale
+position (the pod is rebuilt only on restart), it would answer for another
+database; a fixed position per database rules that out. PostgREST reads its
+environment once, so enabling, disabling or changing the JWKS restarts the
+compute: `suspend`, then `wake`. Connections of that compute drop; an idle
+compute simply builds the new pod at its next start. Read-only endpoints get the
+sidecar at their next start; only the `read_write` endpoint is restarted and
+bootstrapped.
+
+`infra/k8s/control-plane/compute-networkpolicy.yaml` limits the PostgREST ports
+of compute pods: TCP 3000-3049 is open to the gateway pods only and 3100-3149 to
+nobody, while every other port stays open as before. Credentials are in the pod
+environment (`PGRST_DB_URI`), readable by anyone who can read pods in
+`neon-compute`, which only the control plane's service account can.
+
+### JWKS and test tokens
+
+`neon_project.data_api_jwks` holds the platform-issued public key, created with
+its sealed private key the first time a database enables the Data API. It is an
+ES256 key, not EdDSA: PostgREST decodes tokens with `jose-jwt`, and ES256 is the
+asymmetric algorithm certain to be supported by every build, while Ed25519
+depends on the library version. `POST /v1/projects/:id/data_api/token` signs
+`{role, sub?, iss, iat, exp}` with it (`role` is `anonymous` or `authenticated`,
+up to 24 hours), so the console can offer a working token without an identity
+provider. `PUT /v1/projects/:id/data_api/jwks` sets the project's own public
+keys (private and shared-secret members are rejected) or `null` to go back; it
+queues a project-wide restart and, while custom keys are set, the test-token
+route answers `409` because those tokens would not verify.
+
+### Gateway
+
+`https://ep-<id>.apirest.alloydb.net/<db>/rest/v1/<path>` (mode
+`data-api-gateway`, any host label under `apirest.alloydb.net` reaches it
+through Traefik). For each request it:
+
+1. parses the host (`ep-<id>`) and path (`/<db>/rest/v1...`); anything else is
+   `404` with a PostgREST-shaped body `{code, message, details, hint}`;
+2. answers a CORS preflight itself without waking anything, with the headers
+   PostgREST sends (origin echoed, `Allow-Credentials`, the methods, the
+   requested headers plus `Authorization`, `Max-Age: 86400`); the gateway's own
+   errors carry the same CORS headers, proxied responses keep PostgREST's;
+3. checks the endpoint and that the database has the Data API on (`404`
+   `data_api_not_enabled` otherwise);
+4. wakes the compute through the shared runtime (store, storage controller and
+   Kubernetes access, like neon-glue); a start that fails is `503` with
+   `Retry-After: 2`;
+5. waits up to 15 s for the sidecar port to accept TCP, then streams the request
+   to `http://<podIP>:<3000 + index>/<path>?<query>` with the body unbuffered
+   (`duplex: half`), `Authorization` untouched, hop-by-hop headers removed and
+   `Accept-Encoding: identity`, and streams the answer back. Connection
+   failures are `502`, no answer within two minutes is `504`.
+
+Token verification, roles and row-level security are PostgREST's and
+Postgres's. A request without a token runs as `anonymous`.
 
 ## libSQL flows
 
-**Create.** Pick the `libsql` node with the most free share, call its admin
-API `POST /v1/namespaces/<ns>/create` (namespace `<db>-<team>`), create the
-node's Service and EndpointSlice if missing, and create an `IngressRoute`
-for `<ns>.lite.alloydb.net`. **Tokens** are EdDSA JWTs signed with the
-`libsql-jwt-signing` key, claims `{p: {rw: {ns: [<ns>]}}}` or `{p: {ro: …}}`,
-with an expiry the user picks. **Fork** uses
-`POST /v1/namespaces/<ns>/fork/<to>` with an optional timestamp.
-**Delete** removes the namespace (optionally keeping the backup) and its route.
+Verified against `libsql-server-v0.24.33`; file references are in that tree.
+
+**Naming.** A database is the namespace `<name>-<team>` (`libsql/names.ts`).
+`team` is the console organization id when that is already a lowercase label of
+at most 20 characters, else `t` plus ten hex characters of its SHA-256, so two
+organizations never share a team. sqld itself only requires a non-empty name
+(`namespace/name.rs:47-53`), but the name is also the directory name and the
+first label of the Host header (`http/user/db_factory.rs:114-118`), so the
+control plane enforces one DNS label of 1-63 characters (the contract allows
+database names up to 42). Names are unique per organization; the public host is
+`<namespace>.lite.alloydb.net`.
+
+**Placement.** The node with `libsql` in `node.roles`, `capacity.ready` not
+false and the largest free share, `(capacity - databases) / capacity` with
+`capacity.libsqlMaxDatabases` defaulting to 200 (`--max-active-namespaces 200`).
+Ties go to the lowest id; no node with room is `503 no_capacity`. A fork stays
+on its source's node because sqld forks inside one server.
+
+**Node sync.** Every `ALLOYDB_REGISTRATION_SECONDS` the worker lists Kubernetes
+Nodes and upserts `node` rows: id from `alloydb.net/node-id`, address from the
+annotation `alloydb.net/tailscale-ip` or else `InternalIP` (k3s `node-ip` is the
+Tailscale address), zone from `topology.kubernetes.io/zone`, roles from the
+`alloydb.net/{pageserver,libsql,compute}=true` labels (replacing the stored
+roles), and `capacity.ready` from the Ready condition. Nodes without the id
+label and duplicate ids are skipped.
+
+**Admin API** (`http://<tailscale ip>:8081`, `libsql/admin-client.ts`;
+`http/admin/mod.rs`):
+
+| Call | Detail |
+| --- | --- |
+| auth | `Authorization: Basic <key>`. The key is compared as is, not base64-decoded, and split on whitespace (`mod.rs:209-235`) |
+| create | `POST /v1/namespaces/<ns>/create`, JSON object body; `max_db_size` is a number of bytes (`CreateNamespaceReq`, 367-386, `bytesize` serde). "Already exists" is `400` with `{"error": "Namespace ... already exists"}` (`error.rs:193`), which counts as success |
+| fork | `POST /v1/namespaces/<from>/fork/<to>`, optional `{"timestamp"}` in chrono `NaiveDateTime` form, UTC without a zone (`2026-01-02T03:04:05`; 444-471). Sent without a body for "now" |
+| delete | `DELETE /v1/namespaces/<ns>` with `{"keep_backup": bool}`; no body or `false` also prunes the bottomless backup (512-533). A missing namespace is `404`, which counts as success |
+
+sqld refusing a request with a 4xx other than 429 fails the operation at once;
+network errors and 5xx retry.
+
+**Kubernetes.** For node `N`, a selector-less Service `sqld-node-N` in `libsql`
+(port 8080) and a hand-managed EndpointSlice with the same name, labelled
+`kubernetes.io/service-name` and `endpointslice.kubernetes.io/managed-by:
+alloydb-control-plane`, pointing at the node's Tailscale IP; the slice is
+corrected if the address changes, the Service is created once. Per database, a
+Traefik `IngressRoute` named like the namespace: entry point `websecure`, rule
+``Host(`<ns>.lite.alloydb.net`)``, service `sqld-node-N:8080`, TLS secret
+`lite-wildcard-tls` (issued into `libsql` by cert-manager). Existing objects are
+compared and replaced only when they differ.
+
+**Tokens** (`libsql/tokens.ts`) are EdDSA JWTs signed with the
+`libsql-jwt-signing` key, whose public half every node loads with
+`--auth-jwt-key-file` (`parse_jwt_keys` accepts a PEM, `auth/parsers.rs:25-44`).
+Claims `{iat, exp?, p: {rw: {ns: [<ns>]}}}` for read-write or `ro` for
+read-only: `Token` has `id`, `a`, `p`, `exp` (`auth/user_auth_strategies/jwt.rs:56-66`),
+`p` is `Authorized` with `ro`, `rw`, `roa`, `rwa`, `ddl` (`auth/authorized.rs:10-23`)
+and each is a `Scopes` whose `ns` lists namespaces (178-184). `exp` is in
+seconds and checked when present; a token without it never expires.
+
+**Delete** closes the route first, then removes the namespace, so no connection
+reaches a database that is going away. The row is soft-deleted in the request.
 
 ## Public API (mode `api`)
 
@@ -315,9 +525,18 @@ in memory and against PostgreSQL.
 | `POST .../endpoints/:endpoint/start`, `/suspend` | `202`, `endpoint.start`, `endpoint.suspend` |
 | `GET`, `POST .../branches/:branch/roles`, `POST .../roles/:role/reset_password` | the password is returned once; only the SCRAM secret is stored |
 | `GET`, `POST .../branches/:branch/databases`, `DELETE .../databases/:db` | `:db` is the database name |
+| `PUT`, `DELETE .../branches/:branch/databases/:db/data_api` | `202`; turns the Data API on (`409` without a `read_write` endpoint, a stored owner password or a free sidecar slot) or off |
+| `GET`, `PUT /v1/projects/:id/data_api/jwks` | the effective keys and their `source` (`platform` or `custom`); `PUT` takes `{jwks}` or `{jwks: null}` and answers `202` with the restart operation |
+| `POST /v1/projects/:id/data_api/token` | `{role?, sub?, expires_in_seconds?}`: a test token signed with the platform key |
+| `GET`, `POST /v1/libsql/databases` | list the console project's databases; create one (`503` with no capacity, `409` for a taken name) |
+| `GET`, `DELETE /v1/libsql/databases/:id` | `DELETE` takes `?keep_backup=true` |
+| `POST /v1/libsql/databases/:id/fork` | `{name, timestamp?}`; the source must be `active` |
+| `POST /v1/libsql/databases/:id/tokens` | `{access?, expires_in_seconds?}`: a token for the namespace (`200`); the database must be `active` |
 | `GET /v1/operations/:id` | the operation |
 
 Mutations answer `202` with the changed resource and an `operation`; `423`
 means the project has an operation in flight; `400` names every invalid field.
 
-Not served yet: `.../databases/:db/data_api` and `/v1/libsql/...`.
+libSQL databases are scoped like Neon resources: by organization and console
+project, in every query. They share the console project's one-active-operation
+lock with the Neon resources.
