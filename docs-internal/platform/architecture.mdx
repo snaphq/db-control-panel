@@ -1,0 +1,184 @@
+---
+title: Platform architecture
+description: How AlloyDB runs Neon, libSQL, and the REST Data API on k3s, and the contracts every infra component follows.
+---
+
+# Platform architecture
+
+This page is the source of truth for `infra/`. Every manifest, playbook, and
+control-plane module follows the names and contracts here. The Neon
+contracts were checked against the source pinned in
+`infra/images/sources.env`; file references below point into that tree.
+
+## Cluster shape
+
+- k3s on bare metal, nodes joined over Tailscale. Each node's k3s `node-ip`
+  is its Tailscale address and `node-external-ip` its public address.
+- Stage A has two nodes (one k3s server with `--cluster-init`, one agent);
+  stage B makes three etcd servers; later nodes join as agents.
+- Only TCP 5432 (Postgres) and 443/80 (HTTPS) are public. Everything else
+  listens on the tailnet or inside the cluster.
+- Third-party platform software comes from upstream images and charts. Our
+  data-plane images come from `ghcr.io/snaphq` (see
+  [Data-plane images](/platform/images)).
+
+### Node contract
+
+The node-join playbook (`infra/ansible`) writes `/etc/alloydb/node.env` on
+every host and applies matching Kubernetes labels:
+
+| `node.env` key | Label | Meaning |
+| --- | --- | --- |
+| `ALLOYDB_NODE_ID` | `alloydb.net/node-id` | Unique positive integer, never reused |
+| `ALLOYDB_AZ` | `topology.kubernetes.io/zone` | Availability zone id, `az-<n>` |
+| `ALLOYDB_TAILSCALE_IP` | — | The node's Tailscale IPv4 address |
+| `ALLOYDB_ROLES` | `alloydb.net/pageserver`, `alloydb.net/libsql`, `alloydb.net/compute` = `"true"` | Which data-plane roles the node takes |
+
+Host-network pods read `node.env` through a read-only `hostPath` mount; that
+is how a pageserver learns its stable id without Kubernetes API access.
+
+### Namespaces
+
+| Namespace | Contents |
+| --- | --- |
+| `alloydb-system` | Control plane (api, neon-glue, worker, data-api-gateway) and the platform Postgres |
+| `neon` | storage broker, storage controller, pageservers, safekeepers, proxy |
+| `neon-compute` | Compute pods, created and deleted by the control plane only |
+| `libsql` | sqld servers |
+| `cert-manager`, `kube-system`, `flux-system`, `monitoring` | Platform tooling |
+
+### Public hostnames
+
+| Hostname | Served by | TLS |
+| --- | --- | --- |
+| `ep-<id>.pg.alloydb.net:5432`, `ep-<id>-pooler…` | Neon proxy (ServiceLB on 5432) | Proxy, wildcard cert `CN=*.pg.alloydb.net` |
+| `https://ep-<id>.pg.alloydb.net` | Neon proxy SQL-over-HTTP/WebSocket listener (`--wss`) | Traefik TCP passthrough by SNI, proxy terminates |
+| `https://ep-<id>.apirest.alloydb.net/<db>/rest/v1/…` | data-api-gateway → PostgREST sidecar | Traefik, wildcard cert |
+| `libsql://<db>-<team>.lite.alloydb.net` | Traefik → that database's sqld node | Traefik, wildcard cert |
+| `https://api.alloydb.net` | control-plane api | Traefik |
+| `https://console.alloydb.net` | Vercel | Vercel |
+
+Cloudflare records are DNS only. cert-manager issues every certificate with
+the Cloudflare DNS-01 solver. The proxy reads its accepted domain from the
+certificate's subject common name (`proxy/src/tls/server_config.rs`), so its
+`Certificate` sets `commonName` explicitly.
+
+## Neon storage plane (namespace `neon`)
+
+| Component | Kind | Listens | Identity and state |
+| --- | --- | --- | --- |
+| storage-broker | Deployment ×1 | 50051 gRPC | Stateless, no auth: cluster-internal only |
+| storage-controller | Deployment ×1 (`Recreate`) | 1234 HTTP | Database `storage_controller` on the platform Postgres |
+| pageserver | DaemonSet, `hostNetwork`, nodes with `alloydb.net/pageserver=true` | Tailscale IP: 6400 pg, 9898 http | `id` = `ALLOYDB_NODE_ID`; data in `hostPath` `/var/lib/alloydb/pageserver` |
+| safekeeper | StatefulSet ×3, headless Service `safekeeper` | 5454 pg, 7676 http | `id` = ordinal + 1, AZ `az-<ordinal+1>`; local PV |
+| proxy | Deployment ×2 | 5432 pg (public), 4444 wss, 7001 http | Stateless |
+
+Pageservers use host networking so that their registered address is the
+node's stable Tailscale IP: a pageserver registers itself with the
+controller on start from `metadata.json`
+(`pageserver/src/controller_upcall_client.rs`), and computes connect to that
+address directly. Safekeepers do not self-register; the control-plane worker
+registers each one (`POST /control/v1/safekeeper/:id`, then scheduling policy
+`Active`) with its headless-Service DNS name.
+
+### Storage controller
+
+Runs in strict mode, which requires (`storage_controller/src/main.rs`):
+
+- `PUBLIC_KEY` (Ed25519 public key, PEM) and the tokens
+  `PAGESERVER_JWT_TOKEN`, `SAFEKEEPER_JWT_TOKEN`, `CONTROL_PLANE_JWT_TOKEN`
+- `--control-plane-url http://neon-glue.alloydb-system:8080/storcon`; the
+  controller appends `/notify-attach` and `/notify-safekeepers`
+- `--timelines-onto-safekeepers` and `--timeline-safekeeper-count 3`
+- `DATABASE_URL` for its own Postgres
+
+### Tokens
+
+All Neon tokens are EdDSA JWTs (`libs/utils/src/auth.rs`) signed by one
+Ed25519 key pair. The private key lives only in the control plane's secret;
+the public key is mounted into the controller, pageservers, and safekeepers.
+
+| Token | Scope | Used by |
+| --- | --- | --- |
+| `PAGESERVER_JWT_TOKEN` | `pageserverapi` | controller → pageservers |
+| `SAFEKEEPER_JWT_TOKEN` | `safekeeperdata` | controller → safekeepers, pageservers → safekeepers |
+| `CONTROL_PLANE_JWT_TOKEN` | `admin` | controller → our hooks; our worker → controller |
+| `GENERATIONS_API_TOKEN` | `generations_api` | pageservers → controller upcalls |
+| per-tenant | `tenant` | computes → pageserver/safekeepers (`storage_auth_token` in the compute spec) |
+
+### Proxy
+
+`proxy --auth-backend control-plane --auth-endpoint
+http://neon-glue.alloydb-system:8080/proxy --proxy 0.0.0.0:5432 --wss
+0.0.0.0:4444 --http 0.0.0.0:7001 --tls-cert … --tls-key …`, with
+`NEON_PROXY_TO_CONTROLPLANE_TOKEN` set. The proxy appends
+`get_endpoint_access_control`, `wake_compute`, and `endpoints/<id>/jwks` to
+the auth endpoint (`proxy/src/control_plane/client/cplane_proxy_v1.rs`).
+
+### Computes (namespace `neon-compute`)
+
+One pod per running endpoint, named `compute-<endpoint-id>`, labeled
+`alloydb.net/endpoint=<id>` and `alloydb.net/project=<id>`:
+
+- `compute` container: our compute image, entrypoint `compute_ctl
+  --control-plane-uri http://neon-glue.alloydb-system:8080 --compute-id
+  <endpoint-id> --pgdata /var/db/postgres/compute --pgbin
+  /usr/local/bin/postgres --connstr postgresql://cloud_admin@127.0.0.1:5432/postgres`.
+  Ports 5432 and 3080.
+- `pgbouncer` container: same image, runs `/usr/local/bin/pgbouncer
+  /etc/pgbouncer.ini` on 6432 (Neon's VM image starts it, compute_ctl does not).
+- `postgrest-<db>` containers: one per database with the Data API enabled,
+  ports 3000 + n and admin 3100 + n, connecting to `127.0.0.1:5432` as
+  `authenticator`.
+- Resources from the endpoint's compute size; `topologySpreadConstraints` on
+  `kubernetes.io/hostname`; scheduled only on `alloydb.net/compute=true` nodes.
+
+Roles created from the compute spec get `BYPASSRLS` and `neon_superuser`
+membership (`compute_tools/src/spec_apply.rs`), so the Data API roles
+(`authenticator`, `anonymous`, `authenticated`) are created by the control
+plane with SQL after the compute reports `Running`, never through the spec.
+
+## libSQL plane (namespace `libsql`)
+
+- sqld DaemonSet on `alloydb.net/libsql=true` nodes, `hostNetwork`, bound to
+  the Tailscale IP: 8080 user HTTP, 8081 admin API (`--admin-auth-key`).
+  Flags: `--enable-namespaces`, `--enable-bottomless-replication`,
+  `--backup-meta-store`, `--disable-default-namespace`. Data in `hostPath`
+  `/var/lib/alloydb/sqld`.
+- For node `N` the control plane keeps a Service `sqld-node-N` without a
+  selector plus an EndpointSlice pointing at the node's Tailscale IP.
+- Each database is one namespace on one node. The control plane creates a
+  Traefik `IngressRoute` per database: `Host(<db>-<team>.lite.alloydb.net)` →
+  `sqld-node-N:8080`. sqld takes the namespace from the first host label.
+
+## Control plane (namespace `alloydb-system`)
+
+One image (`ghcr.io/snaphq/alloydb-control-plane`, from
+`apps/control-plane`), four Deployments selected by `ALLOYDB_MODE`:
+
+| Mode | Service | Serves |
+| --- | --- | --- |
+| `api` | `api:8080`, public at `api.alloydb.net` | REST API for the console (service token) |
+| `neon-glue` | `neon-glue:8080`, internal | `/proxy/*`, `/compute/api/v2/computes/:id/spec`, `/storcon/notify-*` |
+| `worker` | none | Operations queue, idle suspend, node and safekeeper registration, rebalancing |
+| `data-api-gateway` | `data-api:8080`, public at `*.apirest.alloydb.net` | Wakes the compute, forwards to its PostgREST sidecar |
+
+State lives in the `control_plane` database on the platform Postgres.
+
+## Platform Postgres
+
+A single-instance StatefulSet (`postgres:17-bookworm`) in `alloydb-system`
+holding the `storage_controller` and `control_plane` databases, pinned to one
+node with a local PV. A nightly CronJob dumps both to S3. The controller's
+database holds pageserver generation numbers, so its loss is a recovery
+event; restore drills are part of operations.
+
+## Secrets and configuration
+
+Values come from the root `.env.local` (never committed).
+`infra/scripts/render-secrets.ts` turns the `ALLOYDB_*` keys listed in
+`env.example` into Kubernetes Secrets; nothing secret is stored in Git.
+S3 settings are `ALLOYDB_S3_ENDPOINT`, `ALLOYDB_S3_REGION`,
+`ALLOYDB_S3_BUCKET`, `ALLOYDB_S3_ACCESS_KEY_ID`, and
+`ALLOYDB_S3_SECRET_ACCESS_KEY`, with fixed prefixes per component:
+`pageserver/`, `safekeeper/`, `sqld/`, `platform-backups/`.

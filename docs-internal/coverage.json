@@ -337,6 +337,12 @@
       "page": "platform/images.mdx",
       "visibility": "internal",
       "sources": ["infra/images", ".github/workflows/images.yml"]
+    },
+    {
+      "id": "platform-architecture",
+      "page": "platform/architecture.mdx",
+      "visibility": "internal",
+      "sources": ["infra"]
     }
   ]
 }
