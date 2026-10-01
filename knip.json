@@ -16,17 +16,6 @@
         "src/lib/source.ts",
         "src/components/Container/PageWrapper.tsx"
       ]
-    },
-    "sites/com.site-c": {
-      "entry": [
-        "vite.config.ts",
-        "src/entry-client.tsx",
-        "src/entry-server.tsx",
-        "src/app.tsx",
-        "src/site.config.ts",
-        "src/routes/**/*.{ts,tsx}",
-        "src/http/*.ts"
-      ]
     }
   },
   "ignore": [

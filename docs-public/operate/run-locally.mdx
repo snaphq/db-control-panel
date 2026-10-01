@@ -17,12 +17,11 @@ Or start one app:
 ```bash
 bun run dev:backend   # admin portal, http://localhost:8800
 bun run dev:alloydb.console    # http://localhost:8801
-bun run dev:site-b    # http://localhost:8802
 ```
 
 Shared secrets live in the root `.env.local`; each app's local URL lives in
 its `.env.development`. Every site runs on `localhost`, and each one resolves
 to its own tenant. Browsers share cookies across ports, so to stay signed in
 to two sites at once open one of them on another host name, for example
-`http://site-b.localhost:8802`. Run the Inngest CLI against the backend
+`http://console.localhost:8801`. Run the Inngest CLI against the backend
 (`http://localhost:8800/api/inngest`) when testing durable jobs.

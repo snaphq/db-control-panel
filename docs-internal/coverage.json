@@ -8,8 +8,6 @@
       "sources": [
         "apps/backend/package.json",
         "sites/net.alloydb.console/package.json",
-        "sites/com.site-b/package.json",
-        "sites/com.site-c/package.json",
         "packages/site-kit/src",
         "packages/core/src",
         "packages/react-ui/src"
@@ -21,43 +19,11 @@
       "visibility": "internal",
       "sources": [
         "sites/net.alloydb.console/src/site.config.ts",
-        "sites/com.site-b/src/site.config.ts",
-        "sites/com.site-c/src/site.config.ts",
         "packages/site-kit/src/site-config.ts",
         "packages/site-kit/src/root-layout.tsx",
         "scripts/sync-site-routes.ts",
         "scripts/seed-site-tenants.ts",
         "packages/mcp-server/src/site-tools.ts"
-      ]
-    },
-    {
-      "id": "site-c",
-      "page": "site-c/overview.mdx",
-      "visibility": "internal",
-      "sources": [
-        "sites/com.site-c/package.json",
-        "sites/com.site-c/vite.config.ts",
-        "sites/com.site-c/src/site.config.ts",
-        "sites/com.site-c/src/http/tenant-guard.ts",
-        "sites/com.site-c/src/http/app.ts",
-        "sites/com.site-c/src/server/queries.ts",
-        "sites/com.site-c/src/shims/server-only.ts"
-      ]
-    },
-    {
-      "id": "site-d",
-      "page": "site-d/overview.mdx",
-      "visibility": "internal",
-      "sources": [
-        "sites/com.site-d/package.json",
-        "sites/com.site-d/astro.config.mjs",
-        "sites/com.site-d/src/site.config.ts",
-        "sites/com.site-d/src/middleware.ts",
-        "sites/com.site-d/src/pages/api/auth/[...all].ts",
-        "sites/com.site-d/src/server/account.ts",
-        "sites/com.site-d/src/server/auth.ts",
-        "sites/com.site-d/src/server/session.ts",
-        "sites/com.site-d/src/shims/server-only.ts"
       ]
     },
     {
@@ -375,42 +341,11 @@
       ]
     },
     {
-      "id": "site-b",
-      "page": "site-b/overview.mdx",
-      "visibility": "internal",
-      "sources": [
-        "sites/com.site-b/src/site.config.ts",
-        "sites/com.site-b/src/app/page.tsx",
-        "sites/com.site-b/src/components"
-      ]
-    },
-    {
       "id": "public-site-a",
       "site": "docs-public",
       "page": "alloydb.console/index.mdx",
       "visibility": "public",
       "sources": ["sites/net.alloydb.console/src/site.config.ts"]
-    },
-    {
-      "id": "public-site-b",
-      "site": "docs-public",
-      "page": "site-b/index.mdx",
-      "visibility": "public",
-      "sources": ["sites/com.site-b/src/site.config.ts"]
-    },
-    {
-      "id": "public-site-c",
-      "site": "docs-public",
-      "page": "site-c/index.mdx",
-      "visibility": "public",
-      "sources": ["sites/com.site-c/src/site.config.ts"]
-    },
-    {
-      "id": "public-site-d",
-      "site": "docs-public",
-      "page": "site-d/index.mdx",
-      "visibility": "public",
-      "sources": ["sites/com.site-d/src/site.config.ts"]
     }
   ]
 }

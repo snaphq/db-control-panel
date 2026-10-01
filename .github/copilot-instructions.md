@@ -26,8 +26,7 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 ├── apps/
 │   └── backend/            # Admin portal for every site
 ├── sites/
-│   ├── net.alloydb.console/         # Tenant site A (config, brand, pages)
-│   └── com.site-b/         # Tenant site B
+│   └── net.alloydb.console/         # Tenant site (config, brand, pages)
 ├── packages/
 │   ├── site-kit/           # Routes, proxy, and layout shared by every site
 │   ├── core/               # Shared server logic

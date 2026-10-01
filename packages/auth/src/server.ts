@@ -97,9 +97,9 @@ class BetterAuthServer {
    * Next.js App Router handler for the auth API routes.
    *
    * `better-auth/next-js` is imported lazily so this module stays free of a
-   * static Next.js dependency: com.site-c runs the same Better Auth instance
-   * under SolidStart and passes `authInstance.handler` straight to Hono, and
-   * must not pull `next/headers` into its module graph.
+   * static Next.js dependency: a non-Next.js host can run the same Better Auth
+   * instance, pass `authInstance.handler` straight to its own router, and
+   * avoid pulling `next/headers` into its module graph.
    */
   async getApiHandler() {
     const { toNextJsHandler } = await import("better-auth/next-js");

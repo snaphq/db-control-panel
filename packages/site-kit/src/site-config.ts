@@ -8,7 +8,7 @@ import type { SiteMcpToolset } from "@repo/mcp-server/site-tools";
  *
  * A site is one of two shapes. `SiteConfig` is a site built on the shared
  * @repo/site-kit route tree; `StandaloneSiteConfig` is a site that owns its own
- * routes and framework, such as com.site-c on SolidStart. Both carry the same
+ * routes and framework, such as a SolidStart or Astro app. Both carry the same
  * tenant identity fields, which is all `db:seed:sites` needs. Discriminate with
  * the `stack` field and narrow through `AnySiteConfig`.
  */

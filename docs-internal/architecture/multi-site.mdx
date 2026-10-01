@@ -80,7 +80,7 @@ claim the same tenant.
 
 Browsers share cookies across ports, so signing in to two sites on
 `localhost` at once shares one cookie jar; use different host names (for
-example `site-b.localhost:8802`) when testing both at the same time.
+example `console.localhost:8801`) when testing both at the same time.
 
 ## MCP per site
 
@@ -99,7 +99,7 @@ whether the site depends on `@repo/site-kit`.
 
 ### A site on the shared route tree (the usual case)
 
-1. Copy `sites/com.site-b` to `sites/<folder>` and set the package name and
+1. Copy `sites/net.alloydb.console` to `sites/<folder>` and set the package name and
    dev port (`package.json`), local URLs (`.env.development`), and
    `src/site.config.ts`.
 2. Brand it in `src/app/globals.css` and the site-owned pages.
@@ -110,7 +110,7 @@ whether the site depends on `@repo/site-kit`.
 
 ### A standalone site on its own framework
 
-`sites/com.site-c` (SolidStart) and `sites/com.site-d` (Astro) consume none of
+A site on another framework (for example SolidStart or Astro) consumes none of
 the shared route tree. The only structural requirement is that the site must
 **not** list `@repo/site-kit` in its `dependencies` — that absence is what
 makes `scripts/sync-site-routes.ts` skip it, so no shims are generated and no
@@ -125,11 +125,6 @@ tenant rows from `bun run db:seed:sites`, which reads only the
 
 Everything else — the deploy matrix row, the Vercel project, the `dev:<name>`
 script — is the same. Note that a framework with its own Node requirement
-needs its own `node_version` in the deploy matrix; `com.site-c` requires
-Node 24 while the Next.js sites run on 22. Astro 7 requires Node ≥ 22.12,
-which the 22 line satisfies. A framework that fixes its middleware filename
-(such as Astro's `src/middleware.ts`) also needs the matching exemption in
-`scripts/check-no-middleware.ts`.
-
-See [com.site-c](/site-c/overview) and
-[com.site-d](/site-d/overview) for worked examples.
+needs its own `node_version` in the deploy matrix. A framework that fixes its
+middleware filename (such as Astro's `src/middleware.ts`) also needs the
+matching exemption in `scripts/check-no-middleware.ts`.

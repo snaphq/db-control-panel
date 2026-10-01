@@ -11,7 +11,7 @@ workspace:
 | Workspace | Role |
 | --- | --- |
 | `apps/backend` | Platform admin portal for every site, plus platform ingress (Stripe webhooks, Inngest) and the admin MCP endpoint. See [Backend admin portal](/architecture/backend-admin). |
-| `sites/*` | One Next.js app per tenant site (`sites/net.alloydb.console`, `sites/com.site-b`). Each owns its identity, branding, and marketing/legal pages. See [Multi-site architecture](/architecture/multi-site). |
+| `sites/*` | One Next.js app per tenant site (currently `sites/net.alloydb.console`). Each owns its identity, branding, and marketing/legal pages. See [Multi-site architecture](/architecture/multi-site). |
 | `packages/*` | Shared code: routes and layout for every site (`site-kit`), server logic (`core`), React UI and theme (`ui`), and domain/integration packages (`auth`, `database`, `billing`, `mcp-server`, …). |
 
 All workspaces share one PostgreSQL database. Each site serves one tenant;

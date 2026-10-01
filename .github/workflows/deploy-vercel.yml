@@ -32,32 +32,17 @@ jobs:
         # setup:start
         # Written during setup by .agents/skills/setup/scripts/set-vercel-projects.ts.
         # setup:end
-        # sites/net.alloydb.console deploys
-        # from the repository root (root vercel.json); the others use the
-        # vercel.json in their own folder as the project Root Directory.
+        # sites/net.alloydb.console deploys from the repository root (root
+        # vercel.json); apps/backend uses the vercel.json in its own folder as
+        # the project Root Directory.
         include:
           - app: alloydb.console
             project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
             project_name: 'nexvio-ai'
             node_version: '22'
-          - app: site-b
-            project_id: ''
-            project_name: 'site-b'
-            node_version: '22'
           - app: backend
             project_id: 'prj_4uAEmRzCIIyMJJ9I3RnOirbcrley'
             project_name: 'backend'
-            node_version: '22'
-          # SolidStart 2 requires Node 24+, so this row must not inherit 22.
-          - app: site-c
-            project_id: 'prj_Kyj2GxV8oZGiwweHbVasBwvtinqZ'
-            project_name: 'starter-solid-stack'
-            node_version: '24'
-          # Astro 7 requires Node >= 22.12; the 22 line satisfies it. The row
-          # skips until its Vercel project id is set.
-          - app: site-d
-            project_id: ''
-            project_name: 'starter-astro-stack'
             node_version: '22'
     environment:
       name: ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')) && 'production' || 'preview' }}

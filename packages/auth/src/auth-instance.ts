@@ -52,8 +52,8 @@ export interface BetterAuthServerOptions {
    * unaffected.
    *
    * `"response"` omits the plugin for hosts that return the Better Auth
-   * `Response` straight to the client — SolidStart's h3 pipeline does, and
-   * `Set-Cookie` needs no re-application there. Use it from com.site-c.
+   * `Response` straight to the client, where `Set-Cookie` needs no
+   * re-application. Use it from a non-Next.js host.
    *
    * Known cost: the `nextCookies` import stays static so the plugins array can
    * be built synchronously, so `better-auth/next-js` and ~160KB of Next's edge

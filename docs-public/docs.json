@@ -51,20 +51,8 @@
         "icon": "globe",
         "groups": [
           {
-            "group": "Site A",
+            "group": "AlloyDB console",
             "pages": ["alloydb.console/index"]
-          },
-          {
-            "group": "Site B",
-            "pages": ["site-b/index"]
-          },
-          {
-            "group": "Site C",
-            "pages": ["site-c/index"]
-          },
-          {
-            "group": "Site D",
-            "pages": ["site-d/index"]
           }
         ]
       }

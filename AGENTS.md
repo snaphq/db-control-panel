@@ -22,10 +22,7 @@ with TUI mode enabled.
 ├── apps/
 │   └── backend/            # Platform admin portal for every site (@repo/backend)
 ├── sites/                  # Tenant sites, one tenant each
-│   ├── net.alloydb.console/         # Next.js site on the shared site-kit route tree
-│   ├── com.site-b/         # Thin Next.js site (config + brand + a few pages)
-│   ├── com.site-c/         # Standalone SolidStart site (no @repo/site-kit)
-│   └── com.site-d/         # Standalone Astro site with an account dashboard
+│   └── net.alloydb.console/         # Next.js site on the shared site-kit route tree
 ├── packages/
 │   ├── site-kit/           # Shared site routes (src/app), proxy, root layout
 │   ├── core/               # Shared server logic (auth helpers, agent auth, operators, integrations)
@@ -53,8 +50,7 @@ All commands use bun and are run from the monorepo root:
 
 - `bun install` - Install all dependencies across workspaces
 - `bun run dev` - Start all dev servers with the Turbo TUI
-- `bun run dev:backend` (port 8800) / `dev:alloydb.console` (8801) / `dev:site-b` (8802)
-  / `dev:site-c` / `dev:site-d` - Start one app
+- `bun run dev:backend` (port 8800) / `dev:alloydb.console` (8801) - Start one app
 - `bun run build` - Production build (fails on type or lint errors)
 - `bun run start` - Serve the built apps locally
 - `bun run sites:sync` - Regenerate site route shims after changing
@@ -118,7 +114,7 @@ bun run --filter @repo/database build   # Build database package only
   guidance in `docs-internal/`.
 - Site-specific docs go in a folder named after the site's short name:
   `docs-public/alloydb.console/` and `docs-internal/alloydb.console/` for `sites/net.alloydb.console`
-  (likewise `site-b/`, …). Docs shared by every site stay outside those
+  (likewise for any further site). Docs shared by every site stay outside those
   folders. `bun run check:doc-coverage` rejects a page whose coverage sources
   all belong to one site but that lives outside its folder, and each Next.js
   site's `/docs` mirrors the shared pages plus only its own folder.
@@ -205,7 +201,7 @@ To add a new shared package:
 
 ## Adding a New Site
 
-1. Copy `sites/com.site-b` to `sites/<folder>`; set the package name, dev port
+1. Copy `sites/net.alloydb.console` to `sites/<folder>`; set the package name, dev port
    (`package.json`), local URL (`.env.development`), and `src/site.config.ts`
    (tenant, domain, public pages, agent markdown, MCP toolsets).
 2. Adjust branding in `src/app/globals.css` and the site-owned pages.
@@ -213,8 +209,8 @@ To add a new shared package:
 4. Add a `dev:<name>` root script and a deploy matrix entry in
    `.github/workflows/deploy-vercel*.yml`.
 
-A site that does **not** use `@repo/site-kit` (its own framework, like
-`sites/com.site-c`) skips `sites:sync`: omitting that dependency is exactly what
-makes `sync-site-routes.ts` skip the folder. It exports a `StandaloneSiteConfig`
+A site that does **not** use `@repo/site-kit` (its own framework) skips
+`sites:sync`: omitting that dependency is exactly what makes
+`sync-site-routes.ts` skip the folder. It exports a `StandaloneSiteConfig`
 with `stack: "standalone"` rather than a `SiteConfig`, and still gets its tenant
-rows from `db:seed:sites`. See `docs-internal/site-c/overview.mdx`.
+rows from `db:seed:sites`. See `docs-internal/architecture/multi-site.mdx`.

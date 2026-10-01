@@ -45,28 +45,10 @@ jobs:
             project_name: 'nexvio-ai'
             alias_prefix: 'nexvio-ai'
             node_version: '22'
-          - app: site-b
-            project_id: ''
-            project_name: 'site-b'
-            alias_prefix: 'alloydb-site-b'
-            node_version: '22'
           - app: backend
             project_id: 'prj_4uAEmRzCIIyMJJ9I3RnOirbcrley'
             project_name: 'backend'
             alias_prefix: 'alloydb-backend'
-            node_version: '22'
-          # SolidStart 2 requires Node 24+, so this row must not inherit 22.
-          - app: site-c
-            project_id: 'prj_Kyj2GxV8oZGiwweHbVasBwvtinqZ'
-            project_name: 'starter-solid-stack'
-            alias_prefix: 'starter-solid-stack'
-            node_version: '24'
-          # Astro 7 requires Node >= 22.12; the 22 line satisfies it. The row
-          # skips until its Vercel project id is set.
-          - app: site-d
-            project_id: ''
-            project_name: 'starter-astro-stack'
-            alias_prefix: 'starter-astro-stack'
             node_version: '22'
     if: >
       github.event_name != 'pull_request' ||
