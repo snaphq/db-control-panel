@@ -1,0 +1,31 @@
+# Stakater Reloader chart 2.2.18 / app v1.4.22
+# (index https://stakater.github.io/stakater-charts/index.yaml).
+# Restarts workloads whose Secrets change. Only annotated workloads are touched:
+# the Neon proxy reads its TLS certificate once at start
+# (proxy/src/tls/server_config.rs), so it carries
+# `secret.reloader.stakater.com/reload: pg-wildcard-tls` and rolls when
+# cert-manager renews that certificate.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: reloader
+  namespace: flux-system
+spec:
+  interval: 1h
+  releaseName: reloader
+  targetNamespace: kube-system
+  storageNamespace: kube-system
+  chart:
+    spec:
+      chart: reloader
+      version: 2.2.18
+      sourceRef:
+        kind: HelmRepository
+        name: stakater
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
