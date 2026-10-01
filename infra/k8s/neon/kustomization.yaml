@@ -1,0 +1,75 @@
+# Neon storage plane for AlloyDB (namespace `neon`). The namespaces `neon` and
+# `neon-compute` are owned by infra/k8s/platform and are not created here.
+# Contract: docs-internal/platform/architecture.mdx. Images: docs-internal/platform/images.mdx.
+#
+# Build:   kustomize build infra/k8s/neon
+# Image:   set the tag first, e.g.  kustomize edit set image ghcr.io/snaphq/neon=ghcr.io/snaphq/neon:<TAG>
+#          The checked-in placeholder REPLACE_WITH_IMAGE_TAG is not a real tag.
+#
+# ---------------------------------------------------------------------------
+# Secrets this kustomization expects in namespace `neon`.
+# None are in Git; infra/scripts/render-secrets.ts creates them from .env.local,
+# and cert-manager issues the TLS Secret. Nothing here creates them.
+# Key names follow render-secrets.ts.
+#
+#   neon-jwt                 EdDSA (Ed25519) key material for all Neon auth
+#     public.pem               PEM public key. Mounted as a file into pageservers
+#                              and safekeepers, passed as env PUBLIC_KEY to the
+#                              storage controller.
+#     PAGESERVER_JWT_TOKEN     JWT, scope pageserverapi    (controller -> pageservers)
+#     SAFEKEEPER_JWT_TOKEN     JWT, scope safekeeperdata   (controller -> safekeepers,
+#                              pageservers -> safekeepers, safekeeper -> safekeeper)
+#     CONTROL_PLANE_JWT_TOKEN  JWT, scope admin            (controller -> neon-glue hooks)
+#     GENERATIONS_API_TOKEN    JWT, scope generations_api  (pageservers -> controller upcalls)
+#
+#   neon-s3                  object storage for the pageserver/ and safekeeper/ prefixes
+#     AWS_ACCESS_KEY_ID
+#     AWS_SECRET_ACCESS_KEY
+#     AWS_REGION
+#     S3_ENDPOINT              endpoint URL; omit or leave empty for AWS S3 proper
+#     S3_BUCKET
+#
+#   storage-controller-db    DATABASE_URL  postgresql://.../storage_controller
+#
+#   neon-proxy-token         NEON_PROXY_TO_CONTROLPLANE_TOKEN  (bearer for neon-glue /proxy)
+#
+#   pg-wildcard-tls          type kubernetes.io/tls: tls.crt, tls.key
+#                            Created by the platform's Certificate (commonName *.pg.alloydb.net).
+# ---------------------------------------------------------------------------
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - storage-broker.yaml
+  - storage-controller.yaml
+  - pageserver.yaml
+  - safekeeper.yaml
+  - proxy.yaml
+
+# Scripts live as real files so they can be linted (`sh -n`). The generator
+# appends a content hash to each ConfigMap name and rewrites the references in
+# pageserver.yaml / safekeeper.yaml, so editing a script rolls the pods.
+configMapGenerator:
+  - name: pageserver-render-config
+    namespace: neon
+    files:
+      - render-config.sh=scripts/pageserver-render-config.sh
+  - name: safekeeper-entrypoint
+    namespace: neon
+    files:
+      - safekeeper-entrypoint.sh=scripts/safekeeper-entrypoint.sh
+
+# One image carries storage_broker, storage_controller, pageserver, safekeeper
+# and proxy; every workload runs a different binary from it.
+images:
+  - name: ghcr.io/snaphq/neon
+    newTag: REPLACE_WITH_IMAGE_TAG
+
+# Equivalent of the classic `commonLabels`, in the non-deprecated form. Labels
+# go on every object and on pod templates, but not on selectors
+# (includeSelectors: false), so selectors stay stable if this label changes.
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: alloydb
+    includeSelectors: false
+    includeTemplates: true

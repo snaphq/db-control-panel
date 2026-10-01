@@ -1,0 +1,136 @@
+# Storage controller: tenant/timeline placement, pageserver generations,
+# safekeeper registry. Runs in strict mode (no --dev), which refuses to start
+# unless PUBLIC_KEY and all three service tokens are present
+# (storage_controller/src/main.rs, "Insecure config!" check).
+#
+# strategy: Recreate and replicas: 1. Two instances at once would race for
+# leadership; --address-for-peers / --start-as-candidate (the Neon HA setup)
+# are deliberately not used. The only state is the `storage_controller`
+# database named by DATABASE_URL. It holds the pageserver generation numbers,
+# so losing it is a recovery event (see architecture.mdx, Platform Postgres).
+#
+# Readiness is /ready: it turns 200 once the startup reconcile barrier is
+# released (handle_ready in http.rs); that wait is bounded by
+# STARTUP_RECONCILE_TIMEOUT = 30s. /live and /status answer immediately and
+# do not need a token (allowlist_routes in http.rs).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage-controller
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: storage-controller
+    app.kubernetes.io/component: storage-controller
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: storage-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: storage-controller
+        app.kubernetes.io/component: storage-controller
+    spec:
+      # Optional: only needed while the ghcr.io/snaphq packages are private. A
+      # missing Secret only produces a warning event.
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # see storage-broker.yaml: numeric uid of image user `neon`, UNVERIFIED
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: storage-controller
+          image: ghcr.io/snaphq/neon # tag injected by kustomize `images:`
+          command: ["/usr/local/bin/storage_controller"]
+          args:
+            - --listen=0.0.0.0:1234
+            # The controller appends /notify-attach and /notify-safekeepers
+            # (architecture.mdx, "Storage controller").
+            - --control-plane-url=http://neon-glue.alloydb-system:8080/storcon
+            # Create timelines on safekeepers through the controller.
+            - --timelines-onto-safekeepers
+            # Strict mode rejects fewer than 3 (main.rs, timeline_safekeeper_count < 3).
+            - --timeline-safekeeper-count=3
+          env:
+            # Secrets are read from the environment when the matching CLI flag
+            # is absent (Secrets::load in main.rs).
+            - name: PUBLIC_KEY # Ed25519 public key, PEM text
+              valueFrom:
+                secretKeyRef:
+                  name: neon-jwt
+                  key: public.pem
+            - name: PAGESERVER_JWT_TOKEN # scope pageserverapi
+              valueFrom:
+                secretKeyRef:
+                  name: neon-jwt
+                  key: PAGESERVER_JWT_TOKEN
+            - name: SAFEKEEPER_JWT_TOKEN # scope safekeeperdata
+              valueFrom:
+                secretKeyRef:
+                  name: neon-jwt
+                  key: SAFEKEEPER_JWT_TOKEN
+            - name: CONTROL_PLANE_JWT_TOKEN # scope admin
+              valueFrom:
+                secretKeyRef:
+                  name: neon-jwt
+                  key: CONTROL_PLANE_JWT_TOKEN
+            - name: DATABASE_URL # postgresql://.../storage_controller on the platform Postgres
+              valueFrom:
+                secretKeyRef:
+                  name: storage-controller-db
+                  key: DATABASE_URL
+          ports:
+            - name: http
+              containerPort: 1234
+          startupProbe:
+            httpGet:
+              path: /live
+              port: http
+            periodSeconds: 3
+            failureThreshold: 40 # up to 2 minutes for DB connect and migrations
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storage-controller
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: storage-controller
+    app.kubernetes.io/component: storage-controller
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: storage-controller
+  ports:
+    - name: http
+      port: 1234
+      targetPort: http

@@ -1,0 +1,91 @@
+# Storage broker: gossip hub between safekeepers, pageservers and the controller.
+# Stateless and unauthenticated by design, so it is only exposed inside the
+# cluster (ClusterIP). It is not reachable from the public internet.
+#
+# One process serves gRPC and a small HTTP/1 handler (/status, /metrics) on the
+# same port, hence the httpGet probes on the gRPC port
+# (storage_broker/src/bin/storage_broker.rs, http1_handler and the
+# "grpc is served along with http1" comment).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage-broker
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: storage-broker
+    app.kubernetes.io/component: storage-broker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: storage-broker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: storage-broker
+        app.kubernetes.io/component: storage-broker
+    spec:
+      # Optional: only needed while the ghcr.io/snaphq packages are private. A
+      # missing Secret only produces a warning event.
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        # The image's user is `neon`, created with `useradd` (Dockerfile). It is
+        # a name, not a number, so kubelet cannot verify runAsNonRoot unless a
+        # numeric id is given. Debian assigns 1000 to the first useradd user.
+        # UNVERIFIED against the built image: check `id neon` after the first build.
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: storage-broker
+          image: ghcr.io/snaphq/neon # tag injected by kustomize `images:`
+          command: ["/usr/local/bin/storage_broker"]
+          args:
+            # SocketAddr: must be an IP:port, not a hostname.
+            - --listen-addr=0.0.0.0:50051
+          ports:
+            - name: grpc
+              containerPort: 50051
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: grpc
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: grpc
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storage-broker
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: storage-broker
+    app.kubernetes.io/component: storage-broker
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: storage-broker
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: grpc

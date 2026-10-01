@@ -1,0 +1,226 @@
+# Pageservers: one per node labelled alloydb.net/pageserver=true.
+#
+# hostNetwork + ClusterFirstWithHostNet: the pageserver binds the node's
+# Tailscale IP, so the address it registers with the storage controller (and
+# that computes connect to) is stable across pod restarts. In-cluster names
+# (storage-controller, storage-broker) still resolve through cluster DNS.
+#
+# Identity comes from the host, not from Kubernetes: /etc/alloydb/node.env is
+# mounted read-only and the init container turns ALLOYDB_NODE_ID,
+# ALLOYDB_AZ and ALLOYDB_TAILSCALE_IP into identity.toml, metadata.json and
+# pageserver.toml (scripts/pageserver-render-config.sh). The pageserver then
+# registers itself with the controller on start from metadata.json.
+#
+# Probes use the pod IP, which for a hostNetwork pod is the node IP. k3s sets
+# that to the Tailscale address (architecture.mdx, "Cluster shape"), which is
+# where the pageserver listens.
+#
+# The pageserver gets a large startupProbe budget because its HTTP API comes
+# up only after the controller has answered its re-attach call, which retries
+# forever; during a controller outage pageservers wait instead of crash-looping.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: pageserver
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: pageserver
+    app.kubernetes.io/component: pageserver
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pageserver
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  # Do not roll on to the next node until this pageserver has been Ready for a while.
+  minReadySeconds: 30
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pageserver
+        app.kubernetes.io/component: pageserver
+    spec:
+      # Optional: only needed while the ghcr.io/snaphq packages are private. A
+      # missing Secret only produces a warning event.
+      imagePullSecrets:
+        - name: ghcr-pull
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        alloydb.net/pageserver: "true"
+      # Flush and shut down cleanly; layer uploads and the deletion queue may take a while.
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        # Applies to the main container; the init container overrides it.
+        runAsNonRoot: true
+        runAsUser: 1000 # numeric uid of image user `neon`, UNVERIFIED (see storage-broker.yaml)
+        runAsGroup: 1000
+        # Makes the mounted Secret files group-readable for the main container.
+        # kubelet does not apply fsGroup to hostPath volumes, so the data
+        # directory is not touched by it (the init container owns that).
+        fsGroup: 1000
+        seccompProfile:
+          # If the runtime profile blocks io_uring the pageserver falls back to
+          # the std-fs IO engine by itself (virtual_file/io_engine.rs feature
+          # test), so this is safe, only slower.
+          type: RuntimeDefault
+      initContainers:
+        - name: render-config
+          image: ghcr.io/snaphq/neon # tag injected by kustomize `images:`
+          command: ["/bin/sh", "/scripts/render-config.sh"]
+          env:
+            - name: NODE_ENV_FILE
+              value: /etc/alloydb/node.env
+            - name: WORKDIR
+              value: /data/.neon
+            - name: RUN_AS_UID
+              value: "1000"
+            - name: RUN_AS_GID
+              value: "1000"
+            - name: BROKER_ENDPOINT
+              value: http://storage-broker.neon.svc.cluster.local:50051
+            # The pageserver appends `re-attach` / `validate` to this URL
+            # (controller_upcall_client.rs); the controller serves them under
+            # /upcall/v1/ (storage_controller/src/http.rs, route table).
+            - name: CONTROL_PLANE_API
+              value: http://storage-controller.neon.svc.cluster.local:1234/upcall/v1/
+            - name: PG_DISTRIB_DIR
+              value: /usr/local/
+            - name: AUTH_PUBLIC_KEY_PATH
+              value: /etc/neon/jwt/public.pem
+            - name: S3_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: neon-s3
+                  key: S3_BUCKET
+            - name: S3_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: neon-s3
+                  key: AWS_REGION
+            - name: S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: neon-s3
+                  key: S3_ENDPOINT
+                  optional: true # absent or empty means AWS S3 proper
+            - name: GENERATIONS_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: neon-jwt
+                  key: GENERATIONS_API_TOKEN
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              # chown the data directory to uid 1000; DAC_OVERRIDE and FOWNER
+              # let root rewrite files that were already handed over on an earlier start.
+              drop: ["ALL"]
+              add: ["CHOWN", "DAC_OVERRIDE", "FOWNER"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data/.neon
+            - name: node-env
+              mountPath: /etc/alloydb/node.env
+              readOnly: true
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      containers:
+        - name: pageserver
+          image: ghcr.io/snaphq/neon # tag injected by kustomize `images:`
+          command: ["/usr/local/bin/pageserver"]
+          args: ["-D", "/data/.neon"]
+          env:
+            # Token the pageserver presents to safekeepers for WAL streaming
+            # (pageserver/src/bin/pageserver.rs reads NEON_AUTH_TOKEN). Scope safekeeperdata.
+            - name: NEON_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: neon-jwt
+                  key: SAFEKEEPER_JWT_TOKEN
+            # S3 credentials: picked up by the AWS default credential chain
+            # (libs/remote_storage/src/s3_bucket.rs).
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: neon-s3
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: neon-s3
+                  key: AWS_SECRET_ACCESS_KEY
+          ports:
+            # Informational only: with hostNetwork the ports are what the process binds.
+            - name: pg
+              containerPort: 6400
+              protocol: TCP
+            - name: http
+              containerPort: 9898
+              protocol: TCP
+          # /v1/status is on the unauthenticated allowlist (http/routes.rs).
+          startupProbe:
+            httpGet:
+              path: /v1/status
+              port: 9898
+            periodSeconds: 5
+            failureThreshold: 120 # up to 10 minutes
+          readinessProbe:
+            httpGet:
+              path: /v1/status
+              port: 9898
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /v1/status
+              port: 9898
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          # No memory limit on purpose: the pageserver's working set is mostly
+          # kernel page cache over layer files, and a cgroup limit would turn
+          # cache pressure into OOM kills. Eviction is driven by disk usage.
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+          volumeMounts:
+            - name: data
+              mountPath: /data/.neon
+            - name: jwt
+              mountPath: /etc/neon/jwt
+              readOnly: true
+      volumes:
+        - name: data
+          hostPath:
+            path: /var/lib/alloydb/pageserver
+            type: DirectoryOrCreate
+        - name: node-env
+          hostPath:
+            path: /etc/alloydb/node.env
+            type: File
+        - name: scripts
+          configMap:
+            name: pageserver-render-config # generated by kustomize (configMapGenerator)
+            defaultMode: 0555
+        - name: jwt
+          secret:
+            secretName: neon-jwt
+            defaultMode: 0440
+            items:
+              - key: public.pem
+                path: public.pem

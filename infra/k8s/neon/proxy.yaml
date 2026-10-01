@@ -1,0 +1,181 @@
+# Neon proxy: terminates TLS for Postgres clients, authenticates against the
+# control plane (neon-glue), wakes the compute and relays the connection.
+#
+# Listeners
+#   5432  Postgres, public. Exposed by a LoadBalancer Service (k3s ServiceLB).
+#   4444  SQL-over-HTTP / WebSocket (--wss). Served by the proxy itself with the
+#         same certificate; reached through Traefik TCP passthrough by SNI, so
+#         it only needs the ClusterIP Service below.
+#   7001  health and metrics (--http), plain HTTP, cluster-internal.
+#   (--mgmt keeps its default 127.0.0.1:7000: a callback listener that only the
+#   console-redirect auth flow uses.)
+#
+# TLS: Secret pg-wildcard-tls (tls.crt / tls.key) is issued by cert-manager
+# outside this kustomization. The proxy takes the domain it serves from the
+# certificate's subject CN (proxy/src/tls/server_config.rs), so that
+# Certificate must set commonName=*.pg.alloydb.net explicitly. Note the proxy
+# reads the files once at start: after a renewal, restart the Deployment
+# (e.g. with a cert-manager-triggered rollout).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxy
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: proxy
+    app.kubernetes.io/component: proxy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: proxy
+        app.kubernetes.io/component: proxy
+    spec:
+      # Optional: only needed while the ghcr.io/snaphq packages are private. A
+      # missing Secret only produces a warning event.
+      imagePullSecrets:
+        - name: ghcr-pull
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: proxy
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # numeric uid of image user `neon`, UNVERIFIED (see storage-broker.yaml)
+        runAsGroup: 1000
+        fsGroup: 1000 # lets the unprivileged proxy read the mounted TLS key
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: proxy
+          image: ghcr.io/snaphq/neon # tag injected by kustomize `images:`
+          command: ["/usr/local/bin/proxy"]
+          args:
+            - --region=alloydb
+            - --auth-backend=control-plane
+            # The proxy appends get_endpoint_access_control, wake_compute and
+            # endpoints/<id>/jwks to this URL.
+            - --auth-endpoint=http://neon-glue.alloydb-system:8080/proxy
+            - --proxy=0.0.0.0:5432
+            - --wss=0.0.0.0:4444
+            - --http=0.0.0.0:7001
+            - --tls-cert=/etc/neon/tls/tls.crt
+            - --tls-key=/etc/neon/tls/tls.key
+          env:
+            # Bearer token for calls to neon-glue. Declared as `env =` on the
+            # --control-plane-token flag, so no CLI flag is needed.
+            - name: NEON_PROXY_TO_CONTROLPLANE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: neon-proxy-token
+                  key: NEON_PROXY_TO_CONTROLPLANE_TOKEN
+          ports:
+            - name: pg
+              containerPort: 5432
+            - name: wss
+              containerPort: 4444
+            - name: http
+              containerPort: 7001
+          # /v1/status on the --http listener (proxy/src/http/health_server.rs).
+          readinessProbe:
+            httpGet:
+              path: /v1/status
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /v1/status
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/neon/tls
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            secretName: pg-wildcard-tls
+            defaultMode: 0440
+---
+# Public Postgres endpoint: k3s ServiceLB publishes 5432 on the nodes.
+# Client source IPs are not preserved (no externalTrafficPolicy: Local) and the
+# proxy runs without PROXY protocol (its default, --proxy-protocol-v2=rejected).
+# The proxy enforces the per-endpoint IP allow-list that neon-glue returns from
+# get_endpoint_access_control, so neon-glue must return an empty list (allow
+# all) until real client IPs are available.
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: proxy
+    app.kubernetes.io/component: proxy
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: proxy
+  ports:
+    - name: pg
+      port: 5432
+      targetPort: pg
+---
+# Cluster-internal. The name `proxy-wss` is fixed by the platform's Traefik
+# IngressRouteTCP (infra/k8s/platform/config/traefik.yaml), which passes
+# https://ep-<id>.pg.alloydb.net through to port 4444 by SNI. Port 7001 is for
+# Prometheus and health checks.
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy-wss
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: proxy
+    app.kubernetes.io/component: proxy
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: proxy
+  ports:
+    - name: wss
+      port: 4444
+      targetPort: wss
+    - name: http
+      port: 7001
+      targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: proxy
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: proxy
+    app.kubernetes.io/component: proxy
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: proxy
