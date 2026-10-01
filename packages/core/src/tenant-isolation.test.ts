@@ -26,7 +26,7 @@ function queryChain(): unknown {
 }
 
 const tenantsByHost: Record<string, { id: string }> = {
-  "site-a.example": { id: "tenant-a" },
+  "alloydb.console.example": { id: "tenant-a" },
   "site-b.example": { id: "tenant-b" },
 };
 
@@ -83,7 +83,9 @@ describe("operator tokens across sites", () => {
       [{ id: "org_1", slug: "acme", name: "Acme", role: "owner" }],
     );
 
-    const verified = await verifyOperatorToken(requestFor("site-a.example"));
+    const verified = await verifyOperatorToken(
+      requestFor("alloydb.console.example"),
+    );
 
     expect(verified).toMatchObject({
       tenantId: "tenant-a",
@@ -109,7 +111,9 @@ describe("operator tokens across sites", () => {
       [{ id: "org_1", slug: "acme", name: "Acme", role: "owner" }],
     );
 
-    expect(await verifyOperatorToken(requestFor("site-a.example"))).toBeNull();
+    expect(
+      await verifyOperatorToken(requestFor("alloydb.console.example")),
+    ).toBeNull();
   });
 
   it("rejects requests from hosts that map to no site", async () => {

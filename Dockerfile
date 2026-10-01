@@ -3,8 +3,8 @@
 #   docker build --build-arg APP_DIR=sites/com.site-b --build-arg APP_PACKAGE=com.site-b --build-arg PORT=8802 .
 FROM oven/bun:1 AS base
 
-ARG APP_DIR=sites/com.site-a
-ARG APP_PACKAGE=com.site-a
+ARG APP_DIR=sites/net.alloydb.console
+ARG APP_PACKAGE=net.alloydb.console
 ARG PORT=8801
 
 WORKDIR /app

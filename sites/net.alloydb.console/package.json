@@ -1,5 +1,5 @@
 {
-  "name": "com.site-a",
+  "name": "net.alloydb.console",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -27,7 +27,7 @@
     "react-dom": "catalog:",
     "react-hook-form": "^7.51.3",
     "react-icons": "^4.11.0",
-    "tailwindcss": "^4.2.2",
+    "tailwindcss": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

@@ -13,7 +13,7 @@ import type { SiteMcpToolset } from "@repo/mcp-server/site-tools";
  * the `stack` field and narrow through `AnySiteConfig`.
  */
 export interface SiteConfigBase {
-  /** Workspace folder under sites/, for example "com.site-a". */
+  /** Workspace folder under sites/, for example "net.alloydb.console". */
   id: string;
   /** `tenant.id` this site serves. */
   tenantId: string;

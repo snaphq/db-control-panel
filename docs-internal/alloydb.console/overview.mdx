@@ -1,9 +1,9 @@
 ---
-title: Site A (com.site-a)
+title: Site A (net.alloydb.console)
 description: The reference Next.js tenant site built on the shared site-kit route tree.
 ---
 
-# Site A — `sites/com.site-a`
+# Site A — `sites/net.alloydb.console`
 
 The first tenant site and the reference implementation of the `@site/*`
 contract: `packages/site-kit` type-checks and tests against it (see
@@ -13,8 +13,8 @@ contract: `packages/site-kit` type-checks and tests against it (see
 | --- | --- |
 | Stack | Next.js 16 on `@repo/site-kit` |
 | Tenant | `default` (the default tenant; `DEFAULT_TENANT_ID` must match) |
-| Local URL | http://localhost:8801 (`bun run dev:site-a`) |
-| Deploy | matrix row `site-a`, from the repository root via the root `vercel.json` |
+| Local URL | http://localhost:8801 (`bun run dev:alloydb.console`) |
+| Deploy | matrix row `alloydb.console`, from the repository root via the root `vercel.json` |
 
 ## What this site owns
 
@@ -25,7 +25,7 @@ contract: `packages/site-kit` type-checks and tests against it (see
 - `src/components/LandingPage`, `NavBar.tsx`, `Container/PageWrapper.tsx`,
   `magicui` — landing-page and public chrome.
 - `content/blog` — its blog posts; `source.config.ts` mirrors `docs-public/`
-  (shared pages plus `docs-public/site-a/`).
+  (shared pages plus `docs-public/alloydb.console/`).
 - `src/app/globals.css` — theme overrides on top of `@repo/react-ui`.
 
 Everything else under `src/app` is a generated shim; change shared routes in

@@ -15,7 +15,7 @@ app. An entry is skipped until its project id is configured.
 
 | App | Root Directory | Config |
 | --- | --- | --- |
-| `sites/com.site-a` | repository root | root `vercel.json` (`--filter=com.site-a`, output `sites/com.site-a/.next`) |
+| `sites/net.alloydb.console` | repository root | root `vercel.json` (`--filter=net.alloydb.console`, output `sites/net.alloydb.console/.next`) |
 | `sites/com.site-b` | `sites/com.site-b` | `sites/com.site-b/vercel.json` |
 | `apps/backend` | `apps/backend` | `apps/backend/vercel.json` |
 
@@ -35,7 +35,7 @@ Stripe webhooks and Inngest run on the backend: point Stripe at
 ## Docker
 
 The root `Dockerfile` builds one app per image, selected with build args
-(`APP_DIR`, `APP_PACKAGE`, `PORT`; defaults build `sites/com.site-a` on
+(`APP_DIR`, `APP_PACKAGE`, `PORT`; defaults build `sites/net.alloydb.console` on
 8801). Apply database migrations separately and provide runtime variables
 through the deployment secret store.
 

@@ -19,7 +19,7 @@ to `main`. Status as of 2026-09-27:
 
 | App | Folder | Stack | Production URL |
 | --- | --- | --- | --- |
-| Site A | `sites/com.site-a` | Next.js 16 | https://console.alloydb.net |
+| Site A | `sites/net.alloydb.console` | Next.js 16 | https://console.alloydb.net |
 | Site C | `sites/com.site-c` | SolidStart 2 | https://starter-solid-stack.vercel.app |
 | Admin portal | `apps/backend` | Next.js 16 | https://starter-admin-eight.vercel.app (admins sign in at `/login`) |
 | Site B | `sites/com.site-b` | Next.js 16 | Not deployed yet (no Vercel project id) |
@@ -53,7 +53,7 @@ project exists, set its `project_id` in both deploy workflows
 │   └── backend/                  # Admin portal for every site (port 8800)
 │
 ├── sites/                        # One Next.js 16 app per tenant site
-│   ├── com.site-a/               # First site (port 8801): config, brand, pages, blog
+│   ├── net.alloydb.console/               # First site (port 8801): config, brand, pages, blog
 │   └── com.site-b/               # Second site (port 8802)
 │
 ├── docs-public/                  # Public, task-oriented Mintlify docs
@@ -142,7 +142,7 @@ project exists, set its `project_id` in both deploy workflows
 | Command | Description |
 |---------|-------------|
 | `bun run dev` | Start all dev servers with TUI sidebar |
-| `bun run dev:backend` / `dev:site-a` / `dev:site-b` | Start one app |
+| `bun run dev:backend` / `dev:alloydb.console` / `dev:site-b` | Start one app |
 | `bun run build` | Build all packages and apps |
 | `bun run start` | Start production server |
 | `bun run lint` | Run Biome linter |
@@ -167,7 +167,7 @@ project exists, set its `project_id` in both deploy workflows
 
 ```bash
 # Run dev for one site only
-bun run --filter com.site-a dev
+bun run --filter net.alloydb.console dev
 
 # Run db commands in database package
 bun run --filter @repo/database db:push
@@ -262,7 +262,7 @@ See [MCP integration](./docs-public/integrate/mcp.mdx) and
 
 Each app is its own Vercel project, deployed by the GitHub Actions matrix in
 `.github/workflows/deploy-vercel.yml`. The root [`vercel.json`](vercel.json)
-builds `sites/com.site-a` from the repository root; `apps/backend` and
+builds `sites/net.alloydb.console` from the repository root; `apps/backend` and
 `sites/com.site-b` carry their own `vercel.json` and use their folder as the
 project Root Directory. Stripe webhooks (`/api/webhooks/stripe`) and scheduled
 jobs via **Inngest** (`/api/inngest`, see `@repo/durable-exec`) run on the
@@ -270,10 +270,10 @@ backend; do not use Vercel Cron.
 
 ```json
 {
-  "buildCommand": "bun run build --filter=com.site-a",
+  "buildCommand": "bun run build --filter=net.alloydb.console",
   "installCommand": "bun install",
   "framework": "nextjs",
-  "outputDirectory": "sites/com.site-a/.next"
+  "outputDirectory": "sites/net.alloydb.console/.next"
 }
 ```
 
@@ -281,8 +281,8 @@ backend; do not use Vercel Cron.
 
 ```bash
 # Site A (defaults)
-docker build -t site-a .
-docker run -p 8801:8801 --env-file .env.local site-a
+docker build -t alloydb.console .
+docker run -p 8801:8801 --env-file .env.local alloydb.console
 
 # Any other app
 docker build -t backend --build-arg APP_DIR=apps/backend \

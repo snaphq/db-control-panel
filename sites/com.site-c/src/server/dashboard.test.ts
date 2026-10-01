@@ -24,7 +24,7 @@ const tenantsByHost: Record<
     name: "Site C",
     status: "active",
   },
-  "site-a.example": {
+  "alloydb.console.example": {
     id: "default",
     slug: "default",
     name: "Site A",
@@ -90,7 +90,7 @@ describe("dashboard server functions", () => {
   });
 
   it("does not serve one site's tenant on another site's host", async () => {
-    serveFrom("site-a.example");
+    serveFrom("alloydb.console.example");
     expect(await tenantInfo()).toMatchObject({
       id: "default",
       slug: "default",

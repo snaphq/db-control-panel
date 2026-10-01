@@ -44,7 +44,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:backend": "bun run --filter @repo/backend dev",
-    "dev:site-a": "bun run --filter com.site-a dev",
+    "dev:alloydb.console": "bun run --filter net.alloydb.console dev",
     "dev:site-b": "bun run --filter com.site-b dev",
     "dev:site-c": "bun run --filter com.site-c dev",
     "dev:site-d": "bun run --filter com.site-d dev",

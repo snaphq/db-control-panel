@@ -22,7 +22,7 @@ with TUI mode enabled.
 ├── apps/
 │   └── backend/            # Platform admin portal for every site (@repo/backend)
 ├── sites/                  # Tenant sites, one tenant each
-│   ├── com.site-a/         # Next.js site on the shared site-kit route tree
+│   ├── net.alloydb.console/         # Next.js site on the shared site-kit route tree
 │   ├── com.site-b/         # Thin Next.js site (config + brand + a few pages)
 │   ├── com.site-c/         # Standalone SolidStart site (no @repo/site-kit)
 │   └── com.site-d/         # Standalone Astro site with an account dashboard
@@ -53,7 +53,7 @@ All commands use bun and are run from the monorepo root:
 
 - `bun install` - Install all dependencies across workspaces
 - `bun run dev` - Start all dev servers with the Turbo TUI
-- `bun run dev:backend` (port 8800) / `dev:site-a` (8801) / `dev:site-b` (8802)
+- `bun run dev:backend` (port 8800) / `dev:alloydb.console` (8801) / `dev:site-b` (8802)
   / `dev:site-c` / `dev:site-d` - Start one app
 - `bun run build` - Production build (fails on type or lint errors)
 - `bun run start` - Serve the built apps locally
@@ -76,7 +76,7 @@ All commands use bun and are run from the monorepo root:
 Run commands for specific packages:
 
 ```bash
-bun run --filter com.site-a dev         # Run dev for one site only
+bun run --filter net.alloydb.console dev         # Run dev for one site only
 bun run --filter @repo/backend dev      # Run dev for the admin portal only
 bun run --filter @repo/database build   # Build database package only
 ```
@@ -117,7 +117,7 @@ bun run --filter @repo/database build   # Build database package only
 - Put developer, agent, architecture, security, operations, and verification
   guidance in `docs-internal/`.
 - Site-specific docs go in a folder named after the site's short name:
-  `docs-public/site-a/` and `docs-internal/site-a/` for `sites/com.site-a`
+  `docs-public/alloydb.console/` and `docs-internal/alloydb.console/` for `sites/net.alloydb.console`
   (likewise `site-b/`, …). Docs shared by every site stay outside those
   folders. `bun run check:doc-coverage` rejects a page whose coverage sources
   all belong to one site but that lives outside its folder, and each Next.js

@@ -26,7 +26,7 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 ├── apps/
 │   └── backend/            # Admin portal for every site
 ├── sites/
-│   ├── com.site-a/         # Tenant site A (config, brand, pages)
+│   ├── net.alloydb.console/         # Tenant site A (config, brand, pages)
 │   └── com.site-b/         # Tenant site B
 ├── packages/
 │   ├── site-kit/           # Routes, proxy, and layout shared by every site
@@ -45,7 +45,7 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 
 - **Strict Mode**: Always enabled. All code must be fully typed.
 - **No `any` types**: Use proper TypeScript types or `unknown` with type guards.
-- **Path Aliases**: Use `@/` for imports within sites/com.site-a.
+- **Path Aliases**: Use `@/` for imports within sites/net.alloydb.console.
 - **Package Imports**: Use `@repo/database` for database imports.
 - **Type Inference**: Prefer type inference where possible, but add explicit types for function parameters and return values.
 
@@ -112,7 +112,7 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 ### Authentication
 
 - **Better Auth**: The auth instance lives in `packages/auth/src/auth-instance.ts`; app helpers are in `packages/core/src/auth/`.
-- **Proxy**: Request gating is in `sites/com.site-a/src/proxy.ts` (Next.js 16 has no `middleware.ts`).
+- **Proxy**: Request gating is in `sites/net.alloydb.console/src/proxy.ts` (Next.js 16 has no `middleware.ts`).
 - **Protected Routes**: Use the unified auth API for route protection.
 - **User Data**: Access user data via the auth client hooks.
 
@@ -162,7 +162,7 @@ This is a Turborepo monorepo with a production-ready Next.js 16 application and 
 Run commands for specific packages:
 
 ```bash
-bun run --filter com.site-a dev     # Run dev for Next.js app only
+bun run --filter net.alloydb.console dev     # Run dev for Next.js app only
 bun run --filter @repo/database build   # Build database package only
 ```
 
@@ -196,7 +196,7 @@ bun run --filter @repo/database build   # Build database package only
 #### Creating a New Page
 
 ```typescript
-// sites/com.site-a/src/app/my-page/page.tsx
+// sites/net.alloydb.console/src/app/my-page/page.tsx
 export default async function MyPage() {
   // Server-side data fetching
   const data = await fetchData();
@@ -231,7 +231,7 @@ export function MyComponent() {
 #### Database Query in API Route
 
 ```typescript
-// sites/com.site-a/src/app/api/users/route.ts
+// sites/net.alloydb.console/src/app/api/users/route.ts
 import { db } from "@repo/database";
 import { user } from "@repo/database/schema";
 import { NextResponse } from "next/server";

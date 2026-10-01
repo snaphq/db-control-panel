@@ -32,7 +32,7 @@
         "groups": [
           {
             "group": "Site A",
-            "pages": ["site-a/overview"]
+            "pages": ["alloydb.console/overview"]
           },
           {
             "group": "Site B",

@@ -52,7 +52,7 @@
         "groups": [
           {
             "group": "Site A",
-            "pages": ["site-a/index"]
+            "pages": ["alloydb.console/index"]
           },
           {
             "group": "Site B",

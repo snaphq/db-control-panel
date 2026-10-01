@@ -18,7 +18,7 @@ export default defineConfig({
       // first site as the reference implementation of that contract.
       {
         find: /^@site\/(.*)$/,
-        replacement: `${path.resolve(__dirname, "../../sites/com.site-a/src")}/$1`,
+        replacement: `${path.resolve(__dirname, "../../sites/net.alloydb.console/src")}/$1`,
       },
       { find: /^@repo\/database$/, replacement: `${pkg("database")}/index.ts` },
       { find: /^@repo\/database\/(.*)$/, replacement: `${pkg("database")}/$1` },

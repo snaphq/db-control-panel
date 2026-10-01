@@ -1,6 +1,6 @@
 {
-  "buildCommand": "bun run build --filter=com.site-a",
+  "buildCommand": "bun run build --filter=net.alloydb.console",
   "installCommand": "bun install",
   "framework": "nextjs",
-  "outputDirectory": "sites/com.site-a/.next"
+  "outputDirectory": "sites/net.alloydb.console/.next"
 }

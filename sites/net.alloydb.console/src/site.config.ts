@@ -3,7 +3,7 @@ import type { SiteConfig } from "@repo/site-kit/site-config";
 // Identity of this tenant site. Imported by next.config.ts, so keep it free of
 // runtime imports (type imports only).
 export const siteConfig: SiteConfig = {
-  id: "com.site-a",
+  id: "net.alloydb.console",
   tenantId: "default",
   tenantSlug: "default",
   name: "AlloyDB",

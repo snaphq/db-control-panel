@@ -21,7 +21,7 @@ const tenantsByHost: Record<
     name: "Site C",
     status: "active",
   },
-  "site-a.example": {
+  "alloydb.console.example": {
     id: "default",
     slug: "default",
     name: "Site A",

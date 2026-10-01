@@ -7,7 +7,7 @@
       "visibility": "internal",
       "sources": [
         "apps/backend/package.json",
-        "sites/com.site-a/package.json",
+        "sites/net.alloydb.console/package.json",
         "sites/com.site-b/package.json",
         "sites/com.site-c/package.json",
         "packages/site-kit/src",
@@ -20,7 +20,7 @@
       "page": "architecture/multi-site.mdx",
       "visibility": "internal",
       "sources": [
-        "sites/com.site-a/src/site.config.ts",
+        "sites/net.alloydb.console/src/site.config.ts",
         "sites/com.site-b/src/site.config.ts",
         "sites/com.site-c/src/site.config.ts",
         "packages/site-kit/src/site-config.ts",
@@ -186,7 +186,7 @@
       "sources": [
         "docs-public",
         "docs-internal",
-        "sites/com.site-a/source.config.ts",
+        "sites/net.alloydb.console/source.config.ts",
         "packages/site-kit/src/app/docs"
       ]
     },
@@ -203,7 +203,7 @@
       "sources": [
         "vercel.json",
         "Dockerfile",
-        "sites/com.site-a/next.config.ts"
+        "sites/net.alloydb.console/next.config.ts"
       ]
     },
     {
@@ -302,14 +302,14 @@
       "site": "docs-public",
       "page": "customize/project-structure.mdx",
       "visibility": "public",
-      "sources": ["sites/com.site-a/src", "packages"]
+      "sources": ["sites/net.alloydb.console/src", "packages"]
     },
     {
       "id": "public-extend-project",
       "site": "docs-public",
       "page": "customize/extend-the-project.mdx",
       "visibility": "public",
-      "sources": ["sites/com.site-a/src", "packages"]
+      "sources": ["sites/net.alloydb.console/src", "packages"]
     },
     {
       "id": "public-agent-auth",
@@ -344,7 +344,7 @@
       "site": "docs-public",
       "page": "operate/run-locally.mdx",
       "visibility": "public",
-      "sources": ["package.json", "sites/com.site-a/package.json"]
+      "sources": ["package.json", "sites/net.alloydb.console/package.json"]
     },
     {
       "id": "public-deploy",
@@ -354,7 +354,7 @@
       "sources": [
         "vercel.json",
         "Dockerfile",
-        "sites/com.site-a/next.config.ts"
+        "sites/net.alloydb.console/next.config.ts"
       ]
     },
     {
@@ -365,13 +365,13 @@
       "sources": ["package.json", "env.example"]
     },
     {
-      "id": "site-a",
-      "page": "site-a/overview.mdx",
+      "id": "alloydb.console",
+      "page": "alloydb.console/overview.mdx",
       "visibility": "internal",
       "sources": [
-        "sites/com.site-a/src/site.config.ts",
-        "sites/com.site-a/src/app/page.tsx",
-        "sites/com.site-a/src/components"
+        "sites/net.alloydb.console/src/site.config.ts",
+        "sites/net.alloydb.console/src/app/page.tsx",
+        "sites/net.alloydb.console/src/components"
       ]
     },
     {
@@ -387,9 +387,9 @@
     {
       "id": "public-site-a",
       "site": "docs-public",
-      "page": "site-a/index.mdx",
+      "page": "alloydb.console/index.mdx",
       "visibility": "public",
-      "sources": ["sites/com.site-a/src/site.config.ts"]
+      "sources": ["sites/net.alloydb.console/src/site.config.ts"]
     },
     {
       "id": "public-site-b",

@@ -346,36 +346,6 @@
         "vitest": "catalog:",
       },
     },
-    "sites/com.site-a": {
-      "name": "com.site-a",
-      "version": "0.1.0",
-      "dependencies": {
-        "@repo/auth": "workspace:*",
-        "@repo/billing": "workspace:*",
-        "@repo/fumadocs": "workspace:*",
-        "@repo/react-ui": "workspace:*",
-        "@repo/site-kit": "workspace:*",
-        "@tailwindcss/postcss": "^4.2.2",
-        "framer-motion": "^11.1.9",
-        "fumadocs-mdx": "catalog:",
-        "lucide-react": "^0.279.0",
-        "next": "catalog:",
-        "postcss": "^8.5.8",
-        "react": "catalog:",
-        "react-dom": "catalog:",
-        "react-hook-form": "^7.51.3",
-        "react-icons": "^4.11.0",
-        "tailwindcss": "^4.2.2",
-        "zod": "catalog:",
-      },
-      "devDependencies": {
-        "@types/mdx": "^2.0.13",
-        "@types/node": "catalog:",
-        "@types/react": "catalog:",
-        "@types/react-dom": "catalog:",
-        "typescript": "catalog:",
-      },
-    },
     "sites/com.site-b": {
       "name": "com.site-b",
       "version": "0.1.0",
@@ -446,6 +416,36 @@
         "tailwindcss": "catalog:",
         "typescript": "catalog:",
         "vitest": "catalog:",
+      },
+    },
+    "sites/net.alloydb.console": {
+      "name": "net.alloydb.console",
+      "version": "0.1.0",
+      "dependencies": {
+        "@repo/auth": "workspace:*",
+        "@repo/billing": "workspace:*",
+        "@repo/fumadocs": "workspace:*",
+        "@repo/react-ui": "workspace:*",
+        "@repo/site-kit": "workspace:*",
+        "@tailwindcss/postcss": "^4.2.2",
+        "framer-motion": "^11.1.9",
+        "fumadocs-mdx": "catalog:",
+        "lucide-react": "^0.279.0",
+        "next": "catalog:",
+        "postcss": "^8.5.8",
+        "react": "catalog:",
+        "react-dom": "catalog:",
+        "react-hook-form": "^7.51.3",
+        "react-icons": "^4.11.0",
+        "tailwindcss": "catalog:",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@types/mdx": "^2.0.13",
+        "@types/node": "catalog:",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
+        "typescript": "catalog:",
       },
     },
   },
@@ -1796,8 +1796,6 @@
 
     "colorette": ["colorette@2.0.20", "", {}, "sha512-IfEDxwoWIjkeXL1eXcDiow4UbKjhLdq6/EuSVR9GMN7KVH3r9gQ83e73hsz1Nd1T3ijd5xv1wcWRYO+D6kCI2w=="],
 
-    "com.site-a": ["com.site-a@workspace:sites/com.site-a"],
-
     "com.site-b": ["com.site-b@workspace:sites/com.site-b"],
 
     "com.site-c": ["com.site-c@workspace:sites/com.site-c"],
@@ -2489,6 +2487,8 @@
     "negotiator": ["negotiator@1.0.0", "", {}, "sha512-8Ofs/AUQh8MaEcrlq5xOX0CQ9ypTF5dl78mjlMNfOK08fzpgTHQRQPBxcPlEtIw0yRpws+Zo/3r+5WRby7u3Gg=="],
 
     "neotraverse": ["neotraverse@1.0.1", "", {}, "sha512-WmmLty1YWwJl9yZi77v2dVIV6X2kuYV8YYBI/G3LWGKdGHmHUvL1z7FW0iDvEvGAwNEoc5x1tOOOyDnf5jJw/w=="],
+
+    "net.alloydb.console": ["net.alloydb.console@workspace:sites/net.alloydb.console"],
 
     "next": ["next@16.3.5", "", { "dependencies": { "@next/env": "16.3.5", "@swc/helpers": "0.5.23", "baseline-browser-mapping": "^2.9.19", "caniuse-lite": "^1.0.30001579", "postcss": "8.5.23", "styled-jsx": "5.1.6" }, "optionalDependencies": { "@next/swc-darwin-arm64": "16.3.5", "@next/swc-darwin-x64": "16.3.5", "@next/swc-linux-arm64-gnu": "16.3.5", "@next/swc-linux-arm64-musl": "16.3.5", "@next/swc-linux-x64-gnu": "16.3.5", "@next/swc-linux-x64-musl": "16.3.5", "@next/swc-win32-arm64-msvc": "16.3.5", "@next/swc-win32-x64-msvc": "16.3.5", "sharp": "^0.35.4" }, "peerDependencies": { "@opentelemetry/api": "^1.1.0", "@playwright/test": "^1.51.1", "babel-plugin-react-compiler": "*", "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", "react-dom": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", "sass": "^1.3.0" }, "optionalPeers": ["@opentelemetry/api", "@playwright/test", "babel-plugin-react-compiler", "sass"], "bin": { "next": "dist/bin/next" } }, "sha512-MdtsTgzyfCPRLC6uJ1mN8ao7lyJ4BB0U6Inhnx3gta1UcCIdHK3yxLG0E8OWQteWD8/Q0qb8A5o7wJaL8M9y2w=="],
 

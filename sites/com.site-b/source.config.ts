@@ -7,7 +7,7 @@ import {
 import { z } from "zod";
 
 const DOCS_DIR = "../../docs-public";
-// Site-specific public docs live in docs-public/<site>/ (e.g. site-a/). Mirror
+// Site-specific public docs live in docs-public/<site>/ (e.g. alloydb.console/). Mirror
 // the shared pages plus this site's own folder, never another site's.
 const OWN_DOCS_FOLDER = "site-b";
 const otherSiteDocs = readdirSync(DOCS_DIR, { withFileTypes: true })

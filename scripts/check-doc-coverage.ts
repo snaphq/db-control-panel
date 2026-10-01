@@ -43,7 +43,7 @@ function navigationPages(value: unknown): string[] {
   ];
 }
 
-/** "com.site-a" -> "site-a": the docs folder for a site workspace. */
+/** "net.alloydb.console" -> "alloydb.console": the docs folder for a site workspace. */
 function siteDocsFolder(siteWorkspace: string): string {
   return siteWorkspace.split(".").slice(1).join(".") || siteWorkspace;
 }

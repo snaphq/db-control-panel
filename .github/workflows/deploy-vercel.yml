@@ -32,11 +32,11 @@ jobs:
         # setup:start
         # Written during setup by .agents/skills/setup/scripts/set-vercel-projects.ts.
         # setup:end
-        # sites/com.site-a deploys
+        # sites/net.alloydb.console deploys
         # from the repository root (root vercel.json); the others use the
         # vercel.json in their own folder as the project Root Directory.
         include:
-          - app: site-a
+          - app: alloydb.console
             project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
             project_name: 'nexvio-ai'
             node_version: '22'

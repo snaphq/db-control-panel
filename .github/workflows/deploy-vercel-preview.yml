@@ -40,7 +40,7 @@ jobs:
         # Both files are written by .agents/skills/setup/scripts/set-vercel-projects.ts.
         # setup:end
         include:
-          - app: site-a
+          - app: alloydb.console
             project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
             project_name: 'nexvio-ai'
             alias_prefix: 'nexvio-ai'
