@@ -41,12 +41,12 @@ jobs:
         # setup:end
         include:
           - app: alloydb.console
-            project_id: 'prj_YLF5HawHAOzh4oKqS8wmxoBZ9hU5'
+            project_id: ''
             project_name: 'nexvio-ai'
             alias_prefix: 'nexvio-ai'
             node_version: '22'
           - app: backend
-            project_id: 'prj_4uAEmRzCIIyMJJ9I3RnOirbcrley'
+            project_id: ''
             project_name: 'backend'
             alias_prefix: 'alloydb-backend'
             node_version: '22'
