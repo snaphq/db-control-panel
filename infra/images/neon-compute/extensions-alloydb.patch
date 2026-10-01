@@ -1,0 +1,38 @@
+diff --git a/compute/compute-node.Dockerfile b/compute/compute-node.Dockerfile
+index 6eecb8929..e76b7ff18 100644
+--- a/compute/compute-node.Dockerfile
++++ b/compute/compute-node.Dockerfile
+@@ -1662,6 +1662,33 @@ COPY --from=timescaledb-build /usr/local/pgsql/ /usr/local/pgsql/
+ COPY --from=pg_cron-build /usr/local/pgsql/ /usr/local/pgsql/
+ COPY --from=pg_partman-build /usr/local/pgsql/ /usr/local/pgsql/
+ 
++#########################################################################################
++#
++# Layer "extensions-alloydb"
++#
++# AlloyDB's curated extension set: popular, self-contained extensions that build
++# from public sources only (no pgrag/ONNX, which needs a Neon-internal model URL).
++#
++#########################################################################################
++FROM build-deps AS extensions-alloydb
++
++COPY --from=pgvector-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=pgjwt-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=pg_session_jwt-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=pg_cron-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=pg_partman-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=hypopg-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=pg_uuidv7-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=pg_hashids-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=pg_repack-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=pgaudit-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=wal2json-build /usr/local/pgsql /usr/local/pgsql
++COPY --from=pg_ivm-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=plpgsql_check-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=pgtap-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=pg_roaringbitmap-build /usr/local/pgsql/ /usr/local/pgsql/
++COPY --from=ip4r-build /usr/local/pgsql/ /usr/local/pgsql/
++
+ #########################################################################################
+ #
+ # Layer "extensions-all"

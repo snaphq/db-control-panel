@@ -50,6 +50,11 @@
         ]
       },
       {
+        "tab": "Platform",
+        "icon": "server",
+        "pages": ["platform/images"]
+      },
+      {
         "tab": "Operations",
         "icon": "settings",
         "pages": [

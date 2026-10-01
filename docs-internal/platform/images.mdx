@@ -1,0 +1,65 @@
+---
+title: Data-plane images
+description: How the Neon, libSQL, and PostgREST images are built from pinned snaphq source mirrors.
+---
+
+# Data-plane images
+
+AlloyDB runs its own builds of every data-plane component. No image built by
+Neon or Turso is used. The source for each image is a public mirror in the
+`snaphq` GitHub organization, pinned to one commit in
+`infra/images/sources.env`. Third-party base images (`debian`, `rust`,
+`haskell`) come from Docker Hub.
+
+| Image | Source | Built with |
+| --- | --- | --- |
+| `ghcr.io/snaphq/neon-build-tools` | `snaphq/neon` `build-tools/Dockerfile` | Neon's Dockerfile, unchanged |
+| `ghcr.io/snaphq/neon` | `snaphq/neon` `Dockerfile` | Neon's Dockerfile, using our build-tools image (`REPOSITORY`, `IMAGE`, `TAG` build args) |
+| `ghcr.io/snaphq/neon-compute-v17` | `snaphq/neon` `compute/compute-node.Dockerfile` | Neon's Dockerfile plus `infra/images/neon-compute/extensions-alloydb.patch`, built with `EXTENSIONS=alloydb` |
+| `ghcr.io/snaphq/libsql-server` | `snaphq/libsql` (tag `libsql-server-v0.24.33`) | `infra/images/libsql-server/Dockerfile` |
+| `ghcr.io/snaphq/postgrest` | `snaphq/postgrest` (tag `v16.4`) | `infra/images/postgrest/Dockerfile` |
+
+## Pipeline
+
+`.github/workflows/images.yml` runs on GitHub-hosted `ubuntu-latest` runners
+when `infra/images/**` changes on `main`, or by hand with a comma-separated
+image list. Each job checks out the pinned mirror, frees runner disk, and
+pushes to GHCR with a registry build cache (`:buildcache`). Images are tagged
+with the commit of this repository that built them; the build-tools image is
+tagged with the Neon source commit because the storage build pins to it.
+
+Neon's Postgres submodules use the relative URL `../postgres.git`, so a
+checkout of `snaphq/neon` fetches them from `snaphq/postgres`. That mirror
+carries the `REL_14..17_STABLE_neon` branches, which contain every commit in
+Neon's `vendor/revisions.json`.
+
+The storage build leaves the private `rest_broker` proxy feature off: it only
+turns on when a `SUBZERO_ACCESS_TOKEN` build secret is present, and the
+`neondatabase/subzero` crate it needs is not public. The REST Data API comes
+from the PostgREST image instead.
+
+## Compute extensions
+
+`EXTENSIONS=alloydb` adds one stage to Neon's compute Dockerfile that copies
+these extension builds: pgvector, pgjwt, pg_session_jwt, pg_cron, pg_partman,
+hypopg, pg_uuidv7, pg_hashids, pg_repack, pgaudit, wal2json, pg_ivm,
+plpgsql_check, pgtap, pg_roaringbitmap, and ip4r. It leaves out pgrag, whose
+build downloads ONNX models from a Neon-internal URL, and the heavier
+extensions in Neon's `all` set such as PostGIS. To add one, list its existing
+`*-build` stage in the patch and check that it still applies:
+
+```bash
+git -C <neon-checkout> apply --check infra/images/neon-compute/extensions-alloydb.patch
+```
+
+## Bumping a source
+
+1. Push the new upstream commit to the `snaphq` mirror (each local clone has
+   `origin` = snaphq and `upstream` = the original project).
+2. Change the ref in `infra/images/sources.env`.
+3. For Neon, re-run the patch check above.
+4. Merge to `main`; the workflow rebuilds the affected images.
+
+Build time and disk use on hosted runners have not been measured yet. Each job
+deletes preinstalled toolchains first because Neon's builds need tens of
+gigabytes of scratch space.

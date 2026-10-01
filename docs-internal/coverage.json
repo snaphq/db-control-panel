@@ -331,6 +331,12 @@
       "page": "alloydb.console/index.mdx",
       "visibility": "public",
       "sources": ["sites/net.alloydb.console/src/site.config.ts"]
+    },
+    {
+      "id": "platform-images",
+      "page": "platform/images.mdx",
+      "visibility": "internal",
+      "sources": ["infra/images", ".github/workflows/images.yml"]
     }
   ]
 }
