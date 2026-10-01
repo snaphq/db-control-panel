@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
-import { sendEmail } from "@repo/core/email";
+import { isEmailProviderConfigured, sendEmail } from "@repo/core/email";
 import { and, db, desc, eq, gt, isNull, sql } from "@repo/database";
 import { adminLoginCode } from "@repo/database/schema-admin";
 import { nanoid } from "nanoid";
@@ -53,11 +53,11 @@ export async function requestAdminLoginCode(rawEmail: string): Promise<void> {
     .limit(1);
   if (recent) return;
 
-  if (isProduction() && !process.env.RESEND_API_KEY) {
+  if (isProduction() && !isEmailProviderConfigured()) {
     // The development fallback logs emails to the console; never do that
     // with a live credential in production logs.
     console.error(
-      "[backend] RESEND_API_KEY is not configured; cannot send admin sign-in codes",
+      "[backend] ZSEND_API_KEY is not configured; cannot send admin sign-in codes",
     );
     return;
   }

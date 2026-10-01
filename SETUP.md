@@ -148,7 +148,7 @@ inactive until its env values are set later (`env.example` lists them all).
 | PostHog analytics and email workflows | `setup-posthog` skill |
 | Referral program (needs Stripe) | `setup-referral` skill, after step 8 |
 | Upstash Redis (rate limiting, cache) | `configure-env.ts --section Upstash --set UPSTASH_REDIS_REST_URL=… --set UPSTASH_REDIS_REST_TOKEN=…` |
-| Resend email (password reset, invites) | `configure-env.ts --section Email --set RESEND_API_KEY=… --set RESEND_FROM_EMAIL=… --set RESEND_FROM_NAME=…` |
+| zsend email (password reset, admin sign-in codes) | `configure-env.ts --section Email --set ZSEND_API_KEY=… --set ZSEND_FROM_EMAIL=… --set ZSEND_FROM_NAME=…` |
 | Object storage | Vercel Blob: `--set OBJECT_STORAGE_PROVIDER=vercel-blob --set BLOB_READ_WRITE_TOKEN=…`; S3-compatible: `--set OBJECT_STORAGE_PROVIDER=s3` plus `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` |
 | Inngest (scheduled jobs) | `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`; locally `INNGEST_DEV=1` |
 
@@ -177,7 +177,7 @@ bun run build
 Then ask the user to run `bun run dev` (all apps) or `bun run dev:backend`,
 `bun run dev:site-a`, `bun run dev:site-b` one at a time; sign in to the admin
 portal at http://localhost:8800 with an email from `BACKEND_ADMIN_EMAILS` (the
-code prints to the console until Resend is configured); and sign in to a site
+code prints to the console until zsend is configured); and sign in to a site
 with the admin account from step 6. Don't drive a browser yourself unless the
 user asks you to.
 

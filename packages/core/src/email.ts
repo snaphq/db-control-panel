@@ -1,5 +1,3 @@
-import { Resend } from "resend";
-
 interface SendEmailParams {
   to: string;
   subject: string;
@@ -11,23 +9,35 @@ interface SendEmailResult {
   error?: string;
 }
 
-/**
- * Get the configured Resend client, or null if not configured
- */
-function getResendClient(): Resend | null {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    return null;
-  }
-  return new Resend(apiKey);
+const ZSEND_DEFAULT_BASE_URL = "https://zsend.dev/api/v1";
+const ZSEND_TIMEOUT_MS = 10_000;
+
+interface ZsendConfig {
+  apiKey: string;
+  baseUrl: string;
 }
 
 /**
- * Get the from email address from environment
+ * Get the zsend settings, or null when no API key is configured.
+ * API: https://zsend.dev/.well-known/agent-skills/zsend-api/SKILL.md
+ */
+function getZsendConfig(): ZsendConfig | null {
+  const apiKey = process.env.ZSEND_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+  const baseUrl = (
+    process.env.ZSEND_BASE_URL || ZSEND_DEFAULT_BASE_URL
+  ).replace(/\/+$/, "");
+  return { apiKey, baseUrl };
+}
+
+/**
+ * Get the from address. Its domain must be verified in the zsend account.
  */
 function getFromEmail(): string {
-  const fromName = process.env.RESEND_FROM_NAME || "Your App";
-  const fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@example.com";
+  const fromName = process.env.ZSEND_FROM_NAME || "AlloyDB";
+  const fromEmail = process.env.ZSEND_FROM_EMAIL || "noreply@example.com";
   return `${fromName} <${fromEmail}>`;
 }
 
@@ -39,7 +49,7 @@ function logEmailToConsole(params: SendEmailParams): void {
 
   console.log("");
   console.log(`╔${border}╗`);
-  console.log(`║${"PASSWORD RESET EMAIL".padStart(42).padEnd(64)}║`);
+  console.log(`║${"EMAIL (NOT SENT)".padStart(40).padEnd(64)}║`);
   console.log(`╠${border}╣`);
   console.log(`║  To: ${params.to.padEnd(57)}║`);
   console.log(`║  Subject: ${params.subject.padEnd(52)}║`);
@@ -57,40 +67,70 @@ function logEmailToConsole(params: SendEmailParams): void {
   console.log("");
   console.log("\x1b[33m[Email Provider Not Configured]\x1b[0m");
   console.log(
-    "\x1b[36mTo send real emails, configure RESEND_API_KEY in your .env.local\x1b[0m",
+    "\x1b[36mTo send real emails, set ZSEND_API_KEY and ZSEND_FROM_EMAIL in your .env.local\x1b[0m",
   );
-  console.log('\x1b[36mRun "npm run setup" to configure email settings\x1b[0m');
   console.log("");
 }
 
 /**
- * Send an email using Resend, or log to console if not configured
+ * Pull a readable message out of a zsend error response body.
+ */
+async function readErrorMessage(response: Response): Promise<string> {
+  const body = await response.text().catch(() => "");
+  try {
+    const parsed = JSON.parse(body) as {
+      message?: unknown;
+      error?: unknown;
+    };
+    const nested =
+      parsed.error && typeof parsed.error === "object"
+        ? (parsed.error as { message?: unknown }).message
+        : parsed.error;
+    const message = parsed.message ?? nested;
+    if (typeof message === "string" && message) return message;
+  } catch {
+    // Not JSON: fall through to the raw body.
+  }
+  return body.slice(0, 200) || `zsend responded with HTTP ${response.status}`;
+}
+
+/**
+ * Send an email through zsend, or log it to the console if not configured
  */
 export async function sendEmail(
   params: SendEmailParams,
 ): Promise<SendEmailResult> {
-  const resend = getResendClient();
+  const zsend = getZsendConfig();
 
-  // If Resend is not configured, log to console
-  if (!resend) {
+  // If zsend is not configured, log to console
+  if (!zsend) {
     logEmailToConsole(params);
     return { success: true };
   }
 
   try {
-    const { error } = await resend.emails.send({
-      from: getFromEmail(),
-      to: params.to,
-      subject: params.subject,
-      text: params.text,
+    const response = await fetch(`${zsend.baseUrl}/emails`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${zsend.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: getFromEmail(),
+        to: [params.to],
+        subject: params.subject,
+        text: params.text,
+      }),
+      signal: AbortSignal.timeout(ZSEND_TIMEOUT_MS),
     });
 
-    if (error) {
-      console.error("[Email] Failed to send email:", error);
-      return {
-        success: false,
-        error: error.message,
-      };
+    if (!response.ok) {
+      const message = await readErrorMessage(response);
+      console.error(
+        `[Email] zsend rejected the email (HTTP ${response.status}):`,
+        message,
+      );
+      return { success: false, error: message };
     }
 
     return { success: true };
@@ -119,7 +159,7 @@ export async function sendPasswordResetEmail(params: {
   // but doing that in production would put a live credential in platform
   // logs. Fail closed for delivery while keeping the caller's anti-enumeration
   // response unchanged.
-  if (production && !process.env.RESEND_API_KEY) {
+  if (production && !isEmailProviderConfigured()) {
     console.error(
       "[Email] Password reset email provider is not configured; refusing to log reset credentials",
     );
@@ -148,5 +188,5 @@ If you did not request this password reset, you can safely ignore this email.`;
  * Check if email provider is configured
  */
 export function isEmailProviderConfigured(): boolean {
-  return !!process.env.RESEND_API_KEY;
+  return !!process.env.ZSEND_API_KEY;
 }

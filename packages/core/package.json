@@ -21,7 +21,6 @@
     "jose": "^6.1.0",
     "nanoid": "catalog:",
     "next": "catalog:",
-    "resend": "^6.9.1",
     "server-only": "^0.0.1",
     "undici": "catalog:",
     "zod": "catalog:"

@@ -45,8 +45,8 @@ sites:
 | `BACKEND_ADMIN_EMAILS` | Comma-separated emails allowed to sign in. Removing an email revokes access immediately. |
 | `BACKEND_SESSION_SECRET` | Protects emailed sign-in codes. Generate with `openssl rand -base64 32`. |
 
-Admins sign in at `/login` with a 6-digit code sent by email (Resend). In
-production, configure `RESEND_API_KEY`; codes are never printed there.
+Admins sign in at `/login` with a 6-digit code sent by email (zsend). In
+production, configure `ZSEND_API_KEY`; codes are never printed there.
 
 ## Site admins
 
