@@ -41,13 +41,13 @@ jobs:
         # setup:end
         include:
           - app: alloydb.console
-            project_id: ''
-            project_name: 'nexvio-ai'
+            project_id: 'prj_TSfaxTFNY4iHJ9wdHA7CdncEa96q'
+            project_name: 'alloydb-console'
             alias_prefix: 'nexvio-ai'
             node_version: '22'
           - app: backend
-            project_id: ''
-            project_name: 'backend'
+            project_id: 'prj_OFRUUVYdouxmzSDyrjF3UKqW1CNg'
+            project_name: 'alloydb-admin'
             alias_prefix: 'alloydb-backend'
             node_version: '22'
     if: >
@@ -71,7 +71,7 @@ jobs:
         uses: W3Dev/vercel-deploy@main
         with:
           vercel_token: ${{ secrets.VERCEL_TOKEN }}
-          vercel_org_id: 'team_M1i3qUTW4i3A6mETy54E1Fy8'
+          vercel_org_id: 'team_bhbVYR6BqVYMXKwAp7F1k5ib'
           vercel_project_id: ${{ matrix.project_id }}
           vercel_project_name: ${{ matrix.project_name }}
           package_manager: 'bun'
