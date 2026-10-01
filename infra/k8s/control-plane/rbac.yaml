@@ -1,0 +1,116 @@
+# What the control plane may do in the cluster, scoped as tightly as the
+# design allows (docs-internal/platform/control-plane.mdx):
+#   neon-compute  create and delete compute pods, watch their state
+#   libsql        manage the per-node Services and EndpointSlices that point
+#                 at sqld on the host network, and per-database IngressRoutes
+#   alloydb-system  manage IngressRoutes (data-api routes)
+#   cluster       read nodes to place libSQL databases and computes
+# Pod specs the control plane creates are built in code; there is deliberately
+# no Secret, ConfigMap, or Namespace access.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: control-plane
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: control-plane
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: control-plane-computes
+  namespace: neon-compute
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/status"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: control-plane-computes
+  namespace: neon-compute
+subjects:
+  - kind: ServiceAccount
+    name: control-plane
+    namespace: alloydb-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: control-plane-computes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: control-plane-libsql
+  namespace: libsql
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create", "get", "update", "delete"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["create", "get", "update", "delete"]
+  - apiGroups: ["traefik.io"]
+    resources: ["ingressroutes"]
+    verbs: ["create", "get", "update", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: control-plane-libsql
+  namespace: libsql
+subjects:
+  - kind: ServiceAccount
+    name: control-plane
+    namespace: alloydb-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: control-plane-libsql
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: control-plane-routes
+  namespace: alloydb-system
+rules:
+  - apiGroups: ["traefik.io"]
+    resources: ["ingressroutes"]
+    verbs: ["create", "get", "update", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: control-plane-routes
+  namespace: alloydb-system
+subjects:
+  - kind: ServiceAccount
+    name: control-plane
+    namespace: alloydb-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: control-plane-routes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: alloydb-control-plane-nodes
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: alloydb-control-plane-nodes
+subjects:
+  - kind: ServiceAccount
+    name: control-plane
+    namespace: alloydb-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alloydb-control-plane-nodes

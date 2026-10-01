@@ -1,0 +1,157 @@
+# Mode `neon-glue`: everything Neon calls into the control plane
+# (/proxy/* from the proxy, /compute/api/v2/computes/:id/spec from compute_ctl,
+# /storcon/notify-* from the storage controller). Cluster-internal only; the
+# storage controller and proxy point at neon-glue.alloydb-system:8080.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-neon-glue
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: control-plane-neon-glue
+    app.kubernetes.io/component: neon-glue
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: control-plane-neon-glue
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane-neon-glue
+        app.kubernetes.io/component: neon-glue
+    spec:
+      serviceAccountName: control-plane
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 40
+      # Optional: only needed while the ghcr.io/snaphq packages are private. A
+      # missing Secret only produces a warning event.
+      imagePullSecrets:
+        - name: ghcr-pull
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: control-plane-neon-glue
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # the image's built-in `node` user
+        runAsGroup: 1000
+        fsGroup: 1000 # lets the unprivileged user read the 0440 key mounts
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: neon-glue
+          image: ghcr.io/snaphq/alloydb-control-plane # tag injected by kustomize `images:`
+          env:
+            - name: ALLOYDB_MODE
+              value: "neon-glue"
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "8080"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: control-plane-db
+                  key: DATABASE_URL
+            - name: STORAGE_CONTROLLER_URL
+              value: "http://storage-controller.neon:1234"
+            - name: NEON_JWT_PRIVATE_KEY_PATH
+              value: "/etc/alloydb/neon-jwt/private.pem"
+            - name: CONTROL_PLANE_JWT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: neon-jwt
+                  key: CONTROL_PLANE_JWT_TOKEN
+            - name: NEON_PROXY_TO_CONTROLPLANE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: neon-proxy-token
+                  key: NEON_PROXY_TO_CONTROLPLANE_TOKEN
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: neon-jwt
+              mountPath: /etc/alloydb/neon-jwt
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: neon-jwt
+          secret:
+            secretName: neon-jwt
+            defaultMode: 0440
+            items:
+              - key: private.pem
+                path: private.pem
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+---
+# Cluster-internal; called by the Neon proxy, computes, and the storage controller.
+apiVersion: v1
+kind: Service
+metadata:
+  name: neon-glue
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: control-plane-neon-glue
+    app.kubernetes.io/component: neon-glue
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: control-plane-neon-glue
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: control-plane-neon-glue
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: control-plane-neon-glue
+    app.kubernetes.io/component: neon-glue
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: control-plane-neon-glue

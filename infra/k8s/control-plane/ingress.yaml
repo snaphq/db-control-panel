@@ -1,0 +1,43 @@
+# Public routes for the two HTTP modes. Both live in alloydb-system next to the
+# Services and the cert-manager Secrets (infra/k8s/platform/config/certificates.yaml),
+# so no cross-namespace references are needed. Traefik v3 rule syntax; the
+# global http -> https redirect is configured in the platform's traefik.yaml.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: api
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: control-plane-api
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`api.alloydb.net`)
+      services:
+        - name: api
+          port: 8080
+  tls:
+    secretName: api-tls
+---
+# https://ep-<id>.apirest.alloydb.net/<db>/rest/v1/...: any single label under
+# apirest.alloydb.net goes to the gateway, which resolves the endpoint itself.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: data-api
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: control-plane-data-api-gateway
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: HostRegexp(`^.+\.apirest\.alloydb\.net$`)
+      services:
+        - name: data-api
+          port: 8080
+  tls:
+    secretName: apirest-wildcard-tls

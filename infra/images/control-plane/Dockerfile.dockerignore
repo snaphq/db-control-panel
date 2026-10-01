@@ -1,0 +1,11 @@
+# Picked up by BuildKit next to infra/images/control-plane/Dockerfile. Workspace
+# manifests must stay in the context for `bun install --frozen-lockfile`.
+.git
+.fallow
+.turbo
+**/.turbo
+**/node_modules
+**/.next
+**/dist
+**/.env*
+**/*.pem

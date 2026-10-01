@@ -1,0 +1,68 @@
+# AlloyDB control plane (namespace `alloydb-system`): one image, four
+# Deployments selected by ALLOYDB_MODE (api, neon-glue, worker,
+# data-api-gateway). Contract: docs-internal/platform/control-plane.mdx and
+# docs-internal/platform/architecture.mdx. Image: infra/images/control-plane.
+#
+# The namespaces `alloydb-system`, `neon-compute`, and `libsql` are owned by
+# infra/k8s/platform and are not created here.
+#
+# Build:   kustomize build infra/k8s/control-plane
+# Image:   set the tag first, e.g.
+#            kustomize edit set image ghcr.io/snaphq/alloydb-control-plane=ghcr.io/snaphq/alloydb-control-plane:<TAG>
+#          The checked-in placeholder REPLACE_WITH_IMAGE_TAG is not a real tag.
+#
+# ---------------------------------------------------------------------------
+# Secrets this kustomization expects in namespace `alloydb-system`.
+# None are in Git; infra/scripts/render-secrets.ts creates them from .env.local
+# and cert-manager issues the TLS Secrets (infra/k8s/platform/config/certificates.yaml).
+# Key names follow render-secrets.ts, except control-plane-api (see TODO below).
+#
+#   control-plane-db         DATABASE_URL  postgresql://.../control_plane on the platform Postgres
+#
+#   control-plane-api        ALLOYDB_API_TOKEN  bearer token the console server presents to the
+#                            api mode.
+#                            TODO: render-secrets.ts does not create this Secret yet.
+#
+#   neon-jwt                 Ed25519 key material for every Neon token
+#     private.pem              PKCS#8 PEM private key. Mounted as a file at
+#                              /etc/alloydb/neon-jwt/private.pem (NEON_JWT_PRIVATE_KEY_PATH).
+#     CONTROL_PLANE_JWT_TOKEN  JWT, scope admin: sent to the storage controller and
+#                              expected on its /storcon/notify-* calls
+#     (the same Secret also carries public.pem and the pageserver, safekeeper and
+#      generations tokens; this kustomization does not read them)
+#
+#   neon-proxy-token         NEON_PROXY_TO_CONTROLPLANE_TOKEN  bearer the Neon proxy presents on /proxy/*
+#
+#   libsql-admin             LIBSQL_ADMIN_AUTH_KEY  sqld admin API key
+#
+#   libsql-jwt-signing       private.pem  PKCS#8 PEM private key that signs per-database sqld
+#                            tokens. Mounted at /etc/alloydb/libsql-jwt/private.pem
+#                            (LIBSQL_JWT_SIGNING_KEY_PATH).
+#
+#   api-tls                  kubernetes.io/tls for api.alloydb.net (cert-manager)
+#   apirest-wildcard-tls     kubernetes.io/tls for *.apirest.alloydb.net (cert-manager)
+#
+#   ghcr-pull (optional)     dockerconfigjson, only while ghcr.io/snaphq packages are private
+# ---------------------------------------------------------------------------
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - rbac.yaml
+  - api.yaml
+  - neon-glue.yaml
+  - worker.yaml
+  - data-api-gateway.yaml
+  - ingress.yaml
+
+images:
+  - name: ghcr.io/snaphq/alloydb-control-plane
+    newTag: REPLACE_WITH_IMAGE_TAG
+
+# Labels go on every object and on pod templates, but not on selectors
+# (includeSelectors: false), so selectors stay stable if this label changes.
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: alloydb
+    includeSelectors: false
+    includeTemplates: true

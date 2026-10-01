@@ -1,0 +1,106 @@
+# Mode `worker`: runs database migrations at start, then the pg-boss
+# operations queue, idle suspend, and node/safekeeper registration. It serves no
+# HTTP and has no Service. One replica with Recreate: migrations are guarded by
+# an advisory lock, but periodic jobs should never run twice during a rollout.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-worker
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: control-plane-worker
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: control-plane-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane-worker
+        app.kubernetes.io/component: worker
+    spec:
+      serviceAccountName: control-plane
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 60
+      # Optional: only needed while the ghcr.io/snaphq packages are private. A
+      # missing Secret only produces a warning event.
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # the image's built-in `node` user
+        runAsGroup: 1000
+        fsGroup: 1000 # lets the unprivileged user read the 0440 key mounts
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: ghcr.io/snaphq/alloydb-control-plane # tag injected by kustomize `images:`
+          env:
+            - name: ALLOYDB_MODE
+              value: "worker"
+            - name: NODE_ENV
+              value: production
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: control-plane-db
+                  key: DATABASE_URL
+            - name: STORAGE_CONTROLLER_URL
+              value: "http://storage-controller.neon:1234"
+            - name: NEON_JWT_PRIVATE_KEY_PATH
+              value: "/etc/alloydb/neon-jwt/private.pem"
+            - name: CONTROL_PLANE_JWT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: neon-jwt
+                  key: CONTROL_PLANE_JWT_TOKEN
+            - name: LIBSQL_JWT_SIGNING_KEY_PATH
+              value: "/etc/alloydb/libsql-jwt/private.pem"
+            - name: LIBSQL_ADMIN_AUTH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: libsql-admin
+                  key: LIBSQL_ADMIN_AUTH_KEY
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: neon-jwt
+              mountPath: /etc/alloydb/neon-jwt
+              readOnly: true
+            - name: libsql-jwt-signing
+              mountPath: /etc/alloydb/libsql-jwt
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: neon-jwt
+          secret:
+            secretName: neon-jwt
+            defaultMode: 0440
+            items:
+              - key: private.pem
+                path: private.pem
+        - name: libsql-jwt-signing
+          secret:
+            secretName: libsql-jwt-signing
+            defaultMode: 0440
+            items:
+              - key: private.pem
+                path: private.pem
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

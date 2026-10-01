@@ -1,0 +1,144 @@
+# Mode `data-api-gateway`: wakes a compute and forwards
+# https://ep-<id>.apirest.alloydb.net/<db>/rest/v1/... to its PostgREST sidecar.
+# Public through ingress.yaml (wildcard certificate apirest-wildcard-tls).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-data-api-gateway
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: control-plane-data-api-gateway
+    app.kubernetes.io/component: data-api-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: control-plane-data-api-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane-data-api-gateway
+        app.kubernetes.io/component: data-api-gateway
+    spec:
+      serviceAccountName: control-plane
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 40
+      # Optional: only needed while the ghcr.io/snaphq packages are private. A
+      # missing Secret only produces a warning event.
+      imagePullSecrets:
+        - name: ghcr-pull
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: control-plane-data-api-gateway
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # the image's built-in `node` user
+        runAsGroup: 1000
+        fsGroup: 1000 # lets the unprivileged user read the 0440 key mounts
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: data-api-gateway
+          image: ghcr.io/snaphq/alloydb-control-plane # tag injected by kustomize `images:`
+          env:
+            - name: ALLOYDB_MODE
+              value: "data-api-gateway"
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "8080"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: control-plane-db
+                  key: DATABASE_URL
+            - name: NEON_JWT_PRIVATE_KEY_PATH
+              value: "/etc/alloydb/neon-jwt/private.pem"
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: neon-jwt
+              mountPath: /etc/alloydb/neon-jwt
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: neon-jwt
+          secret:
+            secretName: neon-jwt
+            defaultMode: 0440
+            items:
+              - key: private.pem
+                path: private.pem
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+---
+# Public via ingress.yaml.
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-api
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: control-plane-data-api-gateway
+    app.kubernetes.io/component: data-api-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: control-plane-data-api-gateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: control-plane-data-api-gateway
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: control-plane-data-api-gateway
+    app.kubernetes.io/component: data-api-gateway
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: control-plane-data-api-gateway
