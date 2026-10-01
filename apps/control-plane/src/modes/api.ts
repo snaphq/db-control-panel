@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import type { ApiConfig } from '../config.js';
+import { loadSigner } from '../crypto/ed25519.js';
 import { createSecretBox } from '../crypto/secretbox.js';
+import { createDrizzleLibsqlStore } from '../libsql/store-drizzle.js';
 import { createDrizzleNeonStore } from '../neon/store-drizzle.js';
 import type { Scope } from '../neon/store.js';
 import {
@@ -11,6 +13,7 @@ import {
 import { findOperation } from '../operations/repository.js';
 import type { OperationRecord } from '../operations/store.js';
 import { registerEndpointRoutes } from './api-endpoints.js';
+import { type LibsqlApiDeps, registerLibsqlRoutes } from './api-libsql.js';
 import { registerProjectRoutes } from './api-projects.js';
 import { registerRoleAndDatabaseRoutes } from './api-roles-databases.js';
 import {
@@ -31,7 +34,7 @@ const missing = (c: ApiContext, header: string) =>
     400,
   );
 
-interface ApiDeps extends NeonApiDeps {
+interface ApiDeps extends NeonApiDeps, LibsqlApiDeps {
   apiToken: string;
   /** Reads an operation, scoped to the organization and console project that own it. */
   findOperation(id: string, scope: Scope): Promise<OperationRecord | null>;
@@ -65,6 +68,7 @@ export function createApiRoutes(deps: ApiDeps): Hono<ApiEnv> {
   registerProjectRoutes(v1, deps);
   registerEndpointRoutes(v1, deps);
   registerRoleAndDatabaseRoutes(v1, deps);
+  registerLibsqlRoutes(v1, deps);
   return v1;
 }
 
@@ -72,7 +76,8 @@ export function startApi(config: ApiConfig): Promise<RunningMode> {
   return startHttpMode(config, async ({ app, handle }) => {
     const boss = createBoss(config.databaseUrl, 'producer');
     await startQueue(boss);
-    const store = createDrizzleNeonStore(handle.db, createOperationQueue(boss));
+    const queue = createOperationQueue(boss);
+    const store = createDrizzleNeonStore(handle.db, queue);
     app.route(
       '/v1',
       createApiRoutes({
@@ -80,6 +85,11 @@ export function startApi(config: ApiConfig): Promise<RunningMode> {
         pgHostSuffix: config.pgHostSuffix,
         secrets: createSecretBox(config.dataKey),
         store,
+        libsql: createDrizzleLibsqlStore(handle.db, queue),
+        libsqlHostSuffix: config.libsqlHostSuffix,
+        libsqlSigner: config.libsqlJwtSigningKeyPath
+          ? loadSigner(config.libsqlJwtSigningKeyPath)
+          : null,
         findOperation: (id, scope) =>
           findOperation(handle.db, id, scope.consoleProjectId, scope.orgId),
       }),

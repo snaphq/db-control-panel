@@ -58,11 +58,26 @@ export function apiError(
 export const notFound = (c: ApiContext, what: string) =>
   apiError(c, 404, 'not_found', `${what} not found`);
 
+type Parsed<T> = { ok: true; data: T } | { ok: false; response: Response };
+
+function validate<T>(
+  c: ApiContext,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  raw: unknown,
+): Parsed<T> {
+  const parsed = schema.safeParse(raw);
+  if (parsed.success) return { ok: true, data: parsed.data };
+  const message = parsed.error.issues
+    .map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`)
+    .join('; ');
+  return { ok: false, response: apiError(c, 400, 'bad_request', message) };
+}
+
 /** Parses the JSON body with a contract schema; failures answer 400 with every issue named. */
 export async function parseBody<T>(
   c: ApiContext,
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
-): Promise<{ ok: true; data: T } | { ok: false; response: Response }> {
+): Promise<Parsed<T>> {
   let raw: unknown;
   try {
     raw = await c.req.json();
@@ -72,12 +87,26 @@ export async function parseBody<T>(
       response: apiError(c, 400, 'bad_request', 'Request body must be JSON'),
     };
   }
-  const parsed = schema.safeParse(raw);
-  if (parsed.success) return { ok: true, data: parsed.data };
-  const message = parsed.error.issues
-    .map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`)
-    .join('; ');
-  return { ok: false, response: apiError(c, 400, 'bad_request', message) };
+  return validate(c, schema, raw);
+}
+
+/** Like {@link parseBody}, but a request without a body means `{}` (every field defaulted). */
+export async function parseOptionalBody<T>(
+  c: ApiContext,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+): Promise<Parsed<T>> {
+  const text = await c.req.text();
+  if (!text.trim()) return validate(c, schema, {});
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return {
+      ok: false,
+      response: apiError(c, 400, 'bad_request', 'Request body must be JSON'),
+    };
+  }
+  return validate(c, schema, raw);
 }
 
 export function toOperationResponse(record: OperationRecord): Operation {

@@ -3,6 +3,7 @@ import { newId } from '../crypto/ids.js';
 import { createDatabase } from '../db/client.js';
 import type { DatabaseHandle } from '../db/client.js';
 import { runMigrations } from '../db/migrate.js';
+import { createDrizzleLibsqlStore } from '../libsql/store-drizzle.js';
 import { createDrizzleNeonStore } from '../neon/store-drizzle.js';
 import { findOperation } from '../operations/repository.js';
 import { createOperationStore } from '../operations/store.js';
@@ -28,8 +29,10 @@ describe.skipIf(!url)('API tenant isolation against PostgreSQL', () => {
   });
 
   function api() {
+    const queue = { enqueue: async () => {} };
     return assembleApi(
-      createDrizzleNeonStore(handle.db, { enqueue: async () => {} }),
+      createDrizzleNeonStore(handle.db, queue),
+      createDrizzleLibsqlStore(handle.db, queue),
       (id, scope) =>
         findOperation(handle.db, id, scope.consoleProjectId, scope.orgId),
     );

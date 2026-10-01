@@ -1,5 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { createSecretBox } from '../crypto/secretbox.js';
+import { createMemoryLibsqlStore } from '../libsql/store-memory.js';
+import type { LibsqlStore } from '../libsql/store.js';
+import { newTestSigner } from '../neon/fakes.js';
 import { createMemoryNeonStore } from '../neon/store-memory.js';
 import type { NeonStore } from '../neon/store.js';
 import { createApiRoutes } from './api.js';
@@ -13,19 +16,26 @@ type Json = any;
 export type TestResponse = Omit<Response, 'json'> & { json(): Promise<Json> };
 
 export function buildApi(store = createMemoryNeonStore()) {
-  return assembleApi(store, async (id, scope) => {
-    const record = store.operations.get(id);
-    return record &&
-      record.consoleProjectId === scope.consoleProjectId &&
-      (record.consoleOrgId === null || record.consoleOrgId === scope.orgId)
-      ? record
-      : null;
-  });
+  return assembleApi(
+    store,
+    createMemoryLibsqlStore(store),
+    async (id, scope) => {
+      const record = store.operations.get(id);
+      return record &&
+        record.consoleProjectId === scope.consoleProjectId &&
+        (record.consoleOrgId === null || record.consoleOrgId === scope.orgId)
+        ? record
+        : null;
+    },
+  );
 }
 
 /** The real route tree over any store; `findOperation` decides where operations are read from. */
+export const testLibsqlSigner = newTestSigner();
+
 export function assembleApi<S extends NeonStore>(
   store: S,
+  libsql: LibsqlStore,
   findOperation: Parameters<typeof createApiRoutes>[0]['findOperation'],
 ) {
   const app = createBaseApp(async () => {});
@@ -36,6 +46,9 @@ export function assembleApi<S extends NeonStore>(
       pgHostSuffix: 'pg.alloydb.net',
       secrets: testSecrets,
       store,
+      libsql,
+      libsqlHostSuffix: 'lite.alloydb.net',
+      libsqlSigner: testLibsqlSigner,
       findOperation,
     }),
   );
