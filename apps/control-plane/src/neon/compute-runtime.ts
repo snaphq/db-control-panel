@@ -10,8 +10,11 @@ import {
   buildComputePod,
   computePodName,
 } from './compute-pod.js';
-import { EndpointNotFoundError, type SpecService } from './spec-service.js';
-import type { DeltaOperation } from './spec.js';
+import {
+  EndpointNotFoundError,
+  type SpecOptions,
+  type SpecService,
+} from './spec-service.js';
 import type { EndpointContext, NeonStore } from './store.js';
 import { mintComputeSpecToken } from './tokens.js';
 
@@ -70,10 +73,7 @@ export interface ComputeRuntime {
    * Applies the endpoint's current spec to its running compute. Returns false
    * when nothing is running, in which case the next start picks the spec up.
    */
-  reconfigure(
-    endpointId: string,
-    options?: { deltaOperations?: DeltaOperation[] },
-  ): Promise<boolean>;
+  reconfigure(endpointId: string, options?: SpecOptions): Promise<boolean>;
 }
 
 interface Timings {
@@ -379,9 +379,7 @@ export function createComputeRuntime(deps: ComputeRuntimeDeps): ComputeRuntime {
       if (!context) throw new EndpointNotFoundError(endpointId);
       const { endpoint } = context;
       if (endpoint.state !== 'running' || !endpoint.podIp) return false;
-      const config = await specs.forEndpoint(endpointId, {
-        deltaOperations: options?.deltaOperations,
-      });
+      const config = await specs.forEndpoint(endpointId, options);
       await computeCtl.configure(endpoint.podIp, endpointId, config);
       return true;
     },

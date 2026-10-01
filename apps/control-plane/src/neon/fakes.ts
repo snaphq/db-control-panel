@@ -10,7 +10,11 @@ import {
   type ComputeCtlStatusReport,
 } from './compute-ctl-client.js';
 import type { ComputeConfigResponse } from './spec.js';
-import type { LocateResponse, StorconClient } from './storcon-client.js';
+import type {
+  LocateResponse,
+  StorconClient,
+  StorconNode,
+} from './storcon-client.js';
 import { type MemoryNeonStore, createMemoryNeonStore } from './store-memory.js';
 import type { Scope } from './store.js';
 
@@ -167,6 +171,7 @@ export interface FakeStorcon extends StorconClient {
     safekeepers: { id: number; hostname: string }[];
   } | null;
   failNext: Map<string, Error>;
+  nodes: StorconNode[];
 }
 
 export function createFakeStorcon(): FakeStorcon {
@@ -192,6 +197,28 @@ export function createFakeStorcon(): FakeStorcon {
       ],
     },
     failNext: new Map(),
+    nodes: [
+      {
+        id: 1,
+        availability: 'Active',
+        scheduling: 'Active',
+        availability_zone_id: 'az-1',
+        listen_pg_addr: '100.64.0.1',
+        listen_pg_port: 6400,
+        listen_http_addr: '100.64.0.1',
+        listen_http_port: 9898,
+      },
+      {
+        id: 2,
+        availability: 'Active',
+        scheduling: 'Active',
+        availability_zone_id: 'az-2',
+        listen_pg_addr: '100.64.0.2',
+        listen_pg_port: 6400,
+        listen_http_addr: '100.64.0.2',
+        listen_http_port: 9898,
+      },
+    ],
     async createTenant(input) {
       fake.calls.push(
         `createTenant ${input.tenantId} ${input.historyRetentionSeconds}`,
@@ -229,7 +256,8 @@ export function createFakeStorcon(): FakeStorcon {
     },
     async listNodes() {
       fake.calls.push('listNodes');
-      return [];
+      throwIfScripted('listNodes');
+      return fake.nodes;
     },
     async listSafekeepers() {
       fake.calls.push('listSafekeepers');

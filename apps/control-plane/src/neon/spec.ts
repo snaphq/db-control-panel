@@ -1,5 +1,6 @@
 import type { Ed25519Signer } from '../crypto/ed25519.js';
 import { sizedSettings } from './compute-size.js';
+import { SAFEKEEPER_PG_PORT } from './safekeepers.js';
 import type { LocateResponse, StorconNode } from './storcon-client.js';
 import type {
   BranchRow,
@@ -19,10 +20,7 @@ import { mintStorageToken } from './tokens.js';
  * cluster.
  */
 
-/** Safekeeper Postgres port: StatefulSet port in docs-internal/platform/architecture.mdx. */
-export const SAFEKEEPER_PG_PORT = 5454;
-
-/** `GenericOption` (libs/compute_api/src/spec.rs:466-472). `vartype` picks quoting in postgresql.conf. */
+/** `GenericOption` (libs/compute_api/src/spec.rs:572-577). `vartype` picks quoting in postgresql.conf. */
 interface GenericOption {
   name: string;
   value: string;
@@ -42,14 +40,14 @@ interface SpecDatabase {
   options: null;
 }
 
-/** `DeltaOp` (spec.rs:400-405): one-off changes a state-only spec cannot express. */
-interface DeltaOperation {
+/** `DeltaOp` (spec.rs:538-543): one-off changes a state-only spec cannot express. */
+export interface DeltaOperation {
   action: 'delete_db';
   name: string;
   new_name: null;
 }
 
-/** `PageserverConnectionInfo` (spec.rs:211-226). */
+/** `PageserverConnectionInfo` (spec.rs:237-251). */
 export interface PageserverConnectionInfo {
   /** 0 for an unsharded tenant; `ShardCount` is a bare number on the wire. */
   shard_count: number;
@@ -121,9 +119,9 @@ const TENANT_ID = /^[0-9a-f]{32}$/;
 const SHARD_SLUG = /^[0-9a-f]{4}$/;
 
 /**
- * `ShardIndex` as serde writes it (libs/utils/src/shard.rs:364-376): two bytes
+ * `ShardIndex` as serde writes it (libs/utils/src/shard.rs:300-304, 413-424): two bytes
  * in hex, shard number first, then shard count: "0000" for an unsharded tenant.
- * Accepts a `TenantShardId` (shard.rs:182-215): either the bare 32-hex tenant id
+ * Accepts a `TenantShardId` (shard.rs:206-262): either the bare 32-hex tenant id
  * (unsharded) or `<tenant>-<slug>`.
  */
 export function shardIndexKey(tenantShardId: string): string {
@@ -176,7 +174,7 @@ export function locateToConnectionInfo(
   }
   return {
     shard_count: locate.shard_params.count,
-    // Null when unsharded, otherwise immutable (spec.rs:216-219).
+    // Null when unsharded, otherwise immutable (spec.rs:237-244).
     stripe_size:
       locate.shard_params.count === 0 ? null : locate.shard_params.stripe_size,
     shards,
@@ -245,7 +243,7 @@ const MIB = (value: number): string => `${value}MB`;
  * Postgres settings the control plane owns. compute_ctl itself appends
  * `neon.tenant_id`, `neon.timeline_id`, `neon.safekeepers`,
  * `neon.pageserver_connstring` and the other `neon.*` ids from the spec fields
- * (compute_tools/src/config.rs:62-153), so none of those are repeated here.
+ * (compute_tools/src/config.rs:49-204), so none of those are repeated here.
  */
 function buildSettings(
   endpoint: EndpointRow,
@@ -288,7 +286,7 @@ function buildSettings(
     );
   } else {
     // A replica follows the primary's WAL through the safekeepers. This mirrors
-    // the `ComputeMode::Replica` branch of control_plane/src/endpoint.rs:550-570.
+    // the `ComputeMode::Replica` branch of control_plane/src/endpoint.rs:539-570.
     const hosts = safekeeperHosts.join(',');
     const ports = safekeeperHosts.map(() => SAFEKEEPER_PG_PORT).join(',');
     settings.push(

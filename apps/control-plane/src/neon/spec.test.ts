@@ -2,9 +2,9 @@ import { generateKeyPairSync } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { createEd25519Signer } from '../crypto/ed25519.js';
 import { newEndpointId, newNeonId } from '../crypto/ids.js';
+import { SAFEKEEPER_PG_PORT } from './safekeepers.js';
 import {
   type BuildSpecInput,
-  SAFEKEEPER_PG_PORT,
   SpecNotReadyError,
   attachToConnectionInfo,
   buildComputeConfig,

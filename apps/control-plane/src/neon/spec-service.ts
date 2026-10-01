@@ -17,7 +17,7 @@ export class EndpointNotFoundError extends Error {
   }
 }
 
-interface SpecOptions {
+export interface SpecOptions {
   /** Use this placement instead of asking the controller (notify-attach carries it). */
   pageservers?: PageserverConnectionInfo;
   deltaOperations?: DeltaOperation[];

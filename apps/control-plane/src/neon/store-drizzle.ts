@@ -94,9 +94,13 @@ async function applyChange(
   }
 }
 
+/**
+ * `queue` is needed only to `commit` operations (the API); the worker and
+ * neon-glue pass null and `commit` then fails loudly instead of losing a job.
+ */
 export function createDrizzleNeonStore(
   db: Database,
-  queue: OperationQueue,
+  queue: OperationQueue | null,
 ): NeonStore {
   const liveBranch = (options?: { includeDeleted?: boolean }) =>
     options?.includeDeleted ? undefined : isNull(branch.deletedAt);
@@ -232,6 +236,9 @@ export function createDrizzleNeonStore(
     },
 
     commit(scope, input, changes) {
+      if (!queue) {
+        throw new Error('This store was created without an operation queue');
+      }
       return createOperation(db, queue, {
         consoleProjectId: scope.consoleProjectId,
         targetType: input.targetType,

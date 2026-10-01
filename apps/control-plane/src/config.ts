@@ -30,7 +30,24 @@ const baseShape = {
   PORT: z.coerce.number().int().min(1).max(65535).default(8080),
 };
 
+/** Tunables with defaults that match docs-internal/platform/architecture.mdx. */
+const computeShape = {
+  ALLOYDB_COMPUTE_IMAGE: z
+    .string()
+    .min(1)
+    .default('ghcr.io/snaphq/neon-compute-v17:latest'),
+  ALLOYDB_POSTGREST_IMAGE: z
+    .string()
+    .min(1)
+    .default('ghcr.io/snaphq/postgrest:latest'),
+  ALLOYDB_NEON_GLUE_URL: z
+    .string()
+    .url()
+    .default('http://neon-glue.alloydb-system:8080'),
+};
+
 const neonShape = {
+  ...computeShape,
   STORAGE_CONTROLLER_URL: required(
     'storage controller base URL, e.g. http://storage-controller.neon:1234',
   ).url(),
@@ -47,6 +64,7 @@ const envSchema = z.discriminatedUnion('ALLOYDB_MODE', [
     ALLOYDB_MODE: z.literal('api'),
     ...baseShape,
     ALLOYDB_API_TOKEN: required('bearer token held by the console server'),
+    ALLOYDB_PG_HOST_SUFFIX: z.string().min(1).default('pg.alloydb.net'),
     LIBSQL_JWT_SIGNING_KEY_PATH: z.string().min(1).optional(),
   }),
   z.object({
@@ -65,6 +83,9 @@ const envSchema = z.discriminatedUnion('ALLOYDB_MODE', [
       'path of the Ed25519 PKCS#8 PEM that signs libSQL tokens',
     ),
     LIBSQL_ADMIN_AUTH_KEY: required('sqld admin API key'),
+    ALLOYDB_SAFEKEEPER_COUNT: z.coerce.number().int().min(1).max(9).default(3),
+    ALLOYDB_IDLE_SWEEP_SECONDS: z.coerce.number().int().min(5).default(30),
+    ALLOYDB_REGISTRATION_SECONDS: z.coerce.number().int().min(10).default(60),
   }),
   z.object({
     ALLOYDB_MODE: z.literal('data-api-gateway'),
@@ -84,11 +105,18 @@ interface NeonConfig {
   storageControllerUrl: string;
   neonJwtPrivateKeyPath: string;
   controlPlaneJwtToken: string;
+  /** Image of every compute pod (compute_ctl, Postgres and PgBouncer). */
+  computeImage: string;
+  postgrestImage: string;
+  /** Base URL computes fetch their spec from (`compute_ctl --control-plane-uri`). */
+  neonGlueUrl: string;
 }
 
 export interface ApiConfig extends BaseConfig {
   mode: 'api';
   apiToken: string;
+  /** Domain endpoint hosts live under, e.g. `ep-calm-moon-1a2b3c4d.pg.alloydb.net`. */
+  pgHostSuffix: string;
   libsqlJwtSigningKeyPath?: string;
 }
 
@@ -101,6 +129,9 @@ export interface WorkerConfig extends BaseConfig, NeonConfig {
   mode: 'worker';
   libsqlJwtSigningKeyPath: string;
   libsqlAdminAuthKey: string;
+  safekeeperCount: number;
+  idleSweepSeconds: number;
+  registrationSeconds: number;
 }
 
 export interface DataApiGatewayConfig extends BaseConfig {
@@ -124,6 +155,7 @@ function toConfig(env: RawEnv): Config {
         ...base,
         mode: 'api',
         apiToken: env.ALLOYDB_API_TOKEN,
+        pgHostSuffix: env.ALLOYDB_PG_HOST_SUFFIX,
         libsqlJwtSigningKeyPath: env.LIBSQL_JWT_SIGNING_KEY_PATH,
       };
     case 'neon-glue':
@@ -133,6 +165,9 @@ function toConfig(env: RawEnv): Config {
         storageControllerUrl: env.STORAGE_CONTROLLER_URL,
         neonJwtPrivateKeyPath: env.NEON_JWT_PRIVATE_KEY_PATH,
         controlPlaneJwtToken: env.CONTROL_PLANE_JWT_TOKEN,
+        computeImage: env.ALLOYDB_COMPUTE_IMAGE,
+        postgrestImage: env.ALLOYDB_POSTGREST_IMAGE,
+        neonGlueUrl: env.ALLOYDB_NEON_GLUE_URL,
         neonProxyToken: env.NEON_PROXY_TO_CONTROLPLANE_TOKEN,
       };
     case 'worker':
@@ -142,8 +177,14 @@ function toConfig(env: RawEnv): Config {
         storageControllerUrl: env.STORAGE_CONTROLLER_URL,
         neonJwtPrivateKeyPath: env.NEON_JWT_PRIVATE_KEY_PATH,
         controlPlaneJwtToken: env.CONTROL_PLANE_JWT_TOKEN,
+        computeImage: env.ALLOYDB_COMPUTE_IMAGE,
+        postgrestImage: env.ALLOYDB_POSTGREST_IMAGE,
+        neonGlueUrl: env.ALLOYDB_NEON_GLUE_URL,
         libsqlJwtSigningKeyPath: env.LIBSQL_JWT_SIGNING_KEY_PATH,
         libsqlAdminAuthKey: env.LIBSQL_ADMIN_AUTH_KEY,
+        safekeeperCount: env.ALLOYDB_SAFEKEEPER_COUNT,
+        idleSweepSeconds: env.ALLOYDB_IDLE_SWEEP_SECONDS,
+        registrationSeconds: env.ALLOYDB_REGISTRATION_SECONDS,
       };
     case 'data-api-gateway':
       return {
