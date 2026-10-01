@@ -10,6 +10,7 @@ import type {
 } from '@repo/control-plane-contract';
 import type { Context } from 'hono';
 import type { z } from 'zod';
+import type { SecretBox } from '../crypto/secretbox.js';
 import type { ComputeSize } from '../neon/compute-size.js';
 import type {
   BranchRow,
@@ -35,6 +36,8 @@ export interface NeonApiDeps {
   store: NeonStore;
   /** Domain endpoint hosts live under, e.g. `pg.alloydb.net`. */
   pgHostSuffix: string;
+  /** Seals the role passwords the Data API bootstrap needs back. */
+  secrets: SecretBox;
 }
 
 /** Every query is filtered by these two ids. */

@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
-import type { Database, Transaction } from '../db/client.js';
+import type { Database } from '../db/client.js';
 import {
   type BranchSafekeepers,
   branch,
@@ -12,8 +12,9 @@ import {
 } from '../db/schema.js';
 import type { OperationQueue } from '../operations/queue.js';
 import { createOperation } from '../operations/repository.js';
+import { applyChange } from './changes-drizzle.js';
 import type {
-  DesiredStateChange,
+  DatabaseContext,
   EndpointContext,
   NeonStore,
   Scope,
@@ -26,73 +27,6 @@ const ownedProject = (scope: Scope): SQL | undefined =>
     eq(neonProject.consoleOrgId, scope.orgId),
     isNull(neonProject.deletedAt),
   );
-
-async function applyChange(
-  tx: Transaction,
-  change: DesiredStateChange,
-): Promise<void> {
-  switch (change.kind) {
-    case 'project.insert':
-      await tx.insert(neonProject).values(change.row);
-      return;
-    case 'project.markDeleted':
-      await tx
-        .update(neonProject)
-        .set({ deletedAt: sql`now()` })
-        .where(eq(neonProject.id, change.id));
-      return;
-    case 'branch.insert':
-      await tx.insert(branch).values(change.row);
-      return;
-    case 'branch.markDeleted':
-      if (change.ids.length === 0) return;
-      await tx
-        .update(branch)
-        .set({ deletedAt: sql`now()` })
-        .where(inArray(branch.id, change.ids));
-      return;
-    case 'endpoint.insert':
-      await tx.insert(endpoint).values(change.row);
-      return;
-    case 'endpoint.update':
-      await tx
-        .update(endpoint)
-        .set(change.set)
-        .where(eq(endpoint.id, change.id));
-      return;
-    case 'endpoint.markDeleted':
-      if (change.ids.length === 0) return;
-      await tx
-        .update(endpoint)
-        .set({ deletedAt: sql`now()` })
-        .where(inArray(endpoint.id, change.ids));
-      return;
-    case 'role.insert':
-      await tx.insert(role).values(change.row);
-      return;
-    case 'role.setSecret':
-      await tx
-        .update(role)
-        .set({ scramSecret: change.scramSecret })
-        .where(
-          and(eq(role.branchId, change.branchId), eq(role.name, change.name)),
-        );
-      return;
-    case 'database.insert':
-      await tx.insert(database).values(change.row);
-      return;
-    case 'database.delete':
-      await tx
-        .delete(database)
-        .where(
-          and(
-            eq(database.branchId, change.branchId),
-            eq(database.name, change.name),
-          ),
-        );
-      return;
-  }
-}
 
 /**
  * `queue` is needed only to `commit` operations (the API); the worker and
@@ -294,6 +228,22 @@ export function createDrizzleNeonStore(
       return (row as EndpointContext | undefined) ?? null;
     },
 
+    async getDatabaseContext(databaseId) {
+      const [row] = await db
+        .select({ database, branch, project: neonProject })
+        .from(database)
+        .innerJoin(branch, eq(database.branchId, branch.id))
+        .innerJoin(neonProject, eq(branch.projectId, neonProject.id))
+        .where(
+          and(
+            eq(database.id, databaseId),
+            isNull(branch.deletedAt),
+            isNull(neonProject.deletedAt),
+          ),
+        );
+      return (row as DatabaseContext | undefined) ?? null;
+    },
+
     async listProjectBranches(projectId, options) {
       return db
         .select()
@@ -464,9 +414,10 @@ export function createDrizzleNeonStore(
           .from(node)
           .where(eq(node.id, input.id))
           .for('update');
-        const roles = [
+        const roles = input.roles ?? [
           ...new Set([...(current?.roles ?? []), ...input.addRoles]),
         ];
+        const capacity = { ...(current?.capacity ?? {}), ...input.capacity };
         await tx
           .insert(node)
           .values({
@@ -475,6 +426,7 @@ export function createDrizzleNeonStore(
             tailscaleIp: input.tailscaleIp,
             zone: input.zone,
             roles,
+            capacity,
             registeredPageserver: input.registeredPageserver ?? false,
           })
           .onConflictDoUpdate({
@@ -484,6 +436,7 @@ export function createDrizzleNeonStore(
               tailscaleIp: input.tailscaleIp,
               zone: input.zone,
               roles,
+              capacity,
               registeredPageserver:
                 input.registeredPageserver ??
                 current?.registeredPageserver ??

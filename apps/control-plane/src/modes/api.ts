@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { ApiConfig } from '../config.js';
+import { createSecretBox } from '../crypto/secretbox.js';
 import { createDrizzleNeonStore } from '../neon/store-drizzle.js';
 import type { Scope } from '../neon/store.js';
 import {
@@ -77,6 +78,7 @@ export function startApi(config: ApiConfig): Promise<RunningMode> {
       createApiRoutes({
         apiToken: config.apiToken,
         pgHostSuffix: config.pgHostSuffix,
+        secrets: createSecretBox(config.dataKey),
         store,
         findOperation: (id, scope) =>
           findOperation(handle.db, id, scope.consoleProjectId, scope.orgId),

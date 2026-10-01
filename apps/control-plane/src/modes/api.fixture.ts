@@ -1,9 +1,12 @@
+import { randomBytes } from 'node:crypto';
+import { createSecretBox } from '../crypto/secretbox.js';
 import { createMemoryNeonStore } from '../neon/store-memory.js';
 import type { NeonStore } from '../neon/store.js';
 import { createApiRoutes } from './api.js';
 import { createBaseApp } from './http.js';
 
 const API_TOKEN = 'api-token';
+export const testSecrets = createSecretBox(randomBytes(32));
 
 // biome-ignore lint/suspicious/noExplicitAny: the tests read arbitrary JSON bodies
 type Json = any;
@@ -31,6 +34,7 @@ export function assembleApi<S extends NeonStore>(
     createApiRoutes({
       apiToken: API_TOKEN,
       pgHostSuffix: 'pg.alloydb.net',
+      secrets: testSecrets,
       store,
       findOperation,
     }),

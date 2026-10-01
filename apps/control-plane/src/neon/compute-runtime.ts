@@ -110,8 +110,10 @@ export interface ComputeRuntimeDeps {
     computeImage: string;
     postgrestImage: string;
     controlPlaneUri: string;
+    /** See ComputePodInput.pullSecret. */
+    pullSecret?: string | null;
   };
-  /** Data API containers to add to an endpoint's pod; none until the Data API ships. */
+  /** Data API containers to add to an endpoint's pod. */
   sidecars?: (context: EndpointContext) => Promise<PostgrestSidecar[]>;
   timings?: Partial<Timings>;
   clock?: Clock;
@@ -258,6 +260,7 @@ export function createComputeRuntime(deps: ComputeRuntimeDeps): ComputeRuntime {
         controlPlaneUri: deps.config.controlPlaneUri,
         computeImage: deps.config.computeImage,
         postgrestImage: deps.config.postgrestImage,
+        pullSecret: deps.config.pullSecret,
         sidecars: (await deps.sidecars?.(context)) ?? [],
       });
       await createOrReplacePod(pod, deadline);

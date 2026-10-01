@@ -58,6 +58,11 @@ spec:
                 secretKeyRef:
                   name: control-plane-db
                   key: DATABASE_URL
+            - name: ALLOYDB_DATA_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: control-plane-data
+                  key: ALLOYDB_DATA_KEY
             - name: NEON_JWT_PRIVATE_KEY_PATH
               value: "/etc/alloydb/neon-jwt/private.pem"
           ports:

@@ -21,6 +21,7 @@ export function createNeonServices(input: {
     | 'controlPlaneJwtToken'
     | 'computeImage'
     | 'postgrestImage'
+    | 'imagePullSecret'
     | 'neonGlueUrl'
   >;
   queue?: OperationQueue;
@@ -43,6 +44,7 @@ export function createNeonServices(input: {
       computeImage: config.computeImage,
       postgrestImage: config.postgrestImage,
       controlPlaneUri: config.neonGlueUrl,
+      pullSecret: config.imagePullSecret,
     },
   });
   return { store, storcon, specs, computeCtl, runtime };

@@ -32,6 +32,8 @@
  *                   libsql-jwt-signing    private.pem (signs per-database sqld tokens)
  *                   platform-postgres     POSTGRES_PASSWORD
  *                   control-plane-db      DATABASE_URL
+ *                   control-plane-data    ALLOYDB_DATA_KEY (AES-256-GCM key that seals stored
+ *                                         role passwords and the Data API signing key)
  *                   platform-backup-s3    AWS_*, S3_ENDPOINT, S3_BUCKET
  *   flux-system     alloydb-settings      ConfigMap with ACME_EMAIL
  */
@@ -68,6 +70,8 @@ const REQUIRED: Record<string, string> = {
     "proxy to control plane token, generate with: openssl rand -hex 32",
   ALLOYDB_API_TOKEN:
     "console to control-plane API token, generate with: openssl rand -hex 32",
+  ALLOYDB_DATA_KEY:
+    "AES-256 key sealing stored credentials, generate with: openssl rand -base64 32",
 };
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -91,6 +95,19 @@ function requireKeys(env: Env): void {
   if (missing.length === 0) return;
   const lines = missing.map(([key, hint]) => `  ${key}  (${hint})`);
   fail(`missing required keys in the env file:\n${lines.join("\n")}`);
+}
+
+/** The control plane refuses to start on any other length, so catch it before it is applied. */
+function checkDataKey(env: Env): void {
+  const raw = env.ALLOYDB_DATA_KEY.trim();
+  const length = /^[A-Za-z0-9+/_-]+={0,2}$/.test(raw)
+    ? Buffer.from(raw, "base64").length
+    : -1;
+  if (length !== 32) {
+    fail(
+      "ALLOYDB_DATA_KEY must be base64 of exactly 32 bytes (openssl rand -base64 32)",
+    );
+  }
 }
 
 /** Returns the private key, generating and announcing one when allowed. */
@@ -213,6 +230,9 @@ function render(env: Env, neonKey: KeyObject, libsqlKey: KeyObject): string[] {
     secret("control-plane-db", "alloydb-system", {
       DATABASE_URL: dbUrl("control_plane"),
     }),
+    secret("control-plane-data", "alloydb-system", {
+      ALLOYDB_DATA_KEY: env.ALLOYDB_DATA_KEY.trim(),
+    }),
     secret("platform-backup-s3", "alloydb-system", {
       ...s3,
       AWS_DEFAULT_REGION: env.ALLOYDB_S3_REGION,
@@ -267,6 +287,7 @@ function main(): void {
 
   const env = loadEnv(envPath);
   requireKeys(env);
+  checkDataKey(env);
   const neonKey = loadSigningKey(
     env,
     "NEON",

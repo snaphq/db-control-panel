@@ -5,6 +5,7 @@ import {
 import type { Hono } from 'hono';
 import { newId } from '../crypto/ids.js';
 import { buildScramSecret } from '../crypto/scram.js';
+import { sealContext } from '../crypto/secretbox.js';
 import {
   type ApiEnv,
   type NeonApiDeps,
@@ -23,7 +24,7 @@ export function registerRoleAndDatabaseRoutes(
   v1: Hono<ApiEnv>,
   deps: NeonApiDeps,
 ): void {
-  const { store } = deps;
+  const { store, secrets } = deps;
   const base = '/projects/:project/branches/:branch';
 
   // ---- roles
@@ -71,6 +72,10 @@ export function registerRoleAndDatabaseRoutes(
       branchId: branch.id,
       name: body.data.name,
       scramSecret: buildScramSecret(password),
+      passwordEnc: secrets.seal(
+        password,
+        sealContext.rolePassword(body.data.name),
+      ),
       createdAt: new Date(),
     };
     // Creating and resetting a role are the same work: write the row, then push
@@ -123,6 +128,10 @@ export function registerRoleAndDatabaseRoutes(
           branchId: branch.id,
           name: existing.name,
           scramSecret,
+          passwordEnc: secrets.seal(
+            password,
+            sealContext.rolePassword(existing.name),
+          ),
         },
       ],
     );
@@ -185,6 +194,7 @@ export function registerRoleAndDatabaseRoutes(
       name: body.data.name,
       ownerRole: body.data.owner_name,
       dataApiEnabled: false,
+      dataApiIndex: null,
       createdAt: new Date(),
     };
     const operation = await store.commit(

@@ -6,11 +6,13 @@ import {
 } from '@repo/control-plane-contract';
 import { describe, expect, it } from 'vitest';
 import { buildScramSecret } from '../crypto/scram.js';
+import { sealContext } from '../crypto/secretbox.js';
 import {
   buildApi,
   call,
   createProject,
   finishOperations,
+  testSecrets,
 } from './api.fixture.js';
 
 async function setup() {
@@ -181,6 +183,64 @@ describe('databases', () => {
     expect((await call(t.api, 'GET', `${other}/databases`)).status).toBe(404);
     expect((await call(t.api, 'DELETE', `${other}/databases/x`)).status).toBe(
       404,
+    );
+  });
+});
+
+describe('sealed role passwords', () => {
+  const storedPassword = (
+    t: Awaited<ReturnType<typeof setup>>,
+    name: string,
+  ) => {
+    const row = t.api.store.roles.find((r) => r.name === name);
+    return row?.passwordEnc
+      ? testSecrets.open(row.passwordEnc, sealContext.rolePassword(name))
+      : null;
+  };
+
+  it('keeps the owner password sealed so the Data API bootstrap can log in', async () => {
+    const t = await setup();
+    expect(storedPassword(t, 'neondb_owner')).toBe(t.password);
+    const row = t.api.store.roles.find((r) => r.name === 'neondb_owner');
+    expect(JSON.stringify(row)).not.toContain(t.password);
+  });
+
+  it('seals the password of a new role', async () => {
+    const t = await setup();
+    const body = roleOperationResponseSchema.parse(
+      await (
+        await call(t.api, 'POST', `${t.base}/roles`, { body: { name: 'app' } })
+      ).json(),
+    );
+    expect(storedPassword(t, 'app')).toBe(body.role.password);
+  });
+
+  it('replaces the sealed password when it is reset', async () => {
+    const t = await setup();
+    const body = roleOperationResponseSchema.parse(
+      await (
+        await call(t.api, 'POST', `${t.base}/roles/neondb_owner/reset_password`)
+      ).json(),
+    );
+    expect(body.role.password).not.toBe(t.password);
+    expect(storedPassword(t, 'neondb_owner')).toBe(body.role.password);
+  });
+
+  it('lets a forked branch inherit the authenticator password', async () => {
+    const t = await setup();
+    const parent = t.api.store.branches.get(t.branchId);
+    if (parent) parent.authenticatorPasswordEnc = 'sealed-authenticator';
+    const response = await call(
+      t.api,
+      'POST',
+      `/projects/${t.projectId}/branches`,
+      {
+        body: { name: 'dev' },
+      },
+    );
+    const child = (await response.json()).branch.id as string;
+    expect(t.api.store.branches.get(child)?.authenticatorPasswordEnc).toBe(
+      'sealed-authenticator',
     );
   });
 });

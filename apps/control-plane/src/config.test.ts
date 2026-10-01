@@ -2,20 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { ConfigError, loadConfig } from './config.js';
 
 const DATABASE_URL = 'postgresql://cp:secret@localhost:5432/control_plane';
+const DATA_KEY = Buffer.alloc(32, 7).toString('base64');
 
 describe('loadConfig', () => {
   it('parses api mode and defaults the port to 8080', () => {
     const config = loadConfig({
       ALLOYDB_MODE: 'api',
       DATABASE_URL,
+      ALLOYDB_DATA_KEY: DATA_KEY,
       ALLOYDB_API_TOKEN: 'token',
     });
     expect(config).toEqual({
       mode: 'api',
       databaseUrl: DATABASE_URL,
       port: 8080,
+      dataKey: Buffer.alloc(32, 7),
       apiToken: 'token',
       pgHostSuffix: 'pg.alloydb.net',
+      libsqlHostSuffix: 'lite.alloydb.net',
+      dataApiHostSuffix: 'apirest.alloydb.net',
       libsqlJwtSigningKeyPath: undefined,
     });
   });
@@ -24,6 +29,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       ALLOYDB_MODE: 'api',
       DATABASE_URL,
+      ALLOYDB_DATA_KEY: DATA_KEY,
       ALLOYDB_API_TOKEN: 'token',
       ALLOYDB_PG_HOST_SUFFIX: 'pg.example.test',
     });
@@ -34,6 +40,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       ALLOYDB_MODE: 'worker',
       DATABASE_URL,
+      ALLOYDB_DATA_KEY: DATA_KEY,
       PORT: '9000',
       STORAGE_CONTROLLER_URL: 'http://storage-controller.neon:1234',
       NEON_JWT_PRIVATE_KEY_PATH: '/etc/neon/private.pem',
@@ -49,6 +56,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       ALLOYDB_MODE: 'worker',
       DATABASE_URL,
+      ALLOYDB_DATA_KEY: DATA_KEY,
       STORAGE_CONTROLLER_URL: 'http://storage-controller.neon:1234',
       NEON_JWT_PRIVATE_KEY_PATH: '/etc/neon/private.pem',
       CONTROL_PLANE_JWT_TOKEN: 'cp-token',
@@ -59,6 +67,8 @@ describe('loadConfig', () => {
       computeImage: 'ghcr.io/snaphq/neon-compute-v17:latest',
       postgrestImage: 'ghcr.io/snaphq/postgrest:latest',
       neonGlueUrl: 'http://neon-glue.alloydb-system:8080',
+      imagePullSecret: 'ghcr-pull',
+      libsqlHostSuffix: 'lite.alloydb.net',
       safekeeperCount: 3,
       idleSweepSeconds: 30,
       registrationSeconds: 60,
@@ -69,6 +79,7 @@ describe('loadConfig', () => {
     const config = loadConfig({
       ALLOYDB_MODE: 'neon-glue',
       DATABASE_URL,
+      ALLOYDB_DATA_KEY: DATA_KEY,
       STORAGE_CONTROLLER_URL: 'http://storage-controller.neon:1234',
       NEON_JWT_PRIVATE_KEY_PATH: '/etc/neon/private.pem',
       CONTROL_PLANE_JWT_TOKEN: 'cp-token',
@@ -99,6 +110,7 @@ describe('loadConfig', () => {
         'NEON_JWT_PRIVATE_KEY_PATH',
         'CONTROL_PLANE_JWT_TOKEN',
         'NEON_PROXY_TO_CONTROLPLANE_TOKEN',
+        'ALLOYDB_DATA_KEY',
       ]) {
         expect(message).toContain(key);
       }
@@ -107,7 +119,12 @@ describe('loadConfig', () => {
 
   it('treats an empty value as missing', () => {
     expect(() =>
-      loadConfig({ ALLOYDB_MODE: 'api', DATABASE_URL, ALLOYDB_API_TOKEN: ' ' }),
+      loadConfig({
+        ALLOYDB_MODE: 'api',
+        DATABASE_URL,
+        ALLOYDB_DATA_KEY: DATA_KEY,
+        ALLOYDB_API_TOKEN: ' ',
+      }),
     ).toThrowError(/ALLOYDB_API_TOKEN is required/);
   });
 
@@ -123,6 +140,7 @@ describe('loadConfig', () => {
       loadConfig({
         ALLOYDB_MODE: 'api',
         DATABASE_URL: 'mysql://localhost/db',
+        ALLOYDB_DATA_KEY: DATA_KEY,
         ALLOYDB_API_TOKEN: 'token',
       }),
     ).toThrowError(/DATABASE_URL must start with postgres/);
@@ -133,9 +151,58 @@ describe('loadConfig', () => {
       loadConfig({
         ALLOYDB_MODE: 'api',
         DATABASE_URL,
+        ALLOYDB_DATA_KEY: DATA_KEY,
         ALLOYDB_API_TOKEN: 'token',
         PORT: '70000',
       }),
     ).toThrowError(/PORT/);
+  });
+
+  it('requires a data key of exactly 32 bytes', () => {
+    const env = {
+      ALLOYDB_MODE: 'api',
+      DATABASE_URL,
+      ALLOYDB_API_TOKEN: 'token',
+    };
+    expect(() => loadConfig(env)).toThrowError(/ALLOYDB_DATA_KEY is required/);
+    expect(() =>
+      loadConfig({
+        ...env,
+        ALLOYDB_DATA_KEY: Buffer.alloc(16).toString('base64'),
+      }),
+    ).toThrowError(/ALLOYDB_DATA_KEY must be base64 of exactly 32 bytes/);
+  });
+
+  it('gives the gateway the compute settings it needs to wake computes', () => {
+    const env = {
+      ALLOYDB_MODE: 'data-api-gateway',
+      DATABASE_URL,
+      ALLOYDB_DATA_KEY: DATA_KEY,
+      STORAGE_CONTROLLER_URL: 'http://storage-controller.neon:1234',
+      NEON_JWT_PRIVATE_KEY_PATH: '/etc/neon/private.pem',
+      CONTROL_PLANE_JWT_TOKEN: 'cp-token',
+    };
+    expect(loadConfig(env)).toMatchObject({
+      mode: 'data-api-gateway',
+      dataApiHostSuffix: 'apirest.alloydb.net',
+      computeImage: 'ghcr.io/snaphq/neon-compute-v17:latest',
+    });
+    expect(() =>
+      loadConfig({ ...env, STORAGE_CONTROLLER_URL: undefined }),
+    ).toThrowError(/STORAGE_CONTROLLER_URL is required/);
+  });
+
+  it('treats the pull secret "none" as no pull secret', () => {
+    const config = loadConfig({
+      ALLOYDB_MODE: 'neon-glue',
+      DATABASE_URL,
+      ALLOYDB_DATA_KEY: DATA_KEY,
+      STORAGE_CONTROLLER_URL: 'http://storage-controller.neon:1234',
+      NEON_JWT_PRIVATE_KEY_PATH: '/etc/neon/private.pem',
+      CONTROL_PLANE_JWT_TOKEN: 'cp-token',
+      NEON_PROXY_TO_CONTROLPLANE_TOKEN: 'proxy',
+      ALLOYDB_IMAGE_PULL_SECRET: 'none',
+    });
+    expect(config).toMatchObject({ imagePullSecret: null });
   });
 });

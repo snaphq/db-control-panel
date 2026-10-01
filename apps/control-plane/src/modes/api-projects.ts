@@ -5,6 +5,7 @@ import {
 import type { Hono } from 'hono';
 import { newEndpointId, newId, newNeonId } from '../crypto/ids.js';
 import { buildScramSecret } from '../crypto/scram.js';
+import { sealContext } from '../crypto/secretbox.js';
 import type { DesiredStateChange } from '../neon/store.js';
 import {
   type ApiEnv,
@@ -33,7 +34,7 @@ export function registerProjectRoutes(
   v1: Hono<ApiEnv>,
   deps: NeonApiDeps,
 ): void {
-  const { store, pgHostSuffix } = deps;
+  const { store, pgHostSuffix, secrets } = deps;
 
   v1.get('/projects', async (c) => {
     const projects = await store.listProjects(scopeOf(c));
@@ -65,6 +66,9 @@ export function registerProjectRoutes(
         body.data.history_retention_seconds ??
         DEFAULT_HISTORY_RETENTION_SECONDS,
       allowedIps: body.data.allowed_ips ?? null,
+      dataApiJwks: null,
+      dataApiSigningKeyEnc: null,
+      dataApiCustomJwks: null,
       createdAt: now,
       deletedAt: null,
     };
@@ -76,6 +80,7 @@ export function registerProjectRoutes(
       parentBranchId: null,
       parentLsn: null,
       safekeepers: null,
+      authenticatorPasswordEnc: null,
       isDefault: true,
       createdAt: now,
       deletedAt: null,
@@ -99,6 +104,7 @@ export function registerProjectRoutes(
       branchId: branch.id,
       name: OWNER_ROLE,
       scramSecret: buildScramSecret(password),
+      passwordEnc: secrets.seal(password, sealContext.rolePassword(OWNER_ROLE)),
       createdAt: now,
     };
     const database = {
@@ -107,6 +113,7 @@ export function registerProjectRoutes(
       name: DEFAULT_DATABASE,
       ownerRole: OWNER_ROLE,
       dataApiEnabled: false,
+      dataApiIndex: null,
       createdAt: now,
     };
     const operation = await store.commit(
@@ -227,6 +234,8 @@ export function registerProjectRoutes(
       parentBranchId: parent.id,
       parentLsn: body.data.parent_lsn ?? null,
       safekeepers: null,
+      // The fork carries the parent's roles, including `authenticator`.
+      authenticatorPasswordEnc: parent.authenticatorPasswordEnc,
       isDefault: false,
       createdAt: now,
       deletedAt: null,

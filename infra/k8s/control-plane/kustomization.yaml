@@ -19,6 +19,9 @@
 #
 #   control-plane-db         DATABASE_URL  postgresql://.../control_plane on the platform Postgres
 #
+#   control-plane-data       ALLOYDB_DATA_KEY  AES-256 key (32 bytes, base64) that seals stored role
+#                            passwords and the Data API signing key. Every mode needs it.
+#
 #   control-plane-api        ALLOYDB_API_TOKEN  bearer token the console server presents to the
 #                            api mode. The console holds the same value.
 #

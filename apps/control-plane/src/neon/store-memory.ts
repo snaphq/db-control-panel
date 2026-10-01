@@ -6,6 +6,7 @@ import type {
   DatabaseRow,
   DesiredStateChange,
   EndpointRow,
+  LibsqlDatabaseRow,
   NeonStore,
   NodeRow,
   ProjectRow,
@@ -19,6 +20,7 @@ export interface MemoryNeonStore extends NeonStore {
   endpoints: Map<string, EndpointRow>;
   roles: RoleRow[];
   databases: DatabaseRow[];
+  libsqlDatabases: Map<string, LibsqlDatabaseRow>;
   nodes: Map<number, NodeRow>;
   operations: Map<string, OperationRecord>;
   /** Replaces the clock used for `createdAt`/`deletedAt`; tests pin it. */
@@ -35,6 +37,7 @@ export function createMemoryNeonStore(): MemoryNeonStore {
   const endpoints = new Map<string, EndpointRow>();
   const roles: RoleRow[] = [];
   const databases: DatabaseRow[] = [];
+  const libsqlDatabases = new Map<string, LibsqlDatabaseRow>();
   const nodes = new Map<number, NodeRow>();
   const operations = new Map<string, OperationRecord>();
   let now = new Date('2026-01-01T00:00:00Z');
@@ -67,6 +70,9 @@ export function createMemoryNeonStore(): MemoryNeonStore {
           pgVersion: 17,
           historyRetentionSeconds: 86_400,
           allowedIps: null,
+          dataApiJwks: null,
+          dataApiSigningKeyEnc: null,
+          dataApiCustomJwks: null,
           createdAt: now,
           deletedAt: null,
           ...change.row,
@@ -83,6 +89,7 @@ export function createMemoryNeonStore(): MemoryNeonStore {
           parentBranchId: null,
           parentLsn: null,
           safekeepers: null,
+          authenticatorPasswordEnc: null,
           isDefault: false,
           createdAt: now,
           deletedAt: null,
@@ -129,13 +136,18 @@ export function createMemoryNeonStore(): MemoryNeonStore {
         ) {
           throw new Error('duplicate role');
         }
-        roles.push({ createdAt: now, ...change.row });
+        roles.push({ passwordEnc: null, createdAt: now, ...change.row });
         return;
       case 'role.setSecret': {
         const found = roles.find(
           (r) => r.branchId === change.branchId && r.name === change.name,
         );
-        if (found) found.scramSecret = change.scramSecret;
+        if (found) {
+          found.scramSecret = change.scramSecret;
+          if (change.passwordEnc !== undefined) {
+            found.passwordEnc = change.passwordEnc;
+          }
+        }
         return;
       }
       case 'database.insert':
@@ -149,6 +161,7 @@ export function createMemoryNeonStore(): MemoryNeonStore {
         }
         databases.push({
           dataApiEnabled: false,
+          dataApiIndex: null,
           createdAt: now,
           ...change.row,
         });
@@ -158,6 +171,54 @@ export function createMemoryNeonStore(): MemoryNeonStore {
           (d) => d.branchId === change.branchId && d.name === change.name,
         );
         if (index >= 0) databases.splice(index, 1);
+        return;
+      }
+      case 'database.setDataApi': {
+        const found = databases.find(
+          (d) => d.branchId === change.branchId && d.name === change.name,
+        );
+        if (!found) return;
+        found.dataApiEnabled = change.enabled;
+        if (change.index !== undefined) found.dataApiIndex = change.index;
+        return;
+      }
+      case 'branch.setAuthenticator': {
+        const found = branches.get(change.branchId);
+        if (found) found.authenticatorPasswordEnc = change.passwordEnc;
+        return;
+      }
+      case 'project.setDataApiPlatformKey': {
+        const found = projects.get(change.projectId);
+        if (!found) return;
+        found.dataApiJwks = change.jwks;
+        found.dataApiSigningKeyEnc = change.signingKeyEnc;
+        return;
+      }
+      case 'project.setDataApiCustomJwks': {
+        const found = projects.get(change.projectId);
+        if (found) found.dataApiCustomJwks = change.jwks;
+        return;
+      }
+      case 'libsql.insert': {
+        const taken = [...libsqlDatabases.values()].some(
+          (d) => d.deletedAt === null && d.namespace === change.row.namespace,
+        );
+        if (taken) throw new Error('duplicate live namespace');
+        libsqlDatabases.set(change.row.id, {
+          state: 'creating',
+          sizeLimitBytes: null,
+          createdAt: now,
+          deletedAt: null,
+          ...change.row,
+        });
+        return;
+      }
+      case 'libsql.markDeleted': {
+        const found = libsqlDatabases.get(change.id);
+        if (found) {
+          found.deletedAt = now;
+          found.state = 'deleting';
+        }
         return;
       }
     }
@@ -174,6 +235,7 @@ export function createMemoryNeonStore(): MemoryNeonStore {
     endpoints,
     roles,
     databases,
+    libsqlDatabases,
     nodes,
     operations,
     setNow(value) {
@@ -242,6 +304,7 @@ export function createMemoryNeonStore(): MemoryNeonStore {
         endpoints: structuredClone([...endpoints]),
         roles: structuredClone(roles),
         databases: structuredClone(databases),
+        libsqlDatabases: structuredClone([...libsqlDatabases]),
       };
       try {
         for (const change of changes) apply(change);
@@ -254,6 +317,9 @@ export function createMemoryNeonStore(): MemoryNeonStore {
         for (const [k, v] of snapshot.endpoints) endpoints.set(k, v);
         roles.splice(0, roles.length, ...snapshot.roles);
         databases.splice(0, databases.length, ...snapshot.databases);
+        libsqlDatabases.clear();
+        for (const [k, v] of snapshot.libsqlDatabases)
+          libsqlDatabases.set(k, v);
         throw error;
       }
       const record: OperationRecord = {
@@ -298,6 +364,14 @@ export function createMemoryNeonStore(): MemoryNeonStore {
         return null;
       }
       return { endpoint: found, branch: owningBranch, project };
+    },
+    async getDatabaseContext(databaseId) {
+      const found = databases.find((d) => d.id === databaseId);
+      const owningBranch = found && branches.get(found.branchId);
+      const project = owningBranch && projects.get(owningBranch.projectId);
+      if (!found || !owningBranch || !project) return null;
+      if (owningBranch.deletedAt || project.deletedAt) return null;
+      return { database: found, branch: owningBranch, project };
     },
     async listProjectBranches(projectId, options) {
       return byCreatedAt(
@@ -423,8 +497,10 @@ export function createMemoryNeonStore(): MemoryNeonStore {
         name: input.name,
         tailscaleIp: input.tailscaleIp,
         zone: input.zone,
-        roles: [...new Set([...(current?.roles ?? []), ...input.addRoles])],
-        capacity: current?.capacity ?? {},
+        roles: input.roles ?? [
+          ...new Set([...(current?.roles ?? []), ...input.addRoles]),
+        ],
+        capacity: { ...(current?.capacity ?? {}), ...input.capacity },
         registeredPageserver:
           input.registeredPageserver ?? current?.registeredPageserver ?? false,
         registeredSafekeepers: current?.registeredSafekeepers ?? false,

@@ -1,9 +1,11 @@
 import type {
   BranchSafekeepers,
+  DataApiJwks,
   EndpointState,
   branch,
   database,
   endpoint,
+  libsqlDatabase,
   neonProject,
   node,
   role,
@@ -16,6 +18,7 @@ export type EndpointRow = typeof endpoint.$inferSelect;
 export type RoleRow = typeof role.$inferSelect;
 export type DatabaseRow = typeof database.$inferSelect;
 export type NodeRow = typeof node.$inferSelect;
+export type LibsqlDatabaseRow = typeof libsqlDatabase.$inferSelect;
 
 /**
  * Who is asking. Every console-facing query is filtered by both ids, so an id
@@ -24,6 +27,13 @@ export type NodeRow = typeof node.$inferSelect;
 export interface Scope {
   orgId: string;
   consoleProjectId: string;
+}
+
+/** A database with the branch and project it belongs to. */
+export interface DatabaseContext {
+  database: DatabaseRow;
+  branch: BranchRow;
+  project: ProjectRow;
 }
 
 /** An endpoint with the branch and project it belongs to. */
@@ -56,9 +66,34 @@ export type DesiredStateChange =
       branchId: string;
       name: string;
       scramSecret: string;
+      /** The same password, sealed (crypto/secretbox.ts). */
+      passwordEnc?: string;
     }
   | { kind: 'database.insert'; row: typeof database.$inferInsert }
-  | { kind: 'database.delete'; branchId: string; name: string };
+  | { kind: 'database.delete'; branchId: string; name: string }
+  | {
+      kind: 'database.setDataApi';
+      branchId: string;
+      name: string;
+      enabled: boolean;
+      /** Set the sidecar position; omit to keep the one already assigned. */
+      index?: number;
+    }
+  | { kind: 'branch.setAuthenticator'; branchId: string; passwordEnc: string }
+  | {
+      kind: 'project.setDataApiPlatformKey';
+      projectId: string;
+      jwks: DataApiJwks;
+      signingKeyEnc: string;
+    }
+  /** Null returns the project to its platform key. */
+  | {
+      kind: 'project.setDataApiCustomJwks';
+      projectId: string;
+      jwks: DataApiJwks | null;
+    }
+  | { kind: 'libsql.insert'; row: typeof libsqlDatabase.$inferInsert }
+  | { kind: 'libsql.markDeleted'; id: string };
 
 export interface OperationInput {
   action: OperationRecord['action'];
@@ -80,7 +115,11 @@ interface NodeUpsert {
   zone: string;
   /** Merged into the node's existing roles. */
   addRoles: string[];
+  /** Replaces the node's roles (Kubernetes labels are the source of truth); wins over `addRoles`. */
+  roles?: string[];
   registeredPageserver?: boolean;
+  /** Merged into the node's capacity object. */
+  capacity?: Record<string, unknown>;
 }
 
 /**
@@ -142,6 +181,8 @@ export interface NeonStore {
     endpointId: string,
     options?: { includeDeleted?: boolean },
   ): Promise<EndpointContext | null>;
+  /** A database by id, with its live branch and project. */
+  getDatabaseContext(databaseId: string): Promise<DatabaseContext | null>;
   listProjectBranches(
     projectId: string,
     options?: { includeDeleted?: boolean },

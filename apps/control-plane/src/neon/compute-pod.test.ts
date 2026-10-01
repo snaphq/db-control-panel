@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   type ComputePodInput,
+  MAX_DATA_API_DATABASES,
   buildComputePod,
   computePodName,
   postgrestApiPort,
@@ -134,6 +135,66 @@ describe('buildComputePod', () => {
       PGRST_SERVER_PORT: '3001',
       PGRST_ADMIN_SERVER_PORT: '3101',
     });
+  });
+
+  it('runs each sidecar small, on the pod IP, with its admin server on loopback', () => {
+    const pod = buildComputePod({
+      ...input,
+      sidecars: [
+        {
+          database: 'neondb',
+          index: 0,
+          dbUri: 'postgres://a',
+          jwtSecret: '{}',
+        },
+      ],
+    });
+    const env = Object.fromEntries(
+      (container(pod, 'postgrest-neondb')?.env ?? []).map((e) => [
+        e.name,
+        e.value,
+      ]),
+    );
+    expect(env).toMatchObject({
+      PGRST_SERVER_HOST: '!4',
+      PGRST_ADMIN_SERVER_HOST: '127.0.0.1',
+      PGRST_JWT_ROLE_CLAIM_KEY: '$.role',
+      PGRST_DB_POOL: '5',
+      PGRST_DB_SCHEMAS: 'public',
+      GHCRTS: '-N1',
+    });
+    // The pool and the schema-reload channel rely on a direct connection.
+    expect(env.PGRST_DB_URI).not.toContain(':6432');
+    expect(env).not.toHaveProperty('PGRST_DB_CHANNEL_ENABLED');
+  });
+
+  it('keeps sidecar ports clear of compute_ctl on 3080', () => {
+    expect(postgrestApiPort(MAX_DATA_API_DATABASES - 1)).toBeLessThan(3080);
+    const sidecar = (index: number) => ({
+      database: 'x',
+      index,
+      dbUri: 'postgres://a',
+      jwtSecret: '{}',
+    });
+    expect(() =>
+      buildComputePod({
+        ...input,
+        sidecars: [sidecar(MAX_DATA_API_DATABASES)],
+      }),
+    ).toThrowError(/outside 0-49/);
+    expect(() =>
+      buildComputePod({ ...input, sidecars: [sidecar(-1)] }),
+    ).toThrowError(/outside 0-49/);
+  });
+
+  it('names the pull secret, or leaves it out', () => {
+    expect(
+      buildComputePod({ ...input, pullSecret: 'registry' }).spec
+        ?.imagePullSecrets,
+    ).toEqual([{ name: 'registry' }]);
+    expect(
+      buildComputePod({ ...input, pullSecret: null }).spec,
+    ).not.toHaveProperty('imagePullSecrets');
   });
 
   it('rejects an unknown compute size', () => {

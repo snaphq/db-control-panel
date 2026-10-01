@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parseDataKey } from './crypto/secretbox.js';
 
 const MODES = ['api', 'neon-glue', 'worker', 'data-api-gateway'] as const;
 
@@ -18,6 +19,17 @@ function required(description: string) {
     .min(1, `is required (${description})`);
 }
 
+const dataKey = required(
+  '32 random bytes, base64; generate one with: openssl rand -base64 32',
+).refine((value) => {
+  try {
+    parseDataKey(value);
+    return true;
+  } catch {
+    return false;
+  }
+}, 'must be base64 of exactly 32 bytes (openssl rand -base64 32)');
+
 const baseShape = {
   DATABASE_URL: required('connection string of the control_plane database')
     .url(
@@ -28,7 +40,11 @@ const baseShape = {
       'must start with postgres:// or postgresql://',
     ),
   PORT: z.coerce.number().int().min(1).max(65535).default(8080),
+  ALLOYDB_DATA_KEY: dataKey,
 };
+
+const libsqlHostSuffix = z.string().min(1).default('lite.alloydb.net');
+const dataApiHostSuffix = z.string().min(1).default('apirest.alloydb.net');
 
 /** Tunables with defaults that match docs-internal/platform/architecture.mdx. */
 const computeShape = {
@@ -44,6 +60,11 @@ const computeShape = {
     .string()
     .url()
     .default('http://neon-glue.alloydb-system:8080'),
+  /**
+   * Pull secret on compute pods. A missing Secret only raises a warning event,
+   * so the default is safe while the images are public; `none` omits it.
+   */
+  ALLOYDB_IMAGE_PULL_SECRET: z.string().min(1).default('ghcr-pull'),
 };
 
 const neonShape = {
@@ -65,6 +86,8 @@ const envSchema = z.discriminatedUnion('ALLOYDB_MODE', [
     ...baseShape,
     ALLOYDB_API_TOKEN: required('bearer token held by the console server'),
     ALLOYDB_PG_HOST_SUFFIX: z.string().min(1).default('pg.alloydb.net'),
+    ALLOYDB_LIBSQL_HOST_SUFFIX: libsqlHostSuffix,
+    ALLOYDB_DATA_API_HOST_SUFFIX: dataApiHostSuffix,
     LIBSQL_JWT_SIGNING_KEY_PATH: z.string().min(1).optional(),
   }),
   z.object({
@@ -83,6 +106,7 @@ const envSchema = z.discriminatedUnion('ALLOYDB_MODE', [
       'path of the Ed25519 PKCS#8 PEM that signs libSQL tokens',
     ),
     LIBSQL_ADMIN_AUTH_KEY: required('sqld admin API key'),
+    ALLOYDB_LIBSQL_HOST_SUFFIX: libsqlHostSuffix,
     ALLOYDB_SAFEKEEPER_COUNT: z.coerce.number().int().min(1).max(9).default(3),
     ALLOYDB_IDLE_SWEEP_SECONDS: z.coerce.number().int().min(5).default(30),
     ALLOYDB_REGISTRATION_SECONDS: z.coerce.number().int().min(10).default(60),
@@ -90,15 +114,16 @@ const envSchema = z.discriminatedUnion('ALLOYDB_MODE', [
   z.object({
     ALLOYDB_MODE: z.literal('data-api-gateway'),
     ...baseShape,
-    NEON_JWT_PRIVATE_KEY_PATH: required(
-      'path of the Ed25519 PKCS#8 PEM that signs compute_ctl tokens',
-    ),
+    ...neonShape,
+    ALLOYDB_DATA_API_HOST_SUFFIX: dataApiHostSuffix,
   }),
 ]);
 
 interface BaseConfig {
   databaseUrl: string;
   port: number;
+  /** AES-256 key that seals stored credentials (`ALLOYDB_DATA_KEY`). */
+  dataKey: Buffer;
 }
 
 interface NeonConfig {
@@ -108,6 +133,8 @@ interface NeonConfig {
   /** Image of every compute pod (compute_ctl, Postgres and PgBouncer). */
   computeImage: string;
   postgrestImage: string;
+  /** Name of the pull Secret on compute pods, or null for none. */
+  imagePullSecret: string | null;
   /** Base URL computes fetch their spec from (`compute_ctl --control-plane-uri`). */
   neonGlueUrl: string;
 }
@@ -117,6 +144,10 @@ export interface ApiConfig extends BaseConfig {
   apiToken: string;
   /** Domain endpoint hosts live under, e.g. `ep-calm-moon-1a2b3c4d.pg.alloydb.net`. */
   pgHostSuffix: string;
+  /** libSQL hosts are `<namespace>.<suffix>`. */
+  libsqlHostSuffix: string;
+  /** Data API hosts are `<endpoint id>.<suffix>`. */
+  dataApiHostSuffix: string;
   libsqlJwtSigningKeyPath?: string;
 }
 
@@ -129,14 +160,15 @@ export interface WorkerConfig extends BaseConfig, NeonConfig {
   mode: 'worker';
   libsqlJwtSigningKeyPath: string;
   libsqlAdminAuthKey: string;
+  libsqlHostSuffix: string;
   safekeeperCount: number;
   idleSweepSeconds: number;
   registrationSeconds: number;
 }
 
-export interface DataApiGatewayConfig extends BaseConfig {
+export interface DataApiGatewayConfig extends BaseConfig, NeonConfig {
   mode: 'data-api-gateway';
-  neonJwtPrivateKeyPath: string;
+  dataApiHostSuffix: string;
 }
 
 export type Config =
@@ -148,7 +180,12 @@ export type Config =
 type RawEnv = z.infer<typeof envSchema>;
 
 function toConfig(env: RawEnv): Config {
-  const base = { databaseUrl: env.DATABASE_URL, port: env.PORT };
+  const base = {
+    databaseUrl: env.DATABASE_URL,
+    port: env.PORT,
+    dataKey: parseDataKey(env.ALLOYDB_DATA_KEY),
+  };
+  const pullSecret = (value: string) => (value === 'none' ? null : value);
   switch (env.ALLOYDB_MODE) {
     case 'api':
       return {
@@ -156,6 +193,8 @@ function toConfig(env: RawEnv): Config {
         mode: 'api',
         apiToken: env.ALLOYDB_API_TOKEN,
         pgHostSuffix: env.ALLOYDB_PG_HOST_SUFFIX,
+        libsqlHostSuffix: env.ALLOYDB_LIBSQL_HOST_SUFFIX,
+        dataApiHostSuffix: env.ALLOYDB_DATA_API_HOST_SUFFIX,
         libsqlJwtSigningKeyPath: env.LIBSQL_JWT_SIGNING_KEY_PATH,
       };
     case 'neon-glue':
@@ -167,6 +206,7 @@ function toConfig(env: RawEnv): Config {
         controlPlaneJwtToken: env.CONTROL_PLANE_JWT_TOKEN,
         computeImage: env.ALLOYDB_COMPUTE_IMAGE,
         postgrestImage: env.ALLOYDB_POSTGREST_IMAGE,
+        imagePullSecret: pullSecret(env.ALLOYDB_IMAGE_PULL_SECRET),
         neonGlueUrl: env.ALLOYDB_NEON_GLUE_URL,
         neonProxyToken: env.NEON_PROXY_TO_CONTROLPLANE_TOKEN,
       };
@@ -179,9 +219,11 @@ function toConfig(env: RawEnv): Config {
         controlPlaneJwtToken: env.CONTROL_PLANE_JWT_TOKEN,
         computeImage: env.ALLOYDB_COMPUTE_IMAGE,
         postgrestImage: env.ALLOYDB_POSTGREST_IMAGE,
+        imagePullSecret: pullSecret(env.ALLOYDB_IMAGE_PULL_SECRET),
         neonGlueUrl: env.ALLOYDB_NEON_GLUE_URL,
         libsqlJwtSigningKeyPath: env.LIBSQL_JWT_SIGNING_KEY_PATH,
         libsqlAdminAuthKey: env.LIBSQL_ADMIN_AUTH_KEY,
+        libsqlHostSuffix: env.ALLOYDB_LIBSQL_HOST_SUFFIX,
         safekeeperCount: env.ALLOYDB_SAFEKEEPER_COUNT,
         idleSweepSeconds: env.ALLOYDB_IDLE_SWEEP_SECONDS,
         registrationSeconds: env.ALLOYDB_REGISTRATION_SECONDS,
@@ -190,7 +232,14 @@ function toConfig(env: RawEnv): Config {
       return {
         ...base,
         mode: 'data-api-gateway',
+        storageControllerUrl: env.STORAGE_CONTROLLER_URL,
         neonJwtPrivateKeyPath: env.NEON_JWT_PRIVATE_KEY_PATH,
+        controlPlaneJwtToken: env.CONTROL_PLANE_JWT_TOKEN,
+        computeImage: env.ALLOYDB_COMPUTE_IMAGE,
+        postgrestImage: env.ALLOYDB_POSTGREST_IMAGE,
+        imagePullSecret: pullSecret(env.ALLOYDB_IMAGE_PULL_SECRET),
+        neonGlueUrl: env.ALLOYDB_NEON_GLUE_URL,
+        dataApiHostSuffix: env.ALLOYDB_DATA_API_HOST_SUFFIX,
       };
   }
 }

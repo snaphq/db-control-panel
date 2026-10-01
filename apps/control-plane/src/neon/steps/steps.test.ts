@@ -386,6 +386,7 @@ describe('role and database operations', () => {
       name: 'analytics',
       ownerRole: 'neondb_owner',
       dataApiEnabled: false,
+      dataApiIndex: null,
       createdAt: new Date(),
     });
     const result = await t.run('database.create', 'analytics', {

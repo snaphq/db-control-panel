@@ -8,7 +8,7 @@ import { computeResources } from './compute-size.js';
  */
 
 export const COMPUTE_NAMESPACE = 'neon-compute';
-const COMPUTE_PULL_SECRET = 'ghcr-pull';
+const DEFAULT_PULL_SECRET = 'ghcr-pull';
 /** compute_ctl's external HTTP port (`--external-http-port`, compute_ctl.rs:77). */
 export const COMPUTE_CTL_PORT = 3080;
 const POSTGRES_PORT = 5432;
@@ -33,6 +33,13 @@ export interface PostgrestSidecar {
   jwtSecret: string;
 }
 
+/**
+ * Data API databases per endpoint. Sidecar `n` listens on 3000+n and its admin
+ * server on 3100+n; compute_ctl owns 3080, so the API ports stop at 3049 and a
+ * NetworkPolicy can open exactly 3000-3049 to the gateway.
+ */
+export const MAX_DATA_API_DATABASES = 50;
+
 export interface ComputePodInput {
   endpointId: string;
   projectId: string;
@@ -44,6 +51,12 @@ export interface ComputePodInput {
   controlPlaneUri: string;
   computeImage: string;
   postgrestImage: string;
+  /**
+   * Pull Secret name; null for none, undefined for `ghcr-pull`. Kubernetes only
+   * warns about a pull Secret that does not exist, so the default is safe while
+   * the images are public.
+   */
+  pullSecret?: string | null;
   sidecars?: PostgrestSidecar[];
 }
 
@@ -64,10 +77,25 @@ const containerSecurity = {
   capabilities: { drop: ['ALL'] },
 };
 
+/**
+ * One PostgREST per database (v16.4 docs/references/configuration.rst). It is
+ * the authenticator on 127.0.0.1 and serves on the pod IP so the gateway can
+ * reach it (`server-host` `!4` is any IPv4 address, the documented default). The
+ * admin server (/live, /ready, /schema_cache) stays on loopback. The pool is
+ * small because the compute shares its `max_connections` with the user's own
+ * clients, and `GHCRTS=-N1` limits the Haskell runtime to one capability.
+ * The channel stays on: PostgREST connects to Postgres directly, not through
+ * PgBouncer, so LISTEN works and `NOTIFY pgrst` reloads the schema cache.
+ */
 function postgrestContainer(
   sidecar: PostgrestSidecar,
   image: string,
 ): V1Container {
+  if (sidecar.index < 0 || sidecar.index >= MAX_DATA_API_DATABASES) {
+    throw new Error(
+      `Data API index ${sidecar.index} is outside 0-${MAX_DATA_API_DATABASES - 1}`,
+    );
+  }
   const api = postgrestApiPort(sidecar.index);
   const admin = postgrestAdminPort(sidecar.index);
   return {
@@ -82,9 +110,13 @@ function postgrestContainer(
       { name: 'PGRST_DB_SCHEMAS', value: 'public' },
       { name: 'PGRST_DB_ANON_ROLE', value: 'anonymous' },
       { name: 'PGRST_JWT_SECRET', value: sidecar.jwtSecret },
+      { name: 'PGRST_JWT_ROLE_CLAIM_KEY', value: '$.role' },
+      { name: 'PGRST_SERVER_HOST', value: '!4' },
       { name: 'PGRST_SERVER_PORT', value: String(api) },
+      { name: 'PGRST_ADMIN_SERVER_HOST', value: '127.0.0.1' },
       { name: 'PGRST_ADMIN_SERVER_PORT', value: String(admin) },
-      { name: 'PGRST_DB_POOL', value: '10' },
+      { name: 'PGRST_DB_POOL', value: '5' },
+      { name: 'GHCRTS', value: '-N1' },
     ],
     resources: {
       requests: { cpu: '50m', memory: '128Mi' },
@@ -92,6 +124,11 @@ function postgrestContainer(
     },
     securityContext: containerSecurity,
   };
+}
+
+function pullSecrets(name: string | null | undefined) {
+  const secret = name === undefined ? DEFAULT_PULL_SECRET : name;
+  return secret === null ? {} : { imagePullSecrets: [{ name: secret }] };
 }
 
 export function buildComputePod(input: ComputePodInput): V1Pod {
@@ -118,7 +155,7 @@ export function buildComputePod(input: ComputePodInput): V1Pod {
       terminationGracePeriodSeconds: 15,
       automountServiceAccountToken: false,
       enableServiceLinks: false,
-      imagePullSecrets: [{ name: COMPUTE_PULL_SECRET }],
+      ...pullSecrets(input.pullSecret),
       nodeSelector: { 'alloydb.net/compute': 'true' },
       topologySpreadConstraints: [
         {

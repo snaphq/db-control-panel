@@ -78,6 +78,11 @@ export interface BranchSafekeepers {
   safekeepers: BranchSafekeeper[];
 }
 
+/** Public keys PostgREST verifies Data API tokens with (a JWKS document). */
+export interface DataApiJwks {
+  keys: Record<string, unknown>[];
+}
+
 export interface NodeCapacity {
   /** Free-form per-role capacity numbers; the scheduler defines the keys. */
   [key: string]: unknown;
@@ -97,6 +102,16 @@ export const neonProject = pgTable(
       .default(86_400),
     /** CIDR strings; null means the project does not restrict client IPs. */
     allowedIps: jsonb('allowed_ips').$type<string[]>(),
+    /**
+     * Public half of the platform-issued Data API key; set together with the
+     * sealed private key the first time the Data API is enabled, so the console
+     * can mint test tokens.
+     */
+    dataApiJwks: jsonb('data_api_jwks').$type<DataApiJwks>(),
+    /** Sealed private key of the platform-issued key (crypto/secretbox.ts). */
+    dataApiSigningKeyEnc: text('data_api_signing_key_enc'),
+    /** Public keys the project brought itself; when set, PostgREST uses these instead. */
+    dataApiCustomJwks: jsonb('data_api_custom_jwks').$type<DataApiJwks>(),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
     deletedAt: timestamptz('deleted_at'),
   },
@@ -122,6 +137,12 @@ export const branch = pgTable(
     ),
     parentLsn: text('parent_lsn'),
     safekeepers: jsonb('safekeepers').$type<BranchSafekeepers>(),
+    /**
+     * Sealed password of the `authenticator` role PostgREST logs in with. The
+     * role is cluster-wide, so one password serves every Data API database of
+     * the branch; a forked branch inherits the role and so this value.
+     */
+    authenticatorPasswordEnc: text('authenticator_password_enc'),
     isDefault: boolean('is_default').notNull().default(false),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
     deletedAt: timestamptz('deleted_at'),
@@ -187,6 +208,12 @@ export const role = pgTable(
     name: text('name').notNull(),
     /** SCRAM-SHA-256 secret; the plaintext password is never stored. */
     scramSecret: text('scram_secret').notNull(),
+    /**
+     * The same password, sealed: the Data API bootstrap logs in as the owner
+     * role. Null for roles that predate the column; resetting the password
+     * fills it in.
+     */
+    passwordEnc: text('password_enc'),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
   },
   (table) => [
@@ -204,10 +231,20 @@ export const database = pgTable(
     name: text('name').notNull(),
     ownerRole: text('owner_role').notNull(),
     dataApiEnabled: boolean('data_api_enabled').notNull().default(false),
+    /**
+     * Position of the database's PostgREST sidecar in its endpoint pod (ports
+     * 3000+n and 3100+n). Assigned once, never reused within a branch, so a
+     * request can never reach another database's sidecar while a pod is still
+     * running an older layout.
+     */
+    dataApiIndex: integer('data_api_index'),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex('database_branch_name_idx').on(table.branchId, table.name),
+    uniqueIndex('database_branch_data_api_index_idx')
+      .on(table.branchId, table.dataApiIndex)
+      .where(sql`${table.dataApiIndex} is not null`),
   ],
 );
 
@@ -230,18 +267,24 @@ export const node = pgTable('node', {
   updatedAt: timestamptz('updated_at').notNull().defaultNow(),
 });
 
+export const LIBSQL_STATES = ['creating', 'active', 'deleting'] as const;
+export type LibsqlState = (typeof LIBSQL_STATES)[number];
+
 export const libsqlDatabase = pgTable(
   'libsql_database',
   {
     id: text('id').primaryKey(),
     consoleProjectId: text('console_project_id').notNull(),
+    /** Every read is scoped by organization as well as console project. */
+    consoleOrgId: text('console_org_id').notNull(),
     name: text('name').notNull(),
     /** sqld namespace, `<db>-<team>`; also the first label of the public host. */
     namespace: text('namespace').notNull(),
     nodeId: integer('node_id')
       .notNull()
       .references(() => node.id),
-    state: text('state').notNull().default('creating'),
+    /** `creating`, `active` or `deleting`. */
+    state: text('state').$type<LibsqlState>().notNull().default('creating'),
     sizeLimitBytes: bigint('size_limit_bytes', { mode: 'number' }),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
     deletedAt: timestamptz('deleted_at'),
@@ -251,6 +294,7 @@ export const libsqlDatabase = pgTable(
       .on(table.namespace)
       .where(sql`${table.deletedAt} is null`),
     index('libsql_database_console_project_id_idx').on(table.consoleProjectId),
+    index('libsql_database_console_org_id_idx').on(table.consoleOrgId),
     index('libsql_database_node_id_idx').on(table.nodeId),
   ],
 );
