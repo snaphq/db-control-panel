@@ -6,6 +6,10 @@
 #   docker build -f infra/images/control-plane/Dockerfile .
 #
 # Bun is used only to install and run scripts; the service runs on Node 22.
+#
+# The service imports @repo/control-plane-contract, a workspace package that
+# compiles to its own dist/. node_modules/@repo/control-plane-contract is a
+# symlink into packages/, so the runtime stage carries that package too.
 ARG NODE_VERSION=22
 ARG BUN_VERSION=1.3.14
 
@@ -25,7 +29,7 @@ RUN bun run --filter @repo/control-plane build
 # without devDependencies, with the same lockfile.
 RUN find . -maxdepth 3 -name node_modules -prune -exec rm -rf {} + \
  && bun install --frozen-lockfile --production --ignore-scripts --filter @repo/control-plane \
- && mkdir -p apps/control-plane/node_modules
+ && mkdir -p apps/control-plane/node_modules packages/control-plane-contract/node_modules
 
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 ENV NODE_ENV=production
@@ -37,6 +41,16 @@ COPY --from=build --chown=root:root /repo/apps/control-plane/package.json ./pack
 COPY --from=build --chown=root:root /repo/apps/control-plane/node_modules ./node_modules
 COPY --from=build --chown=root:root /repo/apps/control-plane/drizzle ./drizzle
 COPY --from=build --chown=root:root /repo/apps/control-plane/dist ./dist
+
+# The contract package, at the path the workspace symlink points to. Its
+# dependency (zod) resolves from the root node_modules, or from its own when
+# bun did not hoist it.
+WORKDIR /app/packages/control-plane-contract
+COPY --from=build --chown=root:root /repo/packages/control-plane-contract/package.json ./package.json
+COPY --from=build --chown=root:root /repo/packages/control-plane-contract/node_modules ./node_modules
+COPY --from=build --chown=root:root /repo/packages/control-plane-contract/dist ./dist
+
+WORKDIR /app/apps/control-plane
 
 # uid/gid 1000 is the image's built-in `node` user; Kubernetes pins it numerically.
 USER 1000:1000
