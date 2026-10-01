@@ -10,6 +10,10 @@ export default defineConfig({
         find: "server-only",
         replacement: path.resolve(__dirname, "src/test-server-only.ts"),
       },
+      {
+        find: /^@repo\/control-plane-contract$/,
+        replacement: `${pkg("control-plane-contract")}/index.ts`,
+      },
       { find: /^@repo\/core\/(.*)$/, replacement: `${pkg("core")}/$1` },
       { find: /^@repo\/database$/, replacement: `${pkg("database")}/index.ts` },
       { find: /^@repo\/database\/(.*)$/, replacement: `${pkg("database")}/$1` },

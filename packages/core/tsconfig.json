@@ -14,6 +14,7 @@
       "@repo/analytics/*": ["../analytics/src/*"],
       "@repo/mcp-chatgpt": ["../mcp-chatgpt/src"],
       "@repo/mcp-chatgpt/*": ["../mcp-chatgpt/src/*"],
+      "@repo/control-plane-contract": ["../control-plane-contract/src"],
       "@repo/core/*": ["../core/src/*"]
     }
   },

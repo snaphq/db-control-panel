@@ -167,6 +167,7 @@
       "dependencies": {
         "@repo/analytics": "workspace:*",
         "@repo/auth": "workspace:*",
+        "@repo/control-plane-contract": "workspace:*",
         "@repo/database": "workspace:*",
         "@repo/mcp-chatgpt": "workspace:*",
         "@upstash/ratelimit": "^0.4.4",
@@ -178,6 +179,7 @@
         "resend": "^6.9.1",
         "server-only": "^0.0.1",
         "undici": "catalog:",
+        "zod": "catalog:",
       },
       "devDependencies": {
         "@types/node": "catalog:",
