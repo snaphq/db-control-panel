@@ -272,6 +272,11 @@ export const operation = pgTable(
      * the operation and is the key of the one-active-operation lock.
      */
     consoleProjectId: text('console_project_id').notNull(),
+    /**
+     * The console organization from `X-AlloyDB-Org`. Reads must match it as
+     * well as the project; null only for rows written before the column existed.
+     */
+    consoleOrgId: text('console_org_id'),
     targetType: text('target_type').notNull(),
     targetId: text('target_id').notNull(),
     action: text('action').$type<OperationAction>().notNull(),

@@ -1,0 +1,1 @@
+ALTER TABLE "operation" ADD COLUMN "console_org_id" text;

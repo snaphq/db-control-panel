@@ -259,6 +259,7 @@ export function createMemoryNeonStore(): MemoryNeonStore {
       const record: OperationRecord = {
         id: newId('op'),
         consoleProjectId: scope.consoleProjectId,
+        consoleOrgId: scope.orgId,
         targetType: input.targetType,
         targetId: input.targetId,
         action: input.action,

@@ -30,6 +30,7 @@ export function createMemoryOperationStore(): MemoryOperationStore {
       const record: OperationRecord = {
         id,
         consoleProjectId: 'console-project',
+        consoleOrgId: null,
         targetType: 'project',
         targetId: 'proj_1',
         action,

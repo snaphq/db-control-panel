@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { newId } from '../crypto/ids.js';
 import type { Database, Transaction } from '../db/client.js';
 import {
@@ -29,6 +29,8 @@ export class ProjectBusyError extends Error {
 
 export interface CreateOperationInput {
   consoleProjectId: string;
+  /** Recorded so reads can require the same organization as the creator. */
+  consoleOrgId?: string;
   targetType: string;
   targetId: string;
   action: OperationAction;
@@ -71,6 +73,7 @@ export async function createOperation(
         .values({
           id: newId('op'),
           consoleProjectId: input.consoleProjectId,
+          consoleOrgId: input.consoleOrgId ?? null,
           targetType: input.targetType,
           targetId: input.targetId,
           action: input.action,
@@ -91,11 +94,16 @@ export async function createOperation(
   }
 }
 
-/** Reads an operation, scoped to the console project that owns it. */
+/**
+ * Reads an operation, scoped to the console project that owns it and, when the
+ * caller names one, to the organization that created it. Rows written before
+ * the organization was recorded stay readable by project alone.
+ */
 export async function findOperation(
   db: Database,
   id: string,
   consoleProjectId: string,
+  consoleOrgId?: string,
 ): Promise<OperationRecord | null> {
   const [row] = await db
     .select()
@@ -104,6 +112,12 @@ export async function findOperation(
       and(
         eq(operation.id, id),
         eq(operation.consoleProjectId, consoleProjectId),
+        consoleOrgId === undefined
+          ? undefined
+          : or(
+              isNull(operation.consoleOrgId),
+              eq(operation.consoleOrgId, consoleOrgId),
+            ),
       ),
     );
   return row ?? null;

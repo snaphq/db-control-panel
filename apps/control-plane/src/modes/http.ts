@@ -8,6 +8,7 @@ import {
   createDatabase,
   pingDatabase,
 } from '../db/client.js';
+import { isUniqueViolation } from '../operations/idempotency.js';
 import { ProjectBusyError } from '../operations/repository.js';
 import type { RunningMode } from './types.js';
 
@@ -56,6 +57,13 @@ export function createBaseApp(ping: () => Promise<void>): Hono {
   app.onError((error, c) => {
     if (error instanceof ProjectBusyError) {
       return c.json({ error: { code: 'locked', message: error.message } }, 423);
+    }
+    // A concurrent request created the same row first.
+    if (isUniqueViolation(error)) {
+      return c.json(
+        { error: { code: 'conflict', message: 'The resource already exists' } },
+        409,
+      );
     }
     if (error instanceof HTTPException) {
       return c.json(

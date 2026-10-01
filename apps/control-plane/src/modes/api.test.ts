@@ -1,50 +1,37 @@
+import { operationResponseSchema } from '@repo/control-plane-contract';
 import { describe, expect, it, vi } from 'vitest';
-import type { Database } from '../db/client.js';
+import { createMemoryNeonStore } from '../neon/store-memory.js';
+import { createMemoryOperationStore } from '../operations/memory-store.js';
+import { toOperationResponse } from './api-support.js';
 import {
-  type MemoryOperationStore,
-  createMemoryOperationStore,
-} from '../operations/memory-store.js';
-import { createApiRoutes, toOperationResponse } from './api.js';
+  alice,
+  bob,
+  buildApi,
+  call,
+  createProject,
+  headersFor,
+} from './api.fixture.js';
 import { createBaseApp } from './http.js';
 
-/** Resolves `select().from().where()` to the rows the in-memory store holds for the project. */
-function fakeDb(store: MemoryOperationStore): Database {
-  return {
-    select: () => ({
-      from: () => ({
-        where: async () => [...store.records.values()],
-      }),
-    }),
-  } as unknown as Database;
-}
-
-function buildApp(store: MemoryOperationStore) {
-  const app = createBaseApp(async () => {});
-  app.route('/v1', createApiRoutes({ apiToken: 'token' }, fakeDb(store)));
-  return app;
-}
-
-const headers = {
-  authorization: 'Bearer token',
-  'x-alloydb-org': 'org_1',
-  'x-alloydb-project': 'console-project',
-};
-
 describe('GET /v1/operations/:id', () => {
-  const store = createMemoryOperationStore();
-  store.add('op_1', 'project.create', 'running');
-  const app = buildApp(store);
+  const operations = createMemoryOperationStore();
+  operations.add('op_1', 'project.create', 'running');
+  const record = operations.get('op_1');
+  const store = createMemoryNeonStore();
+  store.operations.set('op_1', record);
+  const api = buildApi(store);
 
-  it('returns the operation', async () => {
-    const response = await app.request('/v1/operations/op_1', { headers });
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      operation: toOperationResponse(store.get('op_1')),
+  it('returns the operation in the contract shape', async () => {
+    const response = await call(api, 'GET', '/operations/op_1', {
+      caller: { org: 'org_1', project: 'console-project' },
     });
+    expect(response.status).toBe(200);
+    const body = operationResponseSchema.parse(await response.json());
+    expect(body).toEqual({ operation: toOperationResponse(record) });
   });
 
   it('serializes snake_case fields', () => {
-    expect(toOperationResponse(store.get('op_1'))).toEqual({
+    expect(toOperationResponse(record)).toEqual({
       id: 'op_1',
       target_type: 'project',
       target_id: 'proj_1',
@@ -58,40 +45,56 @@ describe('GET /v1/operations/:id', () => {
   });
 
   it('requires the bearer token before anything else', async () => {
-    const response = await app.request('/v1/operations/op_1', {
-      headers: { ...headers, authorization: 'Bearer nope' },
+    const response = await api.app.request('/v1/operations/op_1', {
+      headers: { ...headersFor(alice), authorization: 'Bearer nope' },
     });
     expect(response.status).toBe(401);
+    expect((await api.app.request('/v1/projects')).status).toBe(401);
   });
 
-  it('requires the org and project headers', async () => {
-    const required = [
-      ['x-alloydb-org', 'X-AlloyDB-Org'],
-      ['x-alloydb-project', 'X-AlloyDB-Project'],
-    ] as const;
-    for (const [header, displayName] of required) {
-      const partial: Record<string, string> = { ...headers };
-      delete partial[header];
-      const response = await app.request('/v1/operations/op_1', {
-        headers: partial,
-      });
-      expect(response.status).toBe(400);
-      expect(JSON.stringify(await response.json())).toContain(displayName);
+  it('requires the org and project headers on every route', async () => {
+    for (const path of [
+      '/v1/operations/op_1',
+      '/v1/projects',
+      '/v1/projects/proj_x/branches',
+    ]) {
+      for (const [header, displayName] of [
+        ['x-alloydb-org', 'X-AlloyDB-Org'],
+        ['x-alloydb-project', 'X-AlloyDB-Project'],
+      ] as const) {
+        const partial: Record<string, string> = { ...headersFor(alice) };
+        delete partial[header];
+        const response = await api.app.request(path, { headers: partial });
+        expect(response.status).toBe(400);
+        expect(JSON.stringify(await response.json())).toContain(displayName);
+      }
     }
   });
 
   it('returns 404 for an unknown operation', async () => {
-    const empty = buildApp(createMemoryOperationStore());
-    const response = await empty.request('/v1/operations/op_missing', {
-      headers,
-    });
+    const empty = buildApi();
+    const response = await call(empty, 'GET', '/operations/op_missing');
     expect(response.status).toBe(404);
+    expect((await response.json()).error.code).toBe('not_found');
+  });
+
+  it('does not show one console project the operations of another', async () => {
+    const shared = buildApi();
+    await createProject(shared, alice);
+    const [aliceOp] = [...shared.store.operations.values()];
+    expect(
+      (await call(shared, 'GET', `/operations/${aliceOp?.id}`)).status,
+    ).toBe(200);
+    expect(
+      (await call(shared, 'GET', `/operations/${aliceOp?.id}`, { caller: bob }))
+        .status,
+    ).toBe(404);
   });
 });
 
 describe('health routes', () => {
   it('serves /healthz without auth', async () => {
-    const app = buildApp(createMemoryOperationStore());
+    const app = createBaseApp(async () => {});
     const response = await app.request('/healthz');
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ status: 'ok' });
@@ -100,7 +103,6 @@ describe('health routes', () => {
   it('reports /readyz 200 when the database answers and 503 when it does not', async () => {
     const ready = createBaseApp(async () => {});
     expect((await ready.request('/readyz')).status).toBe(200);
-
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const down = createBaseApp(async () => {
       throw new Error('connection refused');
@@ -119,5 +121,13 @@ describe('health routes', () => {
     const response = await app.request('/busy', { method: 'POST' });
     expect(response.status).toBe(423);
     expect(JSON.stringify(await response.json())).toContain('op_9');
+  });
+
+  it('maps a unique violation to 409', async () => {
+    const app = createBaseApp(async () => {});
+    app.post('/dup', () => {
+      throw Object.assign(new Error('duplicate key'), { code: '23505' });
+    });
+    expect((await app.request('/dup', { method: 'POST' })).status).toBe(409);
   });
 });

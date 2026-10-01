@@ -1,8 +1,7 @@
-import type { Operation } from '@repo/control-plane-contract';
-import type { Context } from 'hono';
 import { Hono } from 'hono';
 import type { ApiConfig } from '../config.js';
-import type { Database } from '../db/client.js';
+import { createDrizzleNeonStore } from '../neon/store-drizzle.js';
+import type { Scope } from '../neon/store.js';
 import {
   createBoss,
   createOperationQueue,
@@ -10,49 +9,43 @@ import {
 } from '../operations/queue.js';
 import { findOperation } from '../operations/repository.js';
 import type { OperationRecord } from '../operations/store.js';
+import { registerEndpointRoutes } from './api-endpoints.js';
+import { registerProjectRoutes } from './api-projects.js';
+import { registerRoleAndDatabaseRoutes } from './api-roles-databases.js';
+import {
+  type ApiContext,
+  type ApiEnv,
+  type NeonApiDeps,
+  notFound,
+  scopeOf,
+  toOperationResponse,
+} from './api-support.js';
 import { bearerAuth } from './auth.js';
 import { startHttpMode } from './http.js';
 import type { RunningMode } from './types.js';
 
-/** Identity the console asserts after its own membership checks. */
-interface ConsoleIdentity {
-  org: string;
-  project: string;
-}
-
-type ApiEnv = { Variables: { identity: ConsoleIdentity } };
-
-const missing = (c: Context, header: string) =>
+const missing = (c: ApiContext, header: string) =>
   c.json(
     { error: { code: 'bad_request', message: `Missing ${header} header` } },
     400,
   );
 
-export function toOperationResponse(record: OperationRecord): Operation {
-  return {
-    id: record.id,
-    target_type: record.targetType,
-    target_id: record.targetId,
-    action: record.action,
-    status: record.status,
-    failures_count: record.failuresCount,
-    error: record.error,
-    created_at: record.createdAt.toISOString(),
-    finished_at: record.finishedAt?.toISOString() ?? null,
-  };
+interface ApiDeps extends NeonApiDeps {
+  apiToken: string;
+  /** Reads an operation, scoped to the organization and console project that own it. */
+  findOperation(id: string, scope: Scope): Promise<OperationRecord | null>;
 }
 
 /**
  * The `/v1` routes. Every route needs the service bearer token plus the
- * `X-AlloyDB-Org` and `X-AlloyDB-Project` headers the console sets.
+ * `X-AlloyDB-Org` and `X-AlloyDB-Project` headers the console sets, and every
+ * store call below is filtered by those two ids: an id that belongs to another
+ * organization or console project is indistinguishable from one that does not
+ * exist.
  */
-export function createApiRoutes(
-  config: Pick<ApiConfig, 'apiToken'>,
-  db: Database,
-): Hono<ApiEnv> {
+export function createApiRoutes(deps: ApiDeps): Hono<ApiEnv> {
   const v1 = new Hono<ApiEnv>();
-
-  v1.use('*', bearerAuth(config.apiToken));
+  v1.use('*', bearerAuth(deps.apiToken));
   v1.use('*', async (c, next) => {
     const org = c.req.header('x-alloydb-org')?.trim();
     const project = c.req.header('x-alloydb-project')?.trim();
@@ -63,17 +56,14 @@ export function createApiRoutes(
   });
 
   v1.get('/operations/:id', async (c) => {
-    const { project } = c.get('identity');
-    const record = await findOperation(db, c.req.param('id'), project);
-    if (!record) {
-      return c.json(
-        { error: { code: 'not_found', message: 'Operation not found' } },
-        404,
-      );
-    }
+    const record = await deps.findOperation(c.req.param('id'), scopeOf(c));
+    if (!record) return notFound(c, 'Operation');
     return c.json({ operation: toOperationResponse(record) });
   });
 
+  registerProjectRoutes(v1, deps);
+  registerEndpointRoutes(v1, deps);
+  registerRoleAndDatabaseRoutes(v1, deps);
   return v1;
 }
 
@@ -81,9 +71,17 @@ export function startApi(config: ApiConfig): Promise<RunningMode> {
   return startHttpMode(config, async ({ app, handle }) => {
     const boss = createBoss(config.databaseUrl, 'producer');
     await startQueue(boss);
-    // Mutation routes will create operations through this queue.
-    createOperationQueue(boss);
-    app.route('/v1', createApiRoutes(config, handle.db));
+    const store = createDrizzleNeonStore(handle.db, createOperationQueue(boss));
+    app.route(
+      '/v1',
+      createApiRoutes({
+        apiToken: config.apiToken,
+        pgHostSuffix: config.pgHostSuffix,
+        store,
+        findOperation: (id, scope) =>
+          findOperation(handle.db, id, scope.consoleProjectId, scope.orgId),
+      }),
+    );
     return () => boss.stop({ graceful: true, timeout: 10_000 });
   });
 }

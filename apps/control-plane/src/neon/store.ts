@@ -60,7 +60,7 @@ export type DesiredStateChange =
   | { kind: 'database.insert'; row: typeof database.$inferInsert }
   | { kind: 'database.delete'; branchId: string; name: string };
 
-interface OperationInput {
+export interface OperationInput {
   action: OperationRecord['action'];
   targetType: string;
   targetId: string;

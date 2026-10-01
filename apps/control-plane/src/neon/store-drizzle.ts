@@ -241,6 +241,7 @@ export function createDrizzleNeonStore(
       }
       return createOperation(db, queue, {
         consoleProjectId: scope.consoleProjectId,
+        consoleOrgId: scope.orgId,
         targetType: input.targetType,
         targetId: input.targetId,
         action: input.action,
