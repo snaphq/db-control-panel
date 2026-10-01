@@ -1,0 +1,14 @@
+# Flux Kustomization `libsql`: the sqld DaemonSet.
+# Secrets (not in Git, from infra/scripts/render-secrets.ts) in namespace libsql:
+#   libsql-s3     bottomless + meta store S3 settings (env names listed in daemonset.yaml)
+#   libsql-admin  LIBSQL_ADMIN_AUTH_KEY
+#   libsql-jwt    public.pem, the Ed25519 public key sqld verifies client JWTs with
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: libsql
+resources:
+  - daemonset.yaml
+images:
+  # CI replaces the placeholder with the built image tag (images.yml).
+  - name: ghcr.io/snaphq/libsql-server
+    newTag: REPLACE_WITH_IMAGE_TAG

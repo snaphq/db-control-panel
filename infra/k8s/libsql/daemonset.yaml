@@ -1,0 +1,169 @@
+# sqld on every node labeled alloydb.net/libsql=true (docs-internal/platform/architecture.mdx).
+#
+# Host network, bound to the node's Tailscale IP, which the wrapper script reads
+# from /etc/alloydb/node.env (written by infra/ansible; must be world-readable
+# because sqld runs as uid 666). Because k3s uses the Tailscale address as
+# node-ip, the kubelet probes reach the pod on that same address.
+#
+# Every flag and env var below was checked against libsql-server-v0.24.33
+# (libsql-server/src/main.rs, bottomless/src/replicator.rs).
+#
+# S3 layout: sqld has no key-prefix setting. Bottomless writes objects at the
+# bucket root as `ns-<LIBSQL_BOTTOMLESS_DATABASE_ID>:<namespace>-<generation>/...`
+# and the meta store as `<SQLD_META_STORE_BACKUP_ID>-<generation>/...`. The
+# constant DATABASE_ID below is therefore the closest thing to a `sqld/` prefix
+# (keys start with `ns-sqld:`). LIBSQL_BOTTOMLESS_BUCKET in libsql-s3 may name a
+# dedicated bucket if a hard separation from pageserver/ and safekeeper/ is wanted.
+#
+# The script avoids braces around shell variables and the object carries
+# substitute: disabled so Flux postBuild never rewrites them.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sqld
+  namespace: libsql
+  labels:
+    app.kubernetes.io/name: sqld
+    app.kubernetes.io/part-of: alloydb
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sqld
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sqld
+        app.kubernetes.io/part-of: alloydb
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      automountServiceAccountToken: false
+      nodeSelector:
+        alloydb.net/libsql: 'true'
+      # Time for sqld to flush WAL frames to bottomless on SIGTERM.
+      terminationGracePeriodSeconds: 60
+      initContainers:
+        # hostPath directories are created root-owned; sqld runs as uid 666.
+        - name: fix-permissions
+          image: ghcr.io/snaphq/libsql-server
+          command: [/bin/sh, -ec, 'chown 666:666 /var/lib/sqld']
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/sqld
+      containers:
+        - name: sqld
+          image: ghcr.io/snaphq/libsql-server
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              ALLOYDB_TAILSCALE_IP=""
+              ALLOYDB_NODE_ID=""
+              test -r /etc/alloydb/node.env || { echo "cannot read /etc/alloydb/node.env" >&2; exit 1; }
+              set -a
+              . /etc/alloydb/node.env
+              set +a
+              test -n "$ALLOYDB_TAILSCALE_IP" || { echo "ALLOYDB_TAILSCALE_IP missing in node.env" >&2; exit 1; }
+              test -n "$ALLOYDB_NODE_ID" || { echo "ALLOYDB_NODE_ID missing in node.env" >&2; exit 1; }
+              # One metastore backup per node: its object keys must not collide.
+              export SQLD_META_STORE_BACKUP_ID="sqld-meta-$ALLOYDB_NODE_ID"
+              exec /usr/local/bin/sqld \
+                --no-welcome \
+                --db-path /var/lib/sqld/data.sqld \
+                --http-listen-addr "$ALLOYDB_TAILSCALE_IP:8080" \
+                --admin-listen-addr "$ALLOYDB_TAILSCALE_IP:8081" \
+                --auth-jwt-key-file /etc/sqld/jwt/public.pem \
+                --enable-namespaces \
+                --disable-default-namespace \
+                --enable-bottomless-replication \
+                --backup-meta-store \
+                --max-active-namespaces 200
+          env:
+            # Bottomless key prefix for all namespaces on every node, see header.
+            - name: LIBSQL_BOTTOMLESS_DATABASE_ID
+              value: sqld
+            - name: SQLD_META_STORE_BACKUP_INTERVAL_S
+              value: '60'
+            - name: LIBSQL_ADMIN_AUTH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: libsql-admin
+                  key: LIBSQL_ADMIN_AUTH_KEY
+          # Secret libsql-s3 carries (all read by sqld from the environment):
+          #   LIBSQL_BOTTOMLESS_ENDPOINT, LIBSQL_BOTTOMLESS_BUCKET,
+          #   LIBSQL_BOTTOMLESS_AWS_ACCESS_KEY_ID, LIBSQL_BOTTOMLESS_AWS_SECRET_ACCESS_KEY,
+          #   LIBSQL_BOTTOMLESS_AWS_DEFAULT_REGION and
+          #   SQLD_META_STORE_BUCKET_ENDPOINT, SQLD_META_STORE_BUCKET_NAME,
+          #   SQLD_META_STORE_ACCESS_KEY_ID, SQLD_META_STORE_SECRET_ACCESS,
+          #   SQLD_META_STORE_REGION
+          envFrom:
+            - secretRef:
+                name: libsql-s3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 4Gi
+          securityContext:
+            runAsUser: 666
+            runAsGroup: 666
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/sqld
+            - name: node-env
+              mountPath: /etc/alloydb
+              readOnly: true
+            - name: jwt
+              mountPath: /etc/sqld/jwt
+              readOnly: true
+      volumes:
+        - name: data
+          hostPath:
+            path: /var/lib/alloydb/sqld
+            type: DirectoryOrCreate
+        - name: node-env
+          hostPath:
+            path: /etc/alloydb
+            type: Directory
+        - name: jwt
+          secret:
+            secretName: libsql-jwt
+            items:
+              - key: public.pem
+                path: public.pem

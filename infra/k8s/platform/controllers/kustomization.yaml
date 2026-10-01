@@ -1,0 +1,10 @@
+# Flux Kustomization `platform-controllers`: namespaces and third-party
+# controllers. Split from ../config because the cert-manager CRDs (installed by
+# the HelmRelease below) must exist before any Issuer or Certificate is applied.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespaces.yaml
+  - helm-repositories.yaml
+  - cert-manager.yaml
+  - descheduler.yaml

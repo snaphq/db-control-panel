@@ -1,0 +1,35 @@
+# cert-manager v1.21.2 (chart index https://charts.jetstack.io/index.yaml).
+# `installCRDs` is deprecated in favour of `crds.enabled` in this chart line.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager
+  namespace: flux-system
+spec:
+  interval: 1h
+  releaseName: cert-manager
+  targetNamespace: cert-manager
+  storageNamespace: cert-manager
+  chart:
+    spec:
+      chart: cert-manager
+      version: v1.21.2
+      sourceRef:
+        kind: HelmRepository
+        name: jetstack
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    crds:
+      enabled: true
+      keep: true
+    # DNS-01 self-checks must query public resolvers, not the cluster DNS,
+    # otherwise propagation checks for the Cloudflare TXT records can stall.
+    extraArgs:
+      - --dns01-recursive-nameservers-only
+      - --dns01-recursive-nameservers=1.1.1.1:53,8.8.8.8:53

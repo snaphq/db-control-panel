@@ -1,0 +1,114 @@
+# Platform Postgres: one instance holding the `storage_controller` and
+# `control_plane` databases (docs-internal/platform/architecture.mdx).
+# Secret `platform-postgres` (key POSTGRES_PASSWORD) comes from render-secrets.ts.
+# The PVC is local-path, so the pod stays on the node that first bound it.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-postgres-init
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: platform-postgres
+    app.kubernetes.io/part-of: alloydb
+data:
+  # Only runs on an empty data directory (docker-entrypoint-initdb.d).
+  10-databases.sql: |
+    CREATE DATABASE storage_controller;
+    CREATE DATABASE control_plane;
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: platform-postgres
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: platform-postgres
+    app.kubernetes.io/part-of: alloydb
+spec:
+  selector:
+    app.kubernetes.io/name: platform-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: platform-postgres
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: platform-postgres
+    app.kubernetes.io/part-of: alloydb
+spec:
+  replicas: 1
+  serviceName: platform-postgres
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: platform-postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: platform-postgres
+        app.kubernetes.io/part-of: alloydb
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: postgres
+          image: postgres:17-bookworm
+          args:
+            - -c
+            - max_connections=200
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: platform-postgres
+                  key: POSTGRES_PASSWORD
+            # Subdirectory so the volume's lost+found does not block initdb.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, postgres, -h, 127.0.0.1]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: [pg_isready, -U, postgres, -h, 127.0.0.1]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: init
+          configMap:
+            name: platform-postgres-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/name: platform-postgres
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 20Gi

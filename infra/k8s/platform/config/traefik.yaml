@@ -1,0 +1,44 @@
+# Traefik is the one bundled with k3s (HelmChart `traefik` in kube-system).
+# k3s v1.37.0+k3s1 ships chart traefik-41.4.2+up41.4.0 with Traefik 3.7.13
+# (k3s manifests/traefik.yaml), so rules use Traefik v3 syntax.
+#
+# The default `web` (80) and `websecure` (443) entrypoints already exist and
+# are exposed through ServiceLB, so no new entrypoint is needed: TCP routers and
+# HTTP routers can share `websecure`, and a TCP passthrough router that matches
+# the SNI wins over HTTP TLS termination. The only change is a global
+# http -> https redirect (ACME uses DNS-01, so port 80 is not needed for it).
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    ports:
+      web:
+        http:
+          redirections:
+            entryPoint:
+              to: websecure
+              scheme: https
+              permanent: true
+---
+# https://ep-<id>.pg.alloydb.net (SQL-over-HTTP / WebSocket): Traefik forwards
+# the raw TLS stream by SNI and the Neon proxy terminates TLS itself with
+# pg-wildcard-tls. The IngressRouteTCP lives in `neon` so that it can reference
+# Service proxy-wss without enabling cross-namespace references.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: proxy-wss
+  namespace: neon
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: HostSNIRegexp(`^.+\.pg\.alloydb\.net$`)
+      services:
+        - name: proxy-wss
+          port: 4444
+  tls:
+    passthrough: true

@@ -1,0 +1,114 @@
+# Reconciliation order:
+#   platform-controllers -> platform -> neon ----\
+#                                  \-> libsql ---+-> control-plane
+# ConfigMap `alloydb-settings` (flux-system) supplies ${ACME_EMAIL}; create it
+# with infra/scripts/render-secrets.ts before the first reconcile.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: platform-controllers
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 10m
+  sourceRef:
+    kind: GitRepository
+    name: alloydb
+  path: ./infra/k8s/platform/controllers
+  prune: true
+  wait: true
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: platform
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 10m
+  dependsOn:
+    - name: platform-controllers
+  sourceRef:
+    kind: GitRepository
+    name: alloydb
+  path: ./infra/k8s/platform/config
+  prune: true
+  wait: true
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: alloydb-settings
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: neon
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 15m
+  dependsOn:
+    - name: platform
+  sourceRef:
+    kind: GitRepository
+    name: alloydb
+  path: ./infra/k8s/neon
+  prune: true
+  wait: true
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: alloydb-settings
+---
+# libsql only needs the platform layer (namespace, wildcard certificate), so it
+# does not wait for Neon.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: libsql
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 10m
+  dependsOn:
+    - name: platform
+  sourceRef:
+    kind: GitRepository
+    name: alloydb
+  path: ./infra/k8s/libsql
+  prune: true
+  wait: true
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: alloydb-settings
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: control-plane
+  namespace: flux-system
+spec:
+  # Suspended until infra/k8s/control-plane exists in the repository; then run
+  # `flux resume kustomization control-plane` (or remove this line).
+  suspend: true
+  interval: 10m
+  retryInterval: 1m
+  timeout: 10m
+  dependsOn:
+    - name: neon
+    - name: libsql
+  sourceRef:
+    kind: GitRepository
+    name: alloydb
+  path: ./infra/k8s/control-plane
+  prune: true
+  wait: true
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: alloydb-settings

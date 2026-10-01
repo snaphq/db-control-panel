@@ -1,0 +1,11 @@
+# Flux Kustomization `platform`: everything that needs cert-manager's CRDs, the
+# k3s Traefik CRDs, or the platform Postgres. Runs after platform-controllers.
+# Secrets are NOT in Git: apply the output of infra/scripts/render-secrets.ts.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - cluster-issuer.yaml
+  - certificates.yaml
+  - traefik.yaml
+  - platform-postgres.yaml
+  - platform-postgres-backup.yaml

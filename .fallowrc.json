@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "entry": [
     "scripts/*.{ts,mjs,js}",
+    "infra/scripts/*.ts",
     "sites/*/src/site.config.ts",
     "sites/*/src/lib/source.ts",
     "sites/*/src/components/Container/PageWrapper.tsx"

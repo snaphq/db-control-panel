@@ -1,0 +1,88 @@
+# Nightly logical backup of both platform databases to
+# s3://<bucket>/platform-backups/<UTC timestamp>/<db>.dump.
+#
+# Two containers share an emptyDir instead of one custom image: the init
+# container (postgres:17-bookworm, same major as the server) runs pg_dump, then
+# the main container (upstream amazon/aws-cli) uploads, so no image is built or
+# maintained here. `aws s3 cp --endpoint-url` works with any S3-compatible store.
+# Retention is not handled here: set a lifecycle rule on the platform-backups/
+# prefix. The scripts avoid braces around shell variables on purpose and carry
+# substitute: disabled so Flux postBuild never rewrites them.
+#
+# Secret `platform-backup-s3` (alloydb-system): AWS_ACCESS_KEY_ID,
+# AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, S3_ENDPOINT, S3_BUCKET.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: platform-postgres-backup
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: platform-postgres-backup
+    app.kubernetes.io/part-of: alloydb
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+spec:
+  schedule: '30 3 * * *'
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: platform-postgres-backup
+        spec:
+          restartPolicy: OnFailure
+          volumes:
+            - name: backup
+              emptyDir: {}
+          initContainers:
+            - name: dump
+              image: postgres:17-bookworm
+              command: [/bin/sh, -ec]
+              args:
+                - |
+                  date -u +%Y%m%dT%H%M%SZ > /backup/timestamp
+                  for db in storage_controller control_plane; do
+                    pg_dump --format=custom --no-owner \
+                      --host platform-postgres --username postgres \
+                      --file "/backup/$db.dump" "$db"
+                  done
+                  ls -l /backup
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: platform-postgres
+                      key: POSTGRES_PASSWORD
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+          containers:
+            - name: upload
+              image: amazon/aws-cli:2.37.7
+              command: [/bin/sh, -ec]
+              args:
+                - |
+                  ts=$(cat /backup/timestamp)
+                  for f in /backup/*.dump; do
+                    aws s3 cp --endpoint-url "$S3_ENDPOINT" "$f" \
+                      "s3://$S3_BUCKET/platform-backups/$ts/$(basename "$f")"
+                  done
+              env:
+                # Keep aws-cli 2.23+ default checksums from breaking
+                # S3-compatible stores that do not implement them.
+                - name: AWS_REQUEST_CHECKSUM_CALCULATION
+                  value: when_required
+                - name: AWS_RESPONSE_CHECKSUM_VALIDATION
+                  value: when_required
+              envFrom:
+                - secretRef:
+                    name: platform-backup-s3
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup

@@ -1,0 +1,45 @@
+# Namespaces from docs-internal/platform/architecture.mdx. `neon` and
+# `neon-compute` live here (not in infra/k8s/neon) because the wildcard
+# Certificate for the Neon proxy is created in `neon` during the platform step,
+# before the neon Kustomization runs. kube-system and flux-system already exist.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: alloydb-system
+  labels:
+    app.kubernetes.io/part-of: alloydb
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neon
+  labels:
+    app.kubernetes.io/part-of: alloydb
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neon-compute
+  labels:
+    app.kubernetes.io/part-of: alloydb
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: libsql
+  labels:
+    app.kubernetes.io/part-of: alloydb
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  labels:
+    app.kubernetes.io/part-of: alloydb
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/part-of: alloydb

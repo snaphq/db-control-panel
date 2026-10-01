@@ -1,0 +1,68 @@
+# Every certificate comes from letsencrypt-cloudflare (DNS-01).
+#
+# pg-wildcard-tls sets commonName explicitly: the Neon proxy takes its accepted
+# domain from the certificate's subject CN, not from the SANs
+# (proxy/src/tls/server_config.rs, CertResolver::process_key_cert).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pg-wildcard-tls
+  namespace: neon
+spec:
+  secretName: pg-wildcard-tls
+  commonName: '*.pg.alloydb.net'
+  dnsNames:
+    - '*.pg.alloydb.net'
+  privateKey:
+    rotationPolicy: Always
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-cloudflare
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lite-wildcard-tls
+  namespace: libsql
+spec:
+  secretName: lite-wildcard-tls
+  commonName: '*.lite.alloydb.net'
+  dnsNames:
+    - '*.lite.alloydb.net'
+  privateKey:
+    rotationPolicy: Always
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-cloudflare
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: apirest-wildcard-tls
+  namespace: alloydb-system
+spec:
+  secretName: apirest-wildcard-tls
+  commonName: '*.apirest.alloydb.net'
+  dnsNames:
+    - '*.apirest.alloydb.net'
+  privateKey:
+    rotationPolicy: Always
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-cloudflare
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: api-tls
+  namespace: alloydb-system
+spec:
+  secretName: api-tls
+  commonName: api.alloydb.net
+  dnsNames:
+    - api.alloydb.net
+  privateKey:
+    rotationPolicy: Always
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-cloudflare

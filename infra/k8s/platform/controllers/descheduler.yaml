@@ -1,0 +1,75 @@
+# Descheduler chart/app 0.36.0 (index https://kubernetes-sigs.github.io/descheduler/index.yaml).
+# Runs as a CronJob every 30 minutes with only RemoveDuplicates and
+# LowNodeUtilization enabled. DefaultEvictor keeps its default protections
+# (DaemonSet pods, pods without an owner such as compute pods, local storage,
+# system-critical) and additionally protects pods with PVCs. The platform
+# Postgres and safekeepers are StatefulSets with PVCs, so they are never evicted.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: descheduler
+  namespace: flux-system
+spec:
+  interval: 1h
+  releaseName: descheduler
+  targetNamespace: kube-system
+  storageNamespace: kube-system
+  chart:
+    spec:
+      chart: descheduler
+      version: 0.36.0
+      sourceRef:
+        kind: HelmRepository
+        name: descheduler
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    kind: CronJob
+    schedule: '*/30 * * * *'
+    deschedulerPolicyAPIVersion: descheduler/v1alpha2
+    deschedulerPolicy:
+      profiles:
+        - name: default
+          pluginConfig:
+            - name: DefaultEvictor
+              args:
+                podProtections:
+                  extraEnabled:
+                    - PodsWithPVC
+            - name: RemoveDuplicates
+              args:
+                namespaces:
+                  exclude:
+                    - kube-system
+                    - flux-system
+                    - cert-manager
+                    - neon
+                    - neon-compute
+                    - libsql
+            - name: LowNodeUtilization
+              args:
+                thresholds:
+                  cpu: 20
+                  memory: 20
+                  pods: 20
+                targetThresholds:
+                  cpu: 50
+                  memory: 50
+                  pods: 50
+                evictableNamespaces:
+                  exclude:
+                    - kube-system
+                    - flux-system
+                    - cert-manager
+                    - neon
+                    - libsql
+          plugins:
+            balance:
+              enabled:
+                - RemoveDuplicates
+                - LowNodeUtilization

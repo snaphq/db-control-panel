@@ -2,10 +2,15 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     ".": {
-      "entry": [".agents/skills/*/scripts/**/*.ts", "scripts/*.{ts,mjs,js}"],
+      "entry": [
+        ".agents/skills/*/scripts/**/*.ts",
+        "scripts/*.{ts,mjs,js}",
+        "infra/scripts/*.ts"
+      ],
       "project": [
         ".agents/skills/*/scripts/**/*.ts",
-        "scripts/**/*.{ts,mjs,js}"
+        "scripts/**/*.{ts,mjs,js}",
+        "infra/scripts/**/*.ts"
       ]
     },
     "apps/*": {},

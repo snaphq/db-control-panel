@@ -1,0 +1,21 @@
+# Let's Encrypt production with the Cloudflare DNS-01 solver.
+# Secret `cloudflare-api-token` (key `api-token`, scope Zone:DNS:Edit +
+# Zone:Zone:Read) must exist in the cert-manager namespace, which is the
+# ClusterIssuer's cluster resource namespace. ${ACME_EMAIL} comes from the
+# alloydb-settings ConfigMap via Flux postBuild substitution.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-cloudflare
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ${ACME_EMAIL}
+    privateKeySecretRef:
+      name: letsencrypt-cloudflare-account
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token

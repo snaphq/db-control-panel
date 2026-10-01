@@ -1,0 +1,7 @@
+# Flux entrypoint for the AlloyDB cluster. Bootstrap Flux so that it syncs this
+# path, or apply it once: kubectl apply -k infra/k8s/clusters/alloydb
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gitrepository.yaml
+  - kustomizations.yaml
