@@ -14,8 +14,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY postgrest.cabal cabal.project cabal.project.freeze ./
+# Target the package, not exe:postgrest: for the exe target cabal counts the
+# package's own library as a dependency, and its sources are not copied yet.
 RUN cabal update \
-    && cabal build --only-dependencies --disable-tests --disable-benchmarks exe:postgrest
+    && cabal build --only-dependencies --disable-tests --disable-benchmarks postgrest
 COPY . .
 RUN cabal build --disable-tests --disable-benchmarks exe:postgrest \
     && install -D "$(cabal list-bin --disable-tests exe:postgrest)" /out/postgrest \
