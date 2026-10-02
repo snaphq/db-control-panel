@@ -63,9 +63,9 @@ The control plane answering `401` or `403` means the console's token is wrong,
 which is an operator problem, so it is reported as unavailable rather than as the
 user's error.
 
-libSQL paths (`/v1/libsql/databases`, `.../:id`, `.../:id/tokens`) are assumed:
-the control plane does not serve them yet. The overview treats a failing libSQL
-list as a message in the libSQL tab, not as a page failure.
+The control plane serves the libSQL paths listed below. A failed libSQL list
+is shown as a message in the libSQL tab rather than taking down the whole
+overview.
 
 ## Authorization
 
@@ -150,4 +150,3 @@ copy of the apirest domain.
 
 - libSQL tokens are stateless JWTs, so there is no revoke; the contract has no
   revoke call.
-- libSQL routes and the Data API toggle are not served by the control plane yet.

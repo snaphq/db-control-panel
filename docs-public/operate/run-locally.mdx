@@ -1,6 +1,6 @@
 ---
 title: Run locally
-description: Start the project and verify its local services.
+description: Start the AlloyDB console and admin portal and verify local web services.
 ---
 
 # Run locally
@@ -19,9 +19,9 @@ bun run dev:backend   # admin portal, http://localhost:8800
 bun run dev:alloydb.console    # http://localhost:8801
 ```
 
-Shared secrets live in the root `.env.local`; each app's local URL lives in
-its `.env.development`. Every site runs on `localhost`, and each one resolves
-to its own tenant. Browsers share cookies across ports, so to stay signed in
-to two sites at once open one of them on another host name, for example
-`http://console.localhost:8801`. Run the Inngest CLI against the backend
+Shared secrets live in the root `.env.local`; each web app's local URL lives
+in its `.env.development`. The current site runs on port 8801. The control
+plane is a separate service and is not started by these commands. The
+Databases tab requires `ALLOYDB_API_URL` and `ALLOYDB_API_TOKEN` to point to a
+reachable control-plane API. Run the Inngest CLI against the backend
 (`http://localhost:8800/api/inngest`) when testing durable jobs.

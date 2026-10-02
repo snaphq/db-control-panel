@@ -5,10 +5,13 @@ description: Database client, schemas, DAL boundaries, and tenant resolution.
 
 # Data and tenancy architecture
 
-`@repo/database` owns the Drizzle client, schema exports, tenant helpers, and
-data-access helpers. The backend, every site, and other packages use its
-exports instead of constructing a second database client. All of them share
-one database.
+`@repo/database` owns the web-app Drizzle client, schema exports, tenant
+helpers, and data-access helpers. The backend, tenant sites, and shared web
+packages use its exports. They share the web-app database.
+
+`apps/control-plane` is a separate service with its own Drizzle client, schema,
+and migrations. Its database is not shared with the web apps; see
+[Control-plane architecture](/platform/control-plane).
 
 ## Schema groups
 

@@ -1,14 +1,14 @@
 ---
 title: Deploy
-description: Deploy the admin portal and each site, and connect their external services.
+description: Deploy the AlloyDB console and admin portal, then configure their external services.
 ---
 
 # Deploy
 
 ## Vercel
 
-Each app is its own Vercel project, deployed by the repository's GitHub
-Actions workflow:
+The console and admin portal are separate Vercel projects, deployed by the
+repository's GitHub Actions workflow:
 
 | App | Project Root Directory |
 | --- | --- |
@@ -24,11 +24,19 @@ Stripe webhooks and scheduled billing work run on the admin portal:
 use `https://<admin-domain>/api/webhooks/stripe` as the Stripe webhook URL
 and sync Inngest with `https://<admin-domain>/api/inngest`.
 
-## Containers
+## Control-plane and data-plane services
+
+The Vercel workflow deploys the two Next.js apps. The control-plane and
+data-plane container images are built separately by
+`.github/workflows/images.yml` and run in the Kubernetes environment. The
+control-plane and data-plane rollout is handled separately from the Vercel
+workflow. The root Next.js `Dockerfile` does not build the control-plane service.
+
+## Next.js app containers
 
 The repository includes a `Dockerfile` that builds one app per image; choose
 it with `--build-arg APP_DIR=… --build-arg APP_PACKAGE=… --build-arg PORT=…`
-(the defaults build site A). Provide runtime environment variables to the
+(the defaults build the AlloyDB console). Provide runtime environment variables to the
 container and expose the application port used by the deployment. Run
 the same database migration commands separately before serving traffic.
 

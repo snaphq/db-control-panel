@@ -5,9 +5,10 @@ description: A task-oriented guide to running, configuring, and extending the ap
 
 # Overview
 
-This is a Turborepo monorepo for a multi-site SaaS: several branded Next.js
-sites that share one platform, plus an admin portal for all of them. It uses
-Bun workspaces, Better Auth, PostgreSQL, Drizzle, and shared domain packages.
+This repository contains the AlloyDB console and admin portal, plus the
+control-plane service that provisions PostgreSQL and libSQL databases. The web
+apps use Bun workspaces, Better Auth, PostgreSQL, Drizzle, and shared packages;
+the control plane is a separate Hono service with its own database.
 
 Start with [Getting started](/start/getting-started), then configure
 [authentication](/configure/authentication) and the
@@ -16,9 +17,11 @@ Start with [Getting started](/start/getting-started), then configure
 
 ## What is included
 
-- Two Next.js 16 tenant sites in `sites/` (each with its own brand, domain,
-  tenant, and MCP server) built from one shared route tree.
+- One current tenant site in `sites/net.alloydb.console`, built from shared
+  routes. The workspace and route tooling support adding more sites.
 - An admin portal in `apps/backend` for platform administrators.
+- A control-plane API and worker in `apps/control-plane` for database
+  provisioning, compute operations, libSQL, and the Data API.
 - Shared packages for auth, billing, analytics, database, durable execution,
   AI, MCP, and object storage.
 - Better Auth with organizations, two-factor auth, passkeys, and an OAuth

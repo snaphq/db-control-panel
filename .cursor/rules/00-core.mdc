@@ -1,67 +1,32 @@
 ---
-description: "Project-wide rules applied globally"
+description: Repository architecture and coding guidance
 globs: []
 alwaysApply: true
 ---
 
-# Global Standards
+# Repository guidance
 
-## Tech Stack
-- **Package Manager**: Bun
-- **Framework**: Next.js 16 with App Router
-- **Language**: TypeScript with strict mode enabled
-- **Styling**: TailwindCSS with Shadcn UI components
-- **Authentication**: BetterAuth (self-hosted)
-- **Database**: PostgreSQL with Drizzle ORM
-- **Forms**: React Hook Form with Zod validation
-- **State Management**: TanStack Query (React Query)
-- **Caching**: Redis via Upstash
-- **Payments**: Stripe integration (optional)
+Read the root `AGENTS.md` for the full project conventions and commands.
 
-## Code Style
-- **Indentation**: 2 spaces
-- **Exports**: Named exports for components and utilities, default exports for pages and layouts
-- **Comments**: English only, avoid comments on obvious things
-- **File Naming**: 
-  - Pages: `page.tsx`
-  - Layouts: `layout.tsx`
-  - Components: PascalCase (e.g., `UserProfile.tsx`)
-  - Utilities: camelCase (e.g., `formatDate.ts`)
+## Workspace boundaries
 
-## TypeScript Standards
-- **Strict Mode**: Always enabled - all code must be fully typed
-- **No `any` types**: Use proper TypeScript types or `unknown` with type guards
-- **Path Aliases**: Use `@/` for imports from the root directory (maps to `src/`)
-- **Type Inference**: Prefer type inference where possible, but add explicit types for function parameters and return values
-- **No `@ts-ignore`**: All TypeScript errors must be resolved
+- `apps/backend` and `sites/net.alloydb.console` are Next.js web apps.
+- `apps/control-plane` is a Hono service. It has its own database and
+  migrations and is not started by `bun run dev`.
+- `packages/database` is the shared database for the web apps.
+- `packages/site-kit` owns shared site routes. Edit those sources instead of
+  generated route shims under `sites/*/src/app`.
+- `packages/react-ui`, `packages/core`, and the other `packages/*` directories
+  hold reusable web-app code. `packages/control-plane-contract` defines the
+  control-plane API contract.
 
-## Import Conventions
-- Use path aliases: `@/components`, `@/lib`, `@/utils`, `@/app`
-- Group imports: external packages first, then internal imports
-- Avoid circular dependencies
+## Imports and app paths
 
-## Git Conventions
-- Branch naming: `feature/`, `bugfix/`, `chore/`
-- Commit messages: Clear and descriptive
+- Use `@/` only for files inside the current app or site.
+- Use `@repo/<package>` for shared workspace packages.
+- Do not import across app boundaries. Put shared web code in a package.
+- Keep the control-plane service database separate from the web-app database.
 
-## Testing
-- Run `bun run build` before submitting changes
-- Run `bun run lint` to catch style issues
-- Test with actual PostgreSQL database, not mocks
-
-## Ignored Directories
-- `node_modules/`
-- `.next/`
-- `dist/`
-- `build/`
-- `.git/`
-
-## AI Hints
-- Prefer pure functions and strict typing
-- Use Server Components by default in Next.js
-- Leverage Drizzle ORM's type safety
-- Follow Next.js 16 App Router patterns
-- Avoid mixing ORM libraries (use Drizzle, not Prisma)
-
-When working with Next.js, always call the init tool from next-devtools-mcp
-at the start of the session to establish proper context and documentation requirements.
+Use the repository's existing tests, lint, type checks, and package boundaries
+when changing code. Follow `AGENTS.md` before running database or deployment
+commands.

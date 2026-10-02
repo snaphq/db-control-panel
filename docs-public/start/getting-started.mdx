@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Install dependencies, configure the environment, and run the admin portal and sites locally.
+description: Install dependencies, configure the environment, and run the AlloyDB console and admin portal locally.
 ---
 
 # Getting started
@@ -13,8 +13,8 @@ description: Install dependencies, configure the environment, and run the admin 
 ## Install and configure
 
 ```bash
-git clone <your-repository-url>
-cd <your-repository>
+git clone https://github.com/snaphq/db-control-panel.git
+cd db-control-panel
 bun install
 cp env.example .env.local
 ```
@@ -22,14 +22,15 @@ cp env.example .env.local
 Fill in at least `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BACKEND_ADMIN_EMAILS`
 (who may sign in to the admin portal), and `BACKEND_SESSION_SECRET` in the
 root `.env.local`. Each app's local URL is already set in its committed
-`.env.development`. `env.example` lists every variable; see
+`.env.development`. `env.example` lists common required and optional values;
+set additional integration values when enabling those features. See
 [Configure authentication](../configure/authentication) for the auth values.
 Never commit real values.
 
 ## Prepare the database
 
-For local development, push the schema, create the default tenant and its
-site admin, then create one tenant per site:
+For local development, push the web-app schema, create the default tenant and
+its site admin, then seed the current site:
 
 ```bash
 bun run db:push
@@ -55,3 +56,8 @@ To run one app without the Turborepo TUI, use `bun run dev:backend`
 or `bun run dev:alloydb.console`. Sign in to the admin portal
 with an email from `BACKEND_ADMIN_EMAILS`; until email delivery is configured,
 the sign-in code prints in the backend's terminal.
+
+These commands start the web apps only. The Databases tab also needs a
+reachable control-plane API configured with `ALLOYDB_API_URL` and
+`ALLOYDB_API_TOKEN`; `apps/control-plane` has no local `dev` script and is not
+started by `bun run dev`.

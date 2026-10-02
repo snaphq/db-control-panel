@@ -8,11 +8,16 @@
       "args": ["-y", "next-devtools-mcp@latest"]
     },
     "chrome-devtools": {
-        "command": "npx",
-        "args": ["-y", "chrome-devtools-mcp@latest","-w","ws://100.92.18.1:8080/devtools/browser"]
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "-w",
+        "ws://100.92.18.1:8080/devtools/browser"
+      ]
     },
-    "nextjs-admin": {
-      "url": "http://localhost:3000/api/adminx/mcp"
+    "alloydb-admin": {
+      "url": "http://localhost:8800/mcp?tenant=default"
     }
   }
 }

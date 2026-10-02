@@ -7,10 +7,13 @@
       "visibility": "internal",
       "sources": [
         "apps/backend/package.json",
+        "apps/control-plane/package.json",
+        "apps/control-plane/src",
         "sites/net.alloydb.console/package.json",
         "packages/site-kit/src",
         "packages/core/src",
-        "packages/react-ui/src"
+        "packages/react-ui/src",
+        "packages/control-plane-contract/src"
       ]
     },
     {
@@ -54,7 +57,9 @@
       "visibility": "internal",
       "sources": [
         "packages/database/src",
-        "packages/database/drizzle.config.ts"
+        "packages/database/drizzle.config.ts",
+        "apps/control-plane/src/db",
+        "apps/control-plane/drizzle.config.ts"
       ]
     },
     {
@@ -169,7 +174,11 @@
       "sources": [
         "vercel.json",
         "Dockerfile",
-        "sites/net.alloydb.console/next.config.ts"
+        "sites/net.alloydb.console/next.config.ts",
+        ".github/workflows/deploy-vercel.yml",
+        ".github/workflows/images.yml",
+        "infra/images/control-plane",
+        "infra/k8s/control-plane"
       ]
     },
     {
@@ -178,7 +187,10 @@
       "visibility": "internal",
       "sources": [
         "packages/database/package.json",
-        "packages/database/drizzle.config.ts"
+        "packages/database/drizzle.config.ts",
+        "apps/control-plane/src/db",
+        "apps/control-plane/drizzle.config.ts",
+        "apps/control-plane/drizzle"
       ]
     },
     {

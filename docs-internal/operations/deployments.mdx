@@ -1,15 +1,20 @@
 ---
 title: Deployment and runtime
-description: One Vercel project per app, Docker builds, runtime URLs, and post-deploy checks.
+description: Vercel deployments for web apps, container images for the control plane, runtime URLs, and post-deploy checks.
 ---
 
 # Deployment and runtime
 
-Each deployable is its own app and its own Vercel project: `apps/backend`
-and every `sites/*`. Deployment runs only through GitHub Actions
+Each web app is its own Vercel project: `apps/backend` and each deployed
+`sites/*` app. These deployments run through GitHub Actions
 (`.github/workflows/deploy-vercel.yml` on pushes to `main`,
 `deploy-vercel-preview.yml` for pull requests), as a matrix with one entry per
 app. An entry is skipped until its project id is configured.
+
+The control plane is not a Vercel app. `.github/workflows/images.yml` builds
+the control-plane and data-plane container images from pinned source revisions;
+the Kubernetes resources under `infra/k8s/` define the workloads. Image builds
+and cluster rollout are separate steps.
 
 ## Vercel
 
@@ -33,7 +38,7 @@ Stripe webhooks and Inngest run on the backend: point Stripe at
 
 ## Docker
 
-The root `Dockerfile` builds one app per image, selected with build args
+The root `Dockerfile` builds one Next.js app per image, selected with build args
 (`APP_DIR`, `APP_PACKAGE`, `PORT`; defaults build `sites/net.alloydb.console` on
 8801). Apply database migrations separately and provide runtime variables
 through the deployment secret store.

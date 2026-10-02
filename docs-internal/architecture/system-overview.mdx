@@ -1,22 +1,25 @@
 ---
 title: System overview
-description: How the admin portal, tenant sites, shared packages, and external services fit together.
+description: How the web apps, control-plane service, shared packages, and external services fit together.
 ---
 
 # System overview
 
-The repository is a Bun workspace/Turborepo monorepo with three kinds of
-workspace:
+The repository is a Bun workspace/Turborepo monorepo with web apps, a
+control-plane service, and shared packages:
 
 | Workspace | Role |
 | --- | --- |
 | `apps/backend` | Platform admin portal for every site, plus platform ingress (Stripe webhooks, Inngest) and the admin MCP endpoint. See [Backend admin portal](/architecture/backend-admin). |
+| `apps/control-plane` | Hono service for the control-plane API, workers, Neon integration, libSQL, and the Data API gateway. See [Control plane](/platform/control-plane). |
 | `sites/*` | One Next.js app per tenant site (currently `sites/net.alloydb.console`). Each owns its identity, branding, and marketing/legal pages. See [Multi-site architecture](/architecture/multi-site). |
-| `packages/*` | Shared code: routes and layout for every site (`site-kit`), server logic (`core`), React UI and theme (`ui`), and domain/integration packages (`auth`, `database`, `billing`, `mcp-server`, …). |
+| `packages/*` | Shared code: site routes and layout (`site-kit`), server logic (`core`), React UI and theme (`react-ui`), the web-app database (`database`), and domain/integration packages. |
 
-All workspaces share one PostgreSQL database. Each site serves one tenant;
-tenant-owned rows carry a tenant key and every request resolves its tenant
-before it reads or writes.
+The backend and tenant sites use the shared web-app database in
+`packages/database`. The control plane owns a separate PostgreSQL database,
+schema, and migration history under `apps/control-plane`. Each tenant site
+serves one tenant; tenant-owned rows in the web-app database carry a tenant key
+and every request resolves its tenant before it reads or writes.
 
 ## Request path (site)
 
@@ -31,6 +34,11 @@ before it reads or writes.
 4. External services (PostgreSQL, Stripe, PostHog, Inngest, provider APIs,
    storage, and MCP clients) are reached through the owning package.
 
+The console's database-management routes call the control-plane API from
+server code through `packages/core/src/control-plane`; the browser never
+receives the control-plane token. The control-plane service and web app use
+separate databases.
+
 ## Ownership map
 
 | Layer | Owns | Examples |
@@ -38,12 +46,14 @@ before it reads or writes.
 | Site-owned files | identity, branding, landing/legal pages | `sites/<site>/src/site.config.ts`, `src/app/page.tsx` |
 | Shared site routes | URL contracts, auth gates, composition for every site | `packages/site-kit/src/app`, `src/proxy.ts`, `src/root-layout.tsx` |
 | Admin portal | platform administration and ingress | `apps/backend/src/app` |
+| Control plane | database provisioning, compute operations, service API and worker | `apps/control-plane/src` |
 | Shared logic and UI | request adapters, domain policy, components | `packages/core`, `packages/react-ui` |
 | Domain packages | reusable domain and integration contracts | `packages/auth`, `billing`, `database`, `analytics`, `mcp-server` |
 | Scripts | seeds, checks, route shim sync | `scripts/` |
 
-Dependency direction is one way: apps and sites import packages; `site-kit`
-imports `ui` and `core`; `ui` imports `core`; packages never import from
+Dependency direction is one way: web apps and sites import packages; `site-kit`
+imports `react-ui` and `core`; `react-ui` imports `core`; the control plane
+uses the shared `control-plane-contract` package. Packages never import from
 apps or sites. Shared routes reach site-owned modules only through the
 `@site/*` alias.
 

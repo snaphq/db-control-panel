@@ -43,7 +43,7 @@ jobs:
           - app: alloydb.console
             project_id: 'prj_TSfaxTFNY4iHJ9wdHA7CdncEa96q'
             project_name: 'alloydb-console'
-            alias_prefix: 'nexvio-ai'
+            alias_prefix: 'alloydb-console'
             node_version: '22'
           - app: backend
             project_id: 'prj_OFRUUVYdouxmzSDyrjF3UKqW1CNg'

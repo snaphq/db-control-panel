@@ -5,28 +5,39 @@ description: Safe schema generation, application, and live verification.
 
 # Database migrations
 
-The Drizzle schema in `packages/database/src` (the files listed in
-`packages/database/drizzle.config.ts`) is the only schema source of truth.
-There are no hand-written SQL migrations: tables, columns, foreign keys,
-indexes (including partial unique indexes), and constraints are declared in
-Drizzle.
+There are two PostgreSQL databases with separate schemas and migration
+lifecycles:
 
-A fresh database is created from the schema, then seeded with the default
-tenant and admin:
+- The web-app database is owned by the Drizzle schema in `packages/database/src`
+  and `packages/database/drizzle.config.ts`.
+- The control-plane service database is owned by `apps/control-plane/src/db`
+  and `apps/control-plane/drizzle.config.ts`; its tracked SQL migrations live
+  under `apps/control-plane/drizzle/`.
+
+Do not apply a migration command for one database to the other.
+
+A fresh web-app database is created from the schema, then seeded with the
+default tenant and admin:
 
 ```bash
 bun run db:push
 bun run db:seed
 ```
 
-For shared environments that need a reviewed migration history:
+For shared web-app environments that need a reviewed migration history:
 
 ```bash
 bun run db:generate
 bun run db:migrate
 ```
 
-Generated output under `packages/database/drizzle` is local and gitignored.
+The root `db:generate` command runs the task in every workspace that defines
+it, including the control-plane package. Use
+`bun run --filter @repo/control-plane db:generate` to scope it to that service.
+The root `db:migrate` command applies web-app migrations only; the control-plane
+service applies its own tracked migrations when the worker starts. Generated
+web-app output under `packages/database/drizzle` is local and gitignored;
+control-plane migrations are source files and must be reviewed and committed.
 
 ## Review checklist
 

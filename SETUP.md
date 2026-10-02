@@ -48,31 +48,28 @@ MCP server names, the Inngest app id, docs titles, and default URLs.
 
 ## 3. Name the sites
 
-The project ships one admin portal and two tenant sites:
+The project ships one admin portal and one tenant site:
 
 | Folder | Role | Local URL |
 | --- | --- | --- |
 | `apps/backend` | Admin portal for every site (platform admins only) | http://localhost:8800 |
-| `sites/com.site-a` | First tenant site (placeholder name) | http://localhost:8801 |
-| `sites/com.site-b` | Second tenant site (placeholder name) | http://localhost:8802 |
+| `sites/net.alloydb.console` | AlloyDB console site | http://localhost:8801 |
 
-`com.site-a` and `com.site-b` are placeholders. Tell the user they should
-rename them as required, and ask, for each site they want to rename: the new
-folder name (reverse-domain style, e.g. `com.acme`), display name, production
-domain, and tenant id. Keep `sites/com.site-a` on the `default` tenant unless
-the user picks another id; that site's tenant must match `DEFAULT_TENANT_ID`
-in step 6.
+The current site folder is `net.alloydb.console`. Ask whether to keep it or
+rename it, and for each site to rename ask for the new folder name
+(reverse-domain style, e.g. `com.acme`), display name, production domain, and
+tenant id. Keep the current site's tenant on `default` unless the user picks
+another id; that site's tenant must match `DEFAULT_TENANT_ID` in step 6.
 
 ```bash
-bun .agents/skills/setup/scripts/rename-site.ts --from com.site-a --to com.acme \
+bun .agents/skills/setup/scripts/rename-site.ts --from net.alloydb.console --to com.acme \
   --name "Acme" --domain app.acme.com --tenant default --mcp-name acme-mcp
-bun .agents/skills/setup/scripts/rename-site.ts --from com.site-b --to com.globex \
-  --name "Globex" --domain app.globex.com --tenant globex --mcp-name globex-mcp
 bun install
 ```
 
 Every flag except `--from`/`--to` is optional; the user may also keep a
-placeholder name for now. Each site's branding, landing pages, and legal pages
+current name for now. If the folder is renamed, use its new name in the
+remaining setup commands. Each site's branding, landing pages, and legal pages
 live in its own folder; everything else is shared from `packages/site-kit`.
 
 ## 4. Choose the auth provider
@@ -102,13 +99,13 @@ bun .agents/skills/setup/scripts/configure-env.ts --section Core \
   --generate BETTER_AUTH_SECRET --generate BACKEND_SESSION_SECRET
 ```
 
-Shared values go in the root `.env.local`. Each app's local URL lives in its
-committed `.env.development` (backend 8800, sites 8801 and 8802), so never put
+Shared values go in the root `.env.local`. Each web app's local URL lives in its
+committed `.env.development` (backend 8800, site 8801), so never put
 `NEXT_PUBLIC_APP_URL` in `.env.local`. To change a site's
 local URL (this also updates its dev port):
 
 ```bash
-bun .agents/skills/setup/scripts/configure-env.ts --site com.site-a \
+bun .agents/skills/setup/scripts/configure-env.ts --site net.alloydb.console \
   --set NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -122,7 +119,7 @@ Optional auth values (ask whether they want them):
 ## 6. Default tenant and admin
 
 Each site's tenant comes from its `src/site.config.ts` (step 3). The default
-tenant (`sites/com.site-a` unless renamed) can also take a support email and
+tenant (`sites/net.alloydb.console` unless renamed) can also take a support email and
 logo from `DEFAULT_TENANT_*`. Ask for the default tenant's support email, and
 for the first site admin's name, email, and password: a `site-admin` user of
 the default tenant who can manage every workspace on that site. Platform
@@ -174,25 +171,25 @@ If the user chose referrals, run the `setup-referral` skill now.
 bun run build
 ```
 
-Then ask the user to run `bun run dev` (all apps) or `bun run dev:backend`,
-`bun run dev:site-a`, `bun run dev:site-b` one at a time; sign in to the admin
+Then ask the user to run `bun run dev` (the web apps) or `bun run dev:backend`,
+`bun run dev:alloydb.console` one at a time; sign in to the admin
 portal at http://localhost:8800 with an email from `BACKEND_ADMIN_EMAILS` (the
 code prints to the console until zsend is configured); and sign in to a site
-with the admin account from step 6. Don't drive a browser yourself unless the
-user asks you to.
+with the admin account from step 6. The control-plane service and data-plane
+cluster are deployed separately; `bun run dev` does not start them. Don't drive
+a browser yourself unless the user asks you to.
 
 ## 10. Deployment
 
 Deployment runs through the GitHub Actions Vercel workflow
-(`.github/workflows/deploy-vercel.yml`) on pushes to the deploy branch — never
+(`.github/workflows/deploy-vercel.yml`) on pushes to `main` — never
 deploy by hand. Each app is its own Vercel project, and the workflow matrix
 (also in `deploy-vercel-preview.yml`) has one row per app:
 
 | Matrix `app` | Folder | Vercel Root Directory |
 | --- | --- | --- |
 | `backend` | `apps/backend` | `apps/backend` |
-| `site-a` | `sites/com.site-a` | repository root (uses the root `vercel.json`) |
-| `site-b`, `site-c`, `site-d` | `sites/com.site-b`, … | the site's folder |
+| `alloydb.console` | `sites/net.alloydb.console` | repository root (uses the root `vercel.json`) |
 
 Ask the user to create a Vercel project for each app they want to deploy and
 for their Vercel org (team) id and each project id (`prj_…`, in the project's
@@ -202,7 +199,7 @@ read from repository variables. Apps left with an empty id are skipped.
 ```bash
 bun .agents/skills/setup/scripts/set-vercel-projects.ts --list
 bun .agents/skills/setup/scripts/set-vercel-projects.ts --org team_… \
-  --project backend=prj_… --project site-a=prj_… --project site-b=prj_…
+  --project backend=prj_… --project alloydb.console=prj_…
 ```
 
 Pass `--project <app>=` (empty) to disable an app that still carries the

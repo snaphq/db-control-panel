@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "nextjs-starter-monorepo",
+      "name": "alloydb",
       "dependencies": {
         "stripe": "catalog:",
         "stripe-sync-engine": "catalog:",

@@ -12,7 +12,7 @@
       {
         "tab": "Start a project",
         "icon": "rocket",
-        "pages": ["index", "start/getting-started"]
+        "pages": ["index", "start/index", "start/getting-started"]
       },
       {
         "tab": "Configure your app",

@@ -20,11 +20,13 @@ with TUI mode enabled.
 ```
 .
 ├── apps/
-│   └── backend/            # Platform admin portal for every site (@repo/backend)
+│   ├── backend/            # Platform admin portal for every site (@repo/backend)
+│   └── control-plane/      # Hono control-plane API and workers (@repo/control-plane)
 ├── sites/                  # Tenant sites, one tenant each
 │   └── net.alloydb.console/         # Next.js site on the shared site-kit route tree
 ├── packages/
 │   ├── site-kit/           # Shared site routes (src/app), proxy, root layout
+│   ├── control-plane-contract/ # Shared control-plane API schemas
 │   ├── core/               # Shared server logic (auth helpers, agent auth, operators, integrations)
 │   ├── react-ui/           # Shared React components, hooks, providers, theme.css (React hosts only)
 │   ├── database/           # Drizzle schema and data access (@repo/database)
@@ -38,10 +40,12 @@ with TUI mode enabled.
 └── package.json            # Root workspace config
 ```
 
-Dependency direction: `sites/*` and `apps/backend` depend on packages;
-`site-kit` depends on `react-ui` and `core`; `react-ui` depends on `core`; packages never
-import from apps or sites. Shared site routes reach site-owned modules only
-through the `@site/*` alias (`@site/site.config`, `@site/lib/source`,
+Dependency direction: `sites/*` and `apps/backend` depend on shared web
+packages; `apps/control-plane` depends on `@repo/control-plane-contract` and
+owns its service database. `site-kit` depends on `react-ui` and `core`;
+`react-ui` depends on `core`; packages never import from apps or sites. Shared
+site routes reach site-owned modules only through the `@site/*` alias
+(`@site/site.config`, `@site/lib/source`,
 `@site/components/Container/PageWrapper`).
 
 ## Build, Test, and Development Commands
@@ -66,6 +70,8 @@ All commands use bun and are run from the monorepo root:
 - `bun run db:studio` - Open Drizzle Studio
 - `bun run db:seed` - Seed the default tenant and its site admin
 - `bun run db:seed:sites` - Create/update one tenant per `sites/*/src/site.config.ts`
+- `bun run --filter @repo/control-plane db:generate` - Generate a control-plane migration
+- `bun run --filter @repo/control-plane test` - Run control-plane tests
 
 ### Workspace Filtering
 
@@ -82,6 +88,9 @@ bun run --filter @repo/database build   # Build database package only
 - `apps/backend` is the platform admin portal. It has its own sign-in
   (`BACKEND_ADMIN_EMAILS` + emailed code) and hosts Stripe webhooks, Inngest,
   and the admin MCP endpoint (`/mcp?tenant=<id>`).
+- `apps/control-plane` is a Hono service with API, worker, Neon integration,
+  libSQL, and Data API gateway modes. It has its own PostgreSQL schema and
+  migration history; it is not started by the root `bun run dev` command.
 - `sites/*` are tenant sites. Next.js sites share routes from
   `packages/site-kit/src/app`; each keeps generated one-line shims
   (`bun run sites:sync`, checked by `bun run check:site-routes` in
@@ -174,11 +183,25 @@ Path aliases in each app's `tsconfig.json` (`apps/backend`, `sites/*`):
 
 ## Coding Style & Naming Conventions
 
-TypeScript is required across the repo. Use two-space indentation, single quotes in TS/TSX, and keep files UTF-8 ASCII-friendly. Components and hooks follow `PascalCase` (`DashboardShell`) and `camelCase` (`useBillingPortal`). API routes use kebab-case folders (e.g., `src/app/api/billing/route.ts`). Favor server components unless client hooks or browser APIs demand `"use client"`. Run `bun run lint` before pushing; Biome (configured in `biome.json`) enforces both lint and format rules.
+TypeScript is required across the repo. Follow the formatting settings in
+`biome.json` and the existing conventions of the package you are editing;
+quote style is package-specific. Keep files UTF-8 ASCII-friendly. Components
+and hooks follow `PascalCase` (`DashboardShell`) and `camelCase`
+(`useBillingPortal`). API routes use kebab-case folders (e.g.,
+`src/app/api/billing/route.ts`). Favor server components unless client hooks
+or browser APIs demand `"use client"`. Run `bun run lint` before pushing;
+Biome checks lint and formatting.
 
 ## Testing Guidelines
 
-Vitest suites live in the packages, `apps/backend`, and the standalone sites (`src/**/*.test.ts` or `src/__tests__/`); run them all with `bunx turbo run test --filter='./packages/*' --filter='./apps/*' --filter='./sites/*'`. Tests that touch tenancy must prove isolation between sites, for example that a credential from one site's tenant is rejected on another site's host (`packages/core/src/tenant-isolation.test.ts`). Keep test names declarative (`it('renders empty state when no invoices')`), document manual verification steps in each PR, and run `bun run build` before merging.
+Vitest suites live in packages, `apps/backend`, `apps/control-plane`, and sites
+(`src/**/*.test.ts` or `src/__tests__/`). Run them with
+`bunx turbo run test --filter='./packages/*' --filter='./apps/*' --filter='./sites/*'`.
+Tests that touch tenancy must prove isolation between sites, for example that
+a credential from one site's tenant is rejected on another site's host
+(`packages/core/src/tenant-isolation.test.ts`). Keep test names declarative,
+document manual verification steps in each PR, and run `bun run build` before
+merging.
 
 ## Commit & Pull Request Guidelines
 
@@ -186,7 +209,7 @@ Commits use Conventional Commits (`feat(auth): add passkey login`), enforced by 
 
 ## Security & Configuration Notes
 
-Secrets belong in `.env.local` (at the monorepo root, symlinked into every app) and never in Git; each app's non-secret local URL lives in its committed `.env.development`. Redact example values before attaching logs. Rotating `BETTER_AUTH_SECRET` signs every site user out; rotating `BACKEND_SESSION_SECRET` invalidates pending admin sign-in codes, and removing an email from `BACKEND_ADMIN_EMAILS` revokes that admin immediately. Database migrations should be reviewed because `db:push` can overwrite dev data—prefer `db:migrate` for anything shared. Every site shares one database: scope queries by the request's tenant and never trust a tenant id supplied by the client.
+Secrets belong in `.env.local` (at the monorepo root, symlinked into the web apps) and never in Git; each web app's non-secret local URL lives in its committed `.env.development`. Redact example values before attaching logs. Rotating `BETTER_AUTH_SECRET` signs every site user out; rotating `BACKEND_SESSION_SECRET` invalidates pending admin sign-in codes, and removing an email from `BACKEND_ADMIN_EMAILS` revokes that admin immediately. The web apps share the database configured for `@repo/database`; the control plane has a separate service database and migrations. Review migrations because `db:push` can overwrite development data; use the migration process for the database you are changing. Every tenant site shares the web-app database: scope queries by the request's tenant and never trust a tenant id supplied by the client.
 
 ## Adding New Packages
 
