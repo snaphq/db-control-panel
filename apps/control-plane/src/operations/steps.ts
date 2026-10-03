@@ -7,6 +7,18 @@ interface StepContext {
   outputs: Readonly<Record<string, unknown>>;
   /** Stable per-step key for downstream idempotency; see idempotency.ts. */
   idempotencyKey: string;
+  /**
+   * What an earlier attempt of this step saved with `checkpoint`, or undefined
+   * on the first attempt. A step that works through many items reads it to skip
+   * the ones already done.
+   */
+  resume: unknown;
+  /**
+   * Saves progress inside a long step. It is stored under the step's name in the
+   * operation's outputs until the step finishes, when its return value replaces
+   * it, so a progress view can show a step that is still running.
+   */
+  checkpoint(value: unknown): Promise<void>;
 }
 
 /**

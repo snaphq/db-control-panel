@@ -110,6 +110,45 @@ describe('runOperation', () => {
     });
   });
 
+  it('stores checkpoints while a step runs and hands them back on retry', async () => {
+    const { store, registry } = setup();
+    const seen: unknown[] = [];
+    let crash = true;
+    registry
+      .registerStep({
+        name: 'batch',
+        run: async (context) => {
+          seen.push(context.resume);
+          const done =
+            (context.resume as { done: number } | undefined)?.done ?? 0;
+          if (crash) {
+            await context.checkpoint({ done: done + 2 });
+            crash = false;
+            throw new Error('worker restarted');
+          }
+          return { done: done + 1 };
+        },
+      })
+      .registerPlan('project.create', ['batch']);
+    store.add('op_1', 'project.create');
+
+    await expect(
+      runOperation('op_1', options(store, registry)),
+    ).rejects.toThrowError('worker restarted');
+    // The partial result is visible while the step is still unfinished.
+    expect(store.get('op_1').progress).toEqual({
+      completedSteps: [],
+      outputs: { batch: { done: 2 } },
+    });
+
+    await runOperation('op_1', options(store, registry));
+    expect(seen).toEqual([undefined, { done: 2 }]);
+    expect(store.get('op_1').progress).toEqual({
+      completedSteps: ['batch'],
+      outputs: { batch: { done: 3 } },
+    });
+  });
+
   it('fails terminally on the final attempt without rethrowing', async () => {
     const { store, registry } = setup();
     registry

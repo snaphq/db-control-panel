@@ -56,6 +56,11 @@ export async function runOperation(
         operation: record,
         outputs: progress.outputs,
         idempotencyKey: stepKey(operationId, step.name),
+        resume: progress.outputs[step.name],
+        async checkpoint(value) {
+          progress.outputs[step.name] = value;
+          await store.saveProgress(operationId, progress);
+        },
       });
       progress.completedSteps.push(step.name);
       progress.outputs[step.name] = output ?? null;

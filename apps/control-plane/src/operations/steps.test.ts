@@ -46,6 +46,8 @@ describe('StepRegistry', () => {
         operation: {} as never,
         outputs: {},
         idempotencyKey: 'op:noop',
+        resume: undefined,
+        checkpoint: async () => {},
       }),
     ).resolves.toEqual({ ok: true });
   });
