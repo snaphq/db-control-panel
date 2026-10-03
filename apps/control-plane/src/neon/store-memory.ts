@@ -511,5 +511,15 @@ export function createMemoryNeonStore(): MemoryNeonStore {
     async listNodes() {
       return [...nodes.values()].sort((a, b) => a.id - b.id);
     },
+    async listTenantsWithActiveOperations() {
+      const busy = new Set(
+        [...operations.values()]
+          .filter((o) => o.status === 'scheduling' || o.status === 'running')
+          .map((o) => o.consoleProjectId),
+      );
+      return [...projects.values()]
+        .filter((p) => busy.has(p.consoleProjectId))
+        .map((p) => p.tenantId);
+    },
   };
 }

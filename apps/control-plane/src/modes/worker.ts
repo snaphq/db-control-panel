@@ -10,26 +10,29 @@ import { syncNodes } from '../libsql/nodes-sync.js';
 import { createDrizzleLibsqlStore } from '../libsql/store-drizzle.js';
 import { createIdleSweeper } from '../neon/idle-suspend.js';
 import { type Loop, startLoop } from '../neon/loops.js';
-import {
-  discoverPageservers,
-  registerSafekeepers,
-} from '../neon/registration.js';
+import { discoverPageservers } from '../neon/registration.js';
 import { createNeonServices } from '../neon/services.js';
 import {
   createBoss,
+  createOperationQueue,
   startOperationWorker,
   startQueue,
 } from '../operations/queue.js';
 import { createStepRegistry } from '../operations/registry.js';
 import { createOperationStore } from '../operations/store.js';
+import { reconcileSafekeepers } from '../platform/safekeeper-manager.js';
+import { createPlatformDeps } from '../platform/services.js';
+import { createDrizzlePlatformStore } from '../platform/store-drizzle.js';
 import type { RunningMode } from './types.js';
 
 const STOP_TIMEOUT_MS = 25_000;
+/** After a failed spread the worker waits this long before starting another by itself. */
+const SPREAD_FAILURE_COOLDOWN_MS = 30 * 60_000;
 
 /**
  * Applies migrations, then works the operations queue and runs the background
- * loops: idle suspend, safekeeper registration, pageserver discovery and the
- * Kubernetes node sync. The
+ * loops: idle suspend, the safekeeper manager (start, register, roll, spread),
+ * pageserver discovery and the Kubernetes node sync. The
  * worker is the only mode that migrates, so the API and glue pods never race on
  * schema changes.
  */
@@ -44,6 +47,7 @@ export async function startWorker(config: WorkerConfig): Promise<RunningMode> {
   });
   const boss = createBoss(config.databaseUrl, 'worker');
   const loops: Loop[] = [];
+  let lastSafekeeperNote: string | null = null;
   try {
     await runMigrations(handle);
     await startQueue(boss);
@@ -54,10 +58,21 @@ export async function startWorker(config: WorkerConfig): Promise<RunningMode> {
       signer: neonSigner,
       config,
     });
+    const platform = createPlatformDeps({
+      config,
+      platform: createDrizzlePlatformStore(
+        handle.db,
+        createOperationQueue(boss),
+      ),
+      neon,
+      kube,
+      signer: neonSigner,
+    });
     await startOperationWorker(boss, {
       store: createOperationStore(handle.db),
       registry: createStepRegistry({
-        neon,
+        neon: { ...neon, requiredSafekeepers: config.safekeeperCount },
+        platform,
         libsql: {
           store: createDrizzleLibsqlStore(handle.db, null),
           admin: createSqldAdminClient({ authKey: config.libsqlAdminAuthKey }),
@@ -81,15 +96,18 @@ export async function startWorker(config: WorkerConfig): Promise<RunningMode> {
       startLoop('idle suspend', config.idleSweepSeconds * 1000, () =>
         sweeper.sweep(),
       ),
-      startLoop(
-        'safekeeper registration',
-        config.registrationSeconds * 1000,
-        () =>
-          registerSafekeepers(
-            neon.storcon,
-            Array.from({ length: config.safekeeperCount }, (_, i) => i + 1),
-          ),
-      ),
+      startLoop('safekeepers', config.registrationSeconds * 1000, async () => {
+        // Fresh node data first: a node that just joined is eligible at once.
+        await syncNodes(kube.core, neon.store);
+        const result = await reconcileSafekeepers(platform, {
+          autoSpread: config.autoSpreadSafekeepers,
+          failureCooldownMs: SPREAD_FAILURE_COOLDOWN_MS,
+        });
+        if (result.note && result.note !== lastSafekeeperNote) {
+          console.info(`safekeepers: ${result.note}`);
+        }
+        lastSafekeeperNote = result.note;
+      }),
       startLoop('pageserver discovery', config.registrationSeconds * 1000, () =>
         discoverPageservers(neon.storcon, neon.store),
       ),

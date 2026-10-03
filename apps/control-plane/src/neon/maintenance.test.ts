@@ -199,6 +199,7 @@ const safekeeper = (
 describe('registerSafekeepers', () => {
   it('registers and activates the given safekeepers on an empty controller', async () => {
     const storcon = createFakeStorcon();
+    storcon.safekeepers = [];
     const result = await registerSafekeepers(storcon, [1, 2, 3]);
     expect(result).toEqual({ upserted: [1, 2, 3], activated: [1, 2, 3] });
     expect(storcon.calls).toEqual([

@@ -16,7 +16,20 @@ interface OperationJob {
 
 /** Hands an operation to the queue inside the transaction that created it. */
 export interface OperationQueue {
-  enqueue(operationId: string, tx: Transaction): Promise<void>;
+  enqueue(
+    operationId: string,
+    tx: Transaction,
+    options?: EnqueueOptions,
+  ): Promise<void>;
+}
+
+export interface EnqueueOptions {
+  /**
+   * How long one attempt may run before the queue presumes the worker dead and
+   * retries it. The queue default is 15 minutes; a platform operation that
+   * moves many timelines needs longer.
+   */
+  expireInSeconds?: number;
 }
 
 export type Role = 'producer' | 'worker';
@@ -51,10 +64,13 @@ export async function startQueue(boss: PgBoss): Promise<void> {
 
 export function createOperationQueue(boss: PgBoss): OperationQueue {
   return {
-    async enqueue(operationId, tx) {
+    async enqueue(operationId, tx, options) {
       const job: OperationJob = { operationId };
       const jobId = await boss.send(OPERATIONS_QUEUE, job, {
         db: fromDrizzle(tx, sql),
+        ...(options?.expireInSeconds === undefined
+          ? {}
+          : { expireInSeconds: options.expireInSeconds }),
         // One live job per operation, even if enqueue is called twice.
         singletonKey: operationId,
       });

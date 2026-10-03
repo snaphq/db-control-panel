@@ -14,6 +14,26 @@ export function projectCreateSteps(deps: NeonStepDeps): StepDefinition[] {
   const { store, storcon } = deps;
   return [
     {
+      name: 'neon.project.create.safekeepers',
+      async run() {
+        // A timeline needs `--timeline-safekeeper-count` Active safekeepers in
+        // distinct zones (storage_controller/src/service/safekeeper_service.rs
+        // :697-760). On a fresh cluster the worker is still starting them, so
+        // wait (the queue retries with backoff) instead of failing the project.
+        const zones = new Set(
+          (await storcon.listSafekeepers())
+            .filter((sk) => sk.scheduling_policy === 'Active')
+            .map((sk) => sk.availability_zone_id),
+        );
+        if (zones.size < deps.requiredSafekeepers) {
+          throw new Error(
+            `Waiting for ${deps.requiredSafekeepers} active safekeepers in distinct zones; ${zones.size} so far (the worker starts them when a node with the pageserver label exists)`,
+          );
+        }
+        return { activeSafekeepers: zones.size };
+      },
+    },
+    {
       name: 'neon.project.create.tenant',
       async run({ operation }) {
         const project = await store.getProject(operation.targetId);

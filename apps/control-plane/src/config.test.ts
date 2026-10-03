@@ -75,6 +75,62 @@ describe('loadConfig', () => {
     });
   });
 
+  describe('platform operations', () => {
+    const worker = {
+      ALLOYDB_MODE: 'worker',
+      DATABASE_URL,
+      ALLOYDB_DATA_KEY: DATA_KEY,
+      STORAGE_CONTROLLER_URL: 'http://storage-controller.neon:1234',
+      NEON_JWT_PRIVATE_KEY_PATH: '/etc/neon/private.pem',
+      CONTROL_PLANE_JWT_TOKEN: 'cp-token',
+      LIBSQL_JWT_SIGNING_KEY_PATH: '/etc/libsql/private.pem',
+      LIBSQL_ADMIN_AUTH_KEY: 'admin',
+    };
+
+    it('turns automatic rebalancing and spreading on by default', () => {
+      expect(loadConfig(worker)).toMatchObject({
+        neonImage: 'ghcr.io/snaphq/neon:latest',
+        safekeeperEntrypointConfigMap: 'safekeeper-entrypoint',
+        safekeeperStorage: '50Gi',
+        autoSpreadSafekeepers: true,
+        autoRebalance: true,
+        rebalanceMaxMoves: 8,
+        rebalancePrewarm: true,
+        safekeeperMigrateConcurrency: 2,
+      });
+    });
+
+    it('lets an operator turn the automation off and tune it', () => {
+      expect(
+        loadConfig({
+          ...worker,
+          ALLOYDB_AUTO_REBALANCE: 'false',
+          ALLOYDB_AUTO_SPREAD_SAFEKEEPERS: 'false',
+          ALLOYDB_REBALANCE_MAX_MOVES: '20',
+          ALLOYDB_REBALANCE_PREWARM: 'false',
+          ALLOYDB_SAFEKEEPER_STORAGE: '100Gi',
+          ALLOYDB_NEON_IMAGE: 'ghcr.io/snaphq/neon:abc',
+        }),
+      ).toMatchObject({
+        autoRebalance: false,
+        autoSpreadSafekeepers: false,
+        rebalanceMaxMoves: 20,
+        rebalancePrewarm: false,
+        safekeeperStorage: '100Gi',
+        neonImage: 'ghcr.io/snaphq/neon:abc',
+      });
+    });
+
+    it('rejects values it cannot read', () => {
+      expect(() =>
+        loadConfig({ ...worker, ALLOYDB_AUTO_REBALANCE: 'yes' }),
+      ).toThrow(ConfigError);
+      expect(() =>
+        loadConfig({ ...worker, ALLOYDB_SAFEKEEPER_STORAGE: 'big' }),
+      ).toThrow(/50Gi/);
+    });
+  });
+
   it('reads the compute image from the environment', () => {
     const config = loadConfig({
       ALLOYDB_MODE: 'neon-glue',

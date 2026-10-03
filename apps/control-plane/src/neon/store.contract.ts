@@ -495,6 +495,31 @@ export function describeNeonStoreContract(
       );
     });
 
+    it('lists the tenants whose project has an operation in flight', async () => {
+      const h = await setup();
+      const busy = await seed(h);
+      const idle = await seed(h);
+      expect(await h.store.listTenantsWithActiveOperations()).not.toContain(
+        busy.tenantId,
+      );
+      const running = await h.store.commit(
+        busy.scope,
+        {
+          action: 'endpoint.update',
+          targetType: 'endpoint',
+          targetId: busy.endpointId,
+        },
+        [],
+      );
+      const during = await h.store.listTenantsWithActiveOperations();
+      expect(during).toContain(busy.tenantId);
+      expect(during).not.toContain(idle.tenantId);
+      await h.finish(running.id);
+      expect(await h.store.listTenantsWithActiveOperations()).not.toContain(
+        busy.tenantId,
+      );
+    });
+
     it('merges node roles on upsert', async () => {
       const h = await setup();
       const id = 9000 + Math.floor(Math.random() * 900_000);

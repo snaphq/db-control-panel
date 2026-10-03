@@ -15,6 +15,7 @@ import type {
   LsnByTimestamp,
   StorconClient,
   StorconNode,
+  StorconSafekeeper,
 } from './storcon-client.js';
 import { type MemoryNeonStore, createMemoryNeonStore } from './store-memory.js';
 import type { Scope } from './store.js';
@@ -173,6 +174,8 @@ export interface FakeStorcon extends StorconClient {
   } | null;
   failNext: Map<string, Error>;
   nodes: StorconNode[];
+  /** What `listSafekeepers` answers; three Active ones in distinct zones by default. */
+  safekeepers: StorconSafekeeper[];
   /** What `getLsnByTimestamp` answers; an Error is thrown instead. */
   lsnByTimestamp: LsnByTimestamp | Error;
 }
@@ -200,6 +203,14 @@ export function createFakeStorcon(): FakeStorcon {
       ],
     },
     failNext: new Map(),
+    safekeepers: [1, 2, 3].map((id) => ({
+      id,
+      host: `safekeeper-${id}.neon.svc.cluster.local`,
+      port: 5454,
+      http_port: 7676,
+      availability_zone_id: `az-${id}`,
+      scheduling_policy: 'Active' as const,
+    })),
     lsnByTimestamp: { lsn: '0/2000000', kind: 'present' },
     nodes: [
       {
@@ -273,7 +284,8 @@ export function createFakeStorcon(): FakeStorcon {
     },
     async listSafekeepers() {
       fake.calls.push('listSafekeepers');
-      return [];
+      throwIfScripted('listSafekeepers');
+      return fake.safekeepers;
     },
     async upsertSafekeeper(safekeeper) {
       fake.calls.push(`upsertSafekeeper ${safekeeper.id} ${safekeeper.host}`);

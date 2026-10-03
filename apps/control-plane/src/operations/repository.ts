@@ -38,6 +38,8 @@ export interface CreateOperationInput {
   params?: Record<string, unknown>;
   /** Writes the desired state; runs in the same transaction as the operation row. */
   applyDesiredState?: (tx: Transaction) => Promise<void>;
+  /** Longest one attempt of the job may run; see {@link OperationQueue}. */
+  expireInSeconds?: number;
 }
 
 const ACTIVE_LOCK_INDEX = 'operation_active_per_project_idx';
@@ -83,7 +85,9 @@ export async function createOperation(
         .returning();
       if (!created) throw new Error('Inserting the operation returned no row');
 
-      await queue.enqueue(created.id, tx);
+      await queue.enqueue(created.id, tx, {
+        expireInSeconds: input.expireInSeconds,
+      });
       return created;
     });
   } catch (error) {

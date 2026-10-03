@@ -67,6 +67,43 @@ const computeShape = {
   ALLOYDB_IMAGE_PULL_SECRET: z.string().min(1).default('ghcr-pull'),
 };
 
+const boolean = (fallback: 'true' | 'false') =>
+  z
+    .enum(['true', 'false'], { message: 'must be "true" or "false"' })
+    .default(fallback)
+    .transform((value) => value === 'true');
+
+/** Platform operations (safekeeper spreading, pageserver rebalancing), worker only. */
+const platformShape = {
+  /** Image of the safekeeper pods the worker creates; the manifests set it with the other images. */
+  ALLOYDB_NEON_IMAGE: z.string().min(1).default('ghcr.io/snaphq/neon:latest'),
+  /** ConfigMap holding safekeeper-entrypoint.sh (infra/k8s/neon). */
+  ALLOYDB_SAFEKEEPER_ENTRYPOINT_CONFIGMAP: z
+    .string()
+    .min(1)
+    .default('safekeeper-entrypoint'),
+  /** Size of each safekeeper's volume. */
+  ALLOYDB_SAFEKEEPER_STORAGE: z
+    .string()
+    .regex(/^\d+(Ki|Mi|Gi|Ti)$/, 'must be a quantity such as 50Gi')
+    .default('50Gi'),
+  ALLOYDB_AUTO_SPREAD_SAFEKEEPERS: boolean('true'),
+  ALLOYDB_SAFEKEEPER_MIGRATE_CONCURRENCY: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(8)
+    .default(2),
+  ALLOYDB_AUTO_REBALANCE: boolean('true'),
+  ALLOYDB_REBALANCE_MAX_MOVES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(8),
+  ALLOYDB_REBALANCE_PREWARM: boolean('true'),
+};
+
 const neonShape = {
   ...computeShape,
   STORAGE_CONTROLLER_URL: required(
@@ -108,6 +145,7 @@ const envSchema = z.discriminatedUnion('ALLOYDB_MODE', [
     LIBSQL_ADMIN_AUTH_KEY: required('sqld admin API key'),
     ALLOYDB_LIBSQL_HOST_SUFFIX: libsqlHostSuffix,
     ALLOYDB_SAFEKEEPER_COUNT: z.coerce.number().int().min(1).max(9).default(3),
+    ...platformShape,
     ALLOYDB_IDLE_SWEEP_SECONDS: z.coerce.number().int().min(5).default(30),
     ALLOYDB_REGISTRATION_SECONDS: z.coerce.number().int().min(10).default(60),
   }),
@@ -164,6 +202,15 @@ export interface WorkerConfig extends BaseConfig, NeonConfig {
   safekeeperCount: number;
   idleSweepSeconds: number;
   registrationSeconds: number;
+  /** Image of the safekeeper pods. */
+  neonImage: string;
+  safekeeperEntrypointConfigMap: string;
+  safekeeperStorage: string;
+  autoSpreadSafekeepers: boolean;
+  safekeeperMigrateConcurrency: number;
+  autoRebalance: boolean;
+  rebalanceMaxMoves: number;
+  rebalancePrewarm: boolean;
 }
 
 export interface DataApiGatewayConfig extends BaseConfig, NeonConfig {
@@ -227,6 +274,16 @@ function toConfig(env: RawEnv): Config {
         safekeeperCount: env.ALLOYDB_SAFEKEEPER_COUNT,
         idleSweepSeconds: env.ALLOYDB_IDLE_SWEEP_SECONDS,
         registrationSeconds: env.ALLOYDB_REGISTRATION_SECONDS,
+        neonImage: env.ALLOYDB_NEON_IMAGE,
+        safekeeperEntrypointConfigMap:
+          env.ALLOYDB_SAFEKEEPER_ENTRYPOINT_CONFIGMAP,
+        safekeeperStorage: env.ALLOYDB_SAFEKEEPER_STORAGE,
+        autoSpreadSafekeepers: env.ALLOYDB_AUTO_SPREAD_SAFEKEEPERS,
+        safekeeperMigrateConcurrency:
+          env.ALLOYDB_SAFEKEEPER_MIGRATE_CONCURRENCY,
+        autoRebalance: env.ALLOYDB_AUTO_REBALANCE,
+        rebalanceMaxMoves: env.ALLOYDB_REBALANCE_MAX_MOVES,
+        rebalancePrewarm: env.ALLOYDB_REBALANCE_PREWARM,
       };
     case 'data-api-gateway':
       return {

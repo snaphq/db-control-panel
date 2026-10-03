@@ -13,6 +13,8 @@ export interface NeonStepDeps {
   store: NeonStore;
   storcon: StorconClient;
   runtime: ComputeRuntime;
+  /** Active safekeepers (each in its own zone) a new project waits for. */
+  requiredSafekeepers: number;
 }
 
 export type StepContext = Parameters<StepDefinition['run']>[0];

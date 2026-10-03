@@ -19,6 +19,12 @@ import {
 } from './store.js';
 
 /**
+ * One attempt of a platform operation may spend hours waiting for pods and
+ * moving timelines, far past the queue's 15-minute default.
+ */
+const PLATFORM_ATTEMPT_SECONDS = 6 * 60 * 60;
+
+/**
  * The producer side of platform operations needs a queue (the API and the
  * worker's auto triggers); pass null where only reads happen.
  */
@@ -86,6 +92,7 @@ export function createDrizzlePlatformStore(
           targetId: 'platform',
           action: input.action,
           params: input.params,
+          expireInSeconds: PLATFORM_ATTEMPT_SECONDS,
         });
       } catch (error) {
         if (error instanceof ProjectBusyError) {

@@ -9,6 +9,7 @@ import type { OperationQueue } from '../operations/queue.js';
 import { createComputeCtlClient } from './compute-ctl-client.js';
 import { createComputeRuntime } from './compute-runtime.js';
 import { createSpecService } from './spec-service.js';
+import { createStorconAdminClient } from './storcon-admin.js';
 import { createStorconClient } from './storcon-client.js';
 import { createDrizzleNeonStore } from './store-drizzle.js';
 
@@ -35,6 +36,10 @@ export function createNeonServices(input: {
     baseUrl: config.storageControllerUrl,
     token: config.controlPlaneJwtToken,
   });
+  const admin = createStorconAdminClient({
+    baseUrl: config.storageControllerUrl,
+    token: config.controlPlaneJwtToken,
+  });
   const specs = createSpecService({ store, storcon, signer });
   const secrets = createSecretBox(config.dataKey);
   const computeCtl = createComputeCtlClient({ signer });
@@ -52,5 +57,5 @@ export function createNeonServices(input: {
       pullSecret: config.imagePullSecret,
     },
   });
-  return { store, storcon, specs, computeCtl, runtime, secrets };
+  return { store, storcon, admin, specs, computeCtl, runtime, secrets };
 }

@@ -10,6 +10,7 @@ import { createMemoryLibsqlStore } from '../../libsql/store-memory.js';
 import { createMemoryOperationStore } from '../../operations/memory-store.js';
 import { createStepRegistry } from '../../operations/registry.js';
 import { runOperation } from '../../operations/runner.js';
+import { createPlatformHarness } from '../../platform/fakes.js';
 import { createComputeRuntime } from '../compute-runtime.js';
 import {
   createFakeClock,
@@ -47,7 +48,8 @@ async function setup(seedOptions: Parameters<typeof seedProject>[1] = {}) {
     logger: { warn: () => {} },
   });
   const registry = createStepRegistry({
-    neon: { store: seeded.store, storcon, runtime },
+    neon: { store: seeded.store, storcon, runtime, requiredSafekeepers: 3 },
+    platform: createPlatformHarness().deps,
     libsql: {
       store: createMemoryLibsqlStore(seeded.store),
       admin: createFakeAdmin(),
@@ -107,7 +109,10 @@ async function setup(seedOptions: Parameters<typeof seedProject>[1] = {}) {
 describe('registry', () => {
   it('has a plan for every operation action of the contract', async () => {
     const t = await setup();
-    for (const action of OPERATION_ACTIONS) {
+    for (const action of [
+      ...OPERATION_ACTIONS,
+      'safekeepers.spread' as const,
+    ]) {
       expect(t.registry.planFor(action).length).toBeGreaterThan(0);
     }
   });
@@ -119,6 +124,7 @@ describe('project.create', () => {
     const result = await t.run('project.create', t.projectId);
     expect(result.outcome).toBe('finished');
     expect(t.storcon.calls).toEqual([
+      'listSafekeepers',
       `createTenant ${t.tenantId} 86400`,
       `createTimeline ${t.tenantId} root ${t.timelineId}`,
     ]);
@@ -135,6 +141,7 @@ describe('project.create', () => {
     const first = await t.run('project.create', t.projectId);
     expect(first.outcome).toBe('retry');
     expect(t.record(first.id).progress.completedSteps).toEqual([
+      'neon.project.create.safekeepers',
       'neon.project.create.tenant',
     ]);
     const second = await t.attempt(first.id);
@@ -143,6 +150,45 @@ describe('project.create', () => {
       t.storcon.calls.filter((c) => c.startsWith('createTenant')),
     ).toHaveLength(1);
     expect(t.store.branches.get(t.branchId)?.safekeepers).not.toBeNull();
+  });
+
+  it('waits for the safekeepers instead of creating a tenant without them', async () => {
+    const t = await setup({ withoutSafekeepers: true });
+    t.storcon.safekeepers = t.storcon.safekeepers.slice(0, 2);
+    const first = await t.run('project.create', t.projectId);
+    expect(first.outcome).toBe('retry');
+    expect(String(first.thrown)).toMatch(
+      /Waiting for 3 active safekeepers in distinct zones; 2 so far/,
+    );
+    expect(t.storcon.calls.some((c) => c.startsWith('createTenant'))).toBe(
+      false,
+    );
+
+    t.storcon.safekeepers = [
+      ...t.storcon.safekeepers,
+      {
+        id: 3,
+        host: 'safekeeper-3.neon.svc.cluster.local',
+        port: 5454,
+        http_port: 7676,
+        availability_zone_id: 'az-3',
+        scheduling_policy: 'Active',
+      },
+    ];
+    expect((await t.attempt(first.id)).outcome).toBe('finished');
+  });
+
+  it('does not count paused safekeepers or two sharing a zone', async () => {
+    const t = await setup({ withoutSafekeepers: true });
+    const [a, b, c] = t.storcon.safekeepers;
+    if (!a || !b || !c) throw new Error('seed');
+    t.storcon.safekeepers = [
+      a,
+      { ...b, scheduling_policy: 'Pause' },
+      { ...c, availability_zone_id: a.availability_zone_id },
+    ];
+    const result = await t.run('project.create', t.projectId);
+    expect(String(result.thrown)).toMatch(/1 so far/);
   });
 
   it('fails when the controller returns no safekeepers', async () => {

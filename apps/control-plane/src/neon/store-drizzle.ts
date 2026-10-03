@@ -2,12 +2,14 @@ import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import {
+  ACTIVE_OPERATION_STATUSES,
   type BranchSafekeepers,
   branch,
   database,
   endpoint,
   neonProject,
   node,
+  operation,
   role,
 } from '../db/schema.js';
 import type { OperationQueue } from '../operations/queue.js';
@@ -449,6 +451,18 @@ export function createDrizzleNeonStore(
 
     async listNodes() {
       return db.select().from(node).orderBy(asc(node.id));
+    },
+
+    async listTenantsWithActiveOperations() {
+      const rows = await db
+        .selectDistinct({ tenantId: neonProject.tenantId })
+        .from(operation)
+        .innerJoin(
+          neonProject,
+          eq(neonProject.consoleProjectId, operation.consoleProjectId),
+        )
+        .where(inArray(operation.status, [...ACTIVE_OPERATION_STATUSES]));
+      return rows.map((r) => r.tenantId);
     },
   };
 }

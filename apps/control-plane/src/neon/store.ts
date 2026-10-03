@@ -235,4 +235,10 @@ export interface NeonStore {
 
   upsertNode(input: NodeUpsert): Promise<void>;
   listNodes(): Promise<NodeRow[]>;
+  /**
+   * Tenant ids of the projects whose console project has an operation
+   * scheduling or running, deleted projects included. A rebalance leaves these
+   * tenants where they are.
+   */
+  listTenantsWithActiveOperations(): Promise<string[]>;
 }
