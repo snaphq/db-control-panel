@@ -16,28 +16,100 @@ lifecycles:
 
 Do not apply a migration command for one database to the other.
 
-A fresh web-app database is created from the schema, then seeded with the
-default tenant and admin:
+`db:migrate` is the path for every environment that keeps data: the hosted
+console database, staging, and any shared database. `db:push` is for a
+disposable local database only, because it diffs the schema against the live
+database and can drop data; never point it at a hosted database.
+
+## Web-app database workflow
+
+The web-app migration history is tracked in Git under
+`packages/database/drizzle/` (SQL files plus `meta/_journal.json` and the
+snapshots). The baseline, `0000_baseline.sql`, creates the 43 tables of the
+schema as it was when versioned migrations began.
+
+Changing the schema:
 
 ```bash
-bun run db:push
-bun run db:seed
+# 1. edit packages/database/src/schema*.ts
+bun run db:generate          # writes the next migration under packages/database/drizzle
+# 2. review the SQL, indexes, constraints and any backfill, then commit
+#    the .sql file, the new snapshot and the updated meta/_journal.json together
+bun run db:migrate           # applies pending migrations to DATABASE_URL
 ```
 
-For shared web-app environments that need a reviewed migration history:
+Rules:
+
+- Never edit a committed migration; add a new one. Drizzle records the sha256 of
+  each file, and applies a migration only when its journal `when` is newer than
+  the newest row in `drizzle.__drizzle_migrations`.
+- `db:generate` needs no database connection. `db:migrate` reads `DATABASE_URL`
+  from the environment or the root `.env.local`.
+- The root `db:migrate` runs through Turbo (which forwards `DATABASE_URL`); use
+  `bun run --filter @repo/database db:migrate` to scope it to this package.
+- `drizzle-kit migrate` picks the first driver it finds installed (`pg`, then
+  `postgres`, then the Neon driver). In this repository that is the `pg` package
+  that `stripe-sync-engine` brings in.
+
+### Automatic migration on deploy
+
+`.github/workflows/deploy-vercel.yml` has a `migrate` job that every Vercel
+deploy waits for. It runs `bun run --filter @repo/database db:migrate` against the
+repository secret `DATABASE_URL` on production runs (pushes to `main`, and manual
+runs with `environment: production`).
+
+- Add the secret once under GitHub **Settings > Secrets and variables > Actions >
+  New repository secret**, named `DATABASE_URL`, with the same value as the
+  production console database.
+- While the secret is missing the job prints a notice and succeeds without
+  touching any database, and the deploy proceeds as before.
+- A failing migration fails the job, so nothing is deployed. Migrations run in
+  one transaction, so a failed run leaves the schema as it was. Concurrent runs
+  queue (`concurrency: web-app-db-migrate`).
+- Write migrations to be safe with the previous app version still serving
+  traffic (add before you use, drop only after the code stops reading).
+
+### Adopting an existing database (`db:baseline`)
+
+A database that was created with `db:push` already contains the baseline tables
+but has no `drizzle.__drizzle_migrations` table, so `db:migrate` would try to
+create them again and fail. Record the baseline as applied once, without running
+its DDL:
 
 ```bash
-bun run db:generate
-bun run db:migrate
+# dry run (default): reads the live schema, writes nothing
+DATABASE_URL='postgresql://...' bun run --filter @repo/database db:baseline
+# record the baseline
+DATABASE_URL='postgresql://...' bun run --filter @repo/database db:baseline --apply
 ```
 
-The root `db:generate` command runs the task in every workspace that defines
-it, including the control-plane package. Use
-`bun run --filter @repo/control-plane db:generate` to scope it to that service.
-The root `db:migrate` command applies web-app migrations only; the control-plane
-service applies its own tracked migrations when the worker starts. Generated
-web-app output under `packages/database/drizzle` is local and gitignored;
-control-plane migrations are source files and must be reviewed and committed.
+The script compares every baseline table and column (names and NOT NULL) with
+the live `public` schema, and refuses, writing nothing, when a table or column
+is missing or when the database has tables or columns the baseline does not
+define (`--allow-extra` tolerates extras). It also refuses when
+`drizzle.__drizzle_migrations` already holds rows that are not exactly the
+baseline, because such a database has a history and needs `db:migrate`. Column
+types, defaults, indexes and constraints are not compared: check those with a
+`db:push` dry run or a schema diff if the database was ever edited by hand.
+
+With `--apply` it creates `drizzle.__drizzle_migrations` with the DDL drizzle
+itself uses and inserts one row: the sha256 of `0000_baseline.sql` and that
+journal entry's `when`. That is exactly what `db:migrate` would have written
+after running the baseline (`drizzle-orm/pg-core/dialect.js:45-67` and
+`drizzle-orm/migrator.js:22-23`), so later migrations apply normally. Running it
+again reports "already baselined". `--tag <tag>` selects a different journal
+entry as the baseline.
+
+A fresh, empty database needs no baseline: `bun run db:migrate` creates
+everything, then `bun run db:seed`.
+
+## Control-plane database
+
+The control-plane service database has its own tracked migrations under
+`apps/control-plane/drizzle/`. The worker applies them when it starts. Scope
+generation with `bun run --filter @repo/control-plane db:generate`; the root
+`db:generate` runs every workspace that defines it. Do not apply a migration
+command for one database to the other.
 
 ## Review checklist
 

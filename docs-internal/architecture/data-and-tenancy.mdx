@@ -43,7 +43,8 @@ checks.
 - Keep query composition in `packages/database/src/dal` or an owning domain
   package; route handlers should not duplicate SQL policy.
 - Use `db:push` only for disposable local development.
-- Generate, review, and apply migrations for shared environments.
+- Generate, review, commit, and apply (`db:migrate`) migrations for shared
+  environments.
 - Test a non-empty query path after a migration; a journal entry alone does not
   prove that the live schema is usable.
 - Seeds are explicit scripts and must not run implicitly in production.

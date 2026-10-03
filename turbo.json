@@ -46,7 +46,9 @@
     "format": {},
     "format:check": {},
     "db:generate": {},
-    "db:migrate": {},
+    "db:migrate": {
+      "passThroughEnv": ["DATABASE_URL"]
+    },
     "db:push": {},
     "test": {
       "dependsOn": ["^build"],

@@ -64,9 +64,13 @@ All commands use bun and are run from the monorepo root:
 
 ### Database Commands
 
-- `bun run db:generate` - Generate Drizzle migrations
-- `bun run db:migrate` - Run migrations
-- `bun run db:push` - Push schema to database (dev only)
+- `bun run db:generate` - Generate Drizzle migrations (tracked in
+  `packages/database/drizzle/`; commit them)
+- `bun run db:migrate` - Apply migrations; the path for every environment
+  (the Vercel deploy workflow runs it first when the `DATABASE_URL` secret is set)
+- `bun run --filter @repo/database db:baseline` - Dry-run (add `--apply`) to
+  record the baseline migration in an existing `db:push`-created database
+- `bun run db:push` - Push schema to database (disposable local dev only)
 - `bun run db:studio` - Open Drizzle Studio
 - `bun run db:seed` - Seed the default tenant and its site admin
 - `bun run db:seed:sites` - Create/update one tenant per `sites/*/src/site.config.ts`
@@ -209,7 +213,7 @@ Commits use Conventional Commits (`feat(auth): add passkey login`), enforced by 
 
 ## Security & Configuration Notes
 
-Secrets belong in `.env.local` (at the monorepo root, symlinked into the web apps) and never in Git; each web app's non-secret local URL lives in its committed `.env.development`. Redact example values before attaching logs. Rotating `BETTER_AUTH_SECRET` signs every site user out; rotating `BACKEND_SESSION_SECRET` invalidates pending admin sign-in codes, and removing an email from `BACKEND_ADMIN_EMAILS` revokes that admin immediately. The web apps share the database configured for `@repo/database`; the control plane has a separate service database and migrations. Review migrations because `db:push` can overwrite development data; use the migration process for the database you are changing. Every tenant site shares the web-app database: scope queries by the request's tenant and never trust a tenant id supplied by the client.
+Secrets belong in `.env.local` (at the monorepo root, symlinked into the web apps) and never in Git; each web app's non-secret local URL lives in its committed `.env.development`. Redact example values before attaching logs. Rotating `BETTER_AUTH_SECRET` signs every site user out; rotating `BACKEND_SESSION_SECRET` invalidates pending admin sign-in codes, and removing an email from `BACKEND_ADMIN_EMAILS` revokes that admin immediately. The web apps share the database configured for `@repo/database`; the control plane has a separate service database and migrations. Review migrations because `db:push` can overwrite development data; use `db:migrate` for any database you cannot recreate. Every tenant site shares the web-app database: scope queries by the request's tenant and never trust a tenant id supplied by the client.
 
 ## Adding New Packages
 

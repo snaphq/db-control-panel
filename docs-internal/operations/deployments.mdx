@@ -26,11 +26,22 @@ and cluster rollout are separate steps.
 The Vercel org id and every project id are hard-coded in the workflow matrix
 (`project_id` per row, `vercel_org_id` on the deploy step), written at setup by
 `set-vercel-projects.ts`; a row with an empty `project_id` is skipped.
-`VERCEL_TOKEN` is the only repository secret. Each project needs its own runtime variables,
+`VERCEL_TOKEN` is the repository secret every deploy needs. The optional
+`DATABASE_URL` secret turns on the `migrate` job (below). Each project needs its own runtime variables,
 including its public URL (`NEXT_PUBLIC_APP_URL`) and each site's production domain (which must match
 `site.config.ts` → `tenant_domain`). Preview and production URLs feed the
 shared `site-config` base-URL helper used by discovery metadata and agent
 credentials.
+
+### Database migrations before deploy
+
+The `migrate` job in `deploy-vercel.yml` runs `db:migrate` for the web-app
+database before any app deploys, on production runs only. Add `DATABASE_URL`
+(the production console database) as a repository secret under GitHub
+**Settings > Secrets and variables > Actions**. While it is absent the job logs a
+notice and succeeds without touching a database. If it fails, no app is
+deployed. See [Database migrations](/operations/migrations) for the baseline
+step an existing database needs once.
 
 Stripe webhooks and Inngest run on the backend: point Stripe at
 `https://<backend>/api/webhooks/stripe` and sync Inngest with

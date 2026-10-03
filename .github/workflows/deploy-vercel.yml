@@ -21,7 +21,63 @@ permissions:
   issues: write
 
 jobs:
+  # Applies the web-app database migrations (packages/database/drizzle) before
+  # any app is deployed, so new code never meets an old schema. The job needs
+  # the repository secret DATABASE_URL; without it every step except the notice
+  # is skipped, the job still succeeds and the deploy proceeds unchanged. A
+  # failed migration fails the job and blocks the deploy.
+  # First use on a database created with `db:push`: run `db:baseline` once
+  # (docs-internal/operations/migrations.mdx).
+  migrate:
+    runs-on: ubuntu-latest
+    name: migrate (web-app database)
+    permissions:
+      contents: read
+    concurrency:
+      group: web-app-db-migrate
+      cancel-in-progress: false
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      TARGET_ENVIRONMENT: ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')) && 'production' || 'preview' }}
+    steps:
+      - name: Decide whether to migrate
+        id: gate
+        run: |
+          if [ "$TARGET_ENVIRONMENT" != "production" ]; then
+            echo "::notice title=Migrations skipped::Only production runs migrate the repository DATABASE_URL database; this is a $TARGET_ENVIRONMENT run."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$DATABASE_URL" ]; then
+            echo "::notice title=Migrations skipped::The DATABASE_URL repository secret is not set. Add it under Settings > Secrets and variables > Actions to apply database migrations before each deploy."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout code
+        if: ${{ steps.gate.outputs.run == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        if: ${{ steps.gate.outputs.run == 'true' }}
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        if: ${{ steps.gate.outputs.run == 'true' }}
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Apply migrations
+        if: ${{ steps.gate.outputs.run == 'true' }}
+        run: bun run --filter @repo/database db:migrate
+
+      - name: Explain a failed migration
+        if: ${{ failure() && steps.gate.outputs.run == 'true' }}
+        run: |
+          echo "::error title=Migration failed::Nothing was deployed. If the database was created with db:push (no drizzle.__drizzle_migrations table), run db:baseline once; see docs-internal/operations/migrations.mdx."
+
   deploy:
+    needs: migrate
     runs-on: ubuntu-latest
     name: deploy (${{ matrix.app }})
     strategy:
