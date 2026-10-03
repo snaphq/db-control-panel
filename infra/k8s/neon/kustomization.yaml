@@ -74,7 +74,7 @@ configMapGenerator:
 # infra/k8s/control-plane/kustomization.yaml: bump the two tags together.
 images:
   - name: ghcr.io/snaphq/neon
-    newTag: d6351a43335885c377f7cb0d8dd5635a1f68eb38
+    newTag: 5495cc1f205a00624410c3f73bb0f8ada35b77fd
 
 # Equivalent of the classic `commonLabels`, in the non-deprecated form. Labels
 # go on every object and on pod templates, but not on selectors

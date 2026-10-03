@@ -11,4 +11,4 @@ resources:
 images:
   # CI replaces the placeholder with the built image tag (images.yml).
   - name: ghcr.io/snaphq/libsql-server
-    newTag: d6351a43335885c377f7cb0d8dd5635a1f68eb38
+    newTag: 5495cc1f205a00624410c3f73bb0f8ada35b77fd
