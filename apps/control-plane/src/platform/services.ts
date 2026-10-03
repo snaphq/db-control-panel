@@ -21,6 +21,7 @@ function platformConfig(config: WorkerConfig): PlatformConfig {
     migrateConcurrency: config.safekeeperMigrateConcurrency,
     rebalanceMaxMoves: config.rebalanceMaxMoves,
     rebalancePrewarm: config.rebalancePrewarm,
+    settleTimeoutMs: config.rebalanceSettleSeconds * 1000,
     waitTimeoutMs: WAIT_TIMEOUT_MS,
     pollIntervalMs: POLL_INTERVAL_MS,
   };

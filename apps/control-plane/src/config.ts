@@ -102,6 +102,13 @@ const platformShape = {
     .max(100)
     .default(8),
   ALLOYDB_REBALANCE_PREWARM: boolean('true'),
+  /** Longest a single tenant move may take to settle before it is cancelled. */
+  ALLOYDB_REBALANCE_SETTLE_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(30)
+    .max(86_400)
+    .default(900),
 };
 
 const neonShape = {
@@ -211,6 +218,7 @@ export interface WorkerConfig extends BaseConfig, NeonConfig {
   autoRebalance: boolean;
   rebalanceMaxMoves: number;
   rebalancePrewarm: boolean;
+  rebalanceSettleSeconds: number;
 }
 
 export interface DataApiGatewayConfig extends BaseConfig, NeonConfig {
@@ -284,6 +292,7 @@ function toConfig(env: RawEnv): Config {
         autoRebalance: env.ALLOYDB_AUTO_REBALANCE,
         rebalanceMaxMoves: env.ALLOYDB_REBALANCE_MAX_MOVES,
         rebalancePrewarm: env.ALLOYDB_REBALANCE_PREWARM,
+        rebalanceSettleSeconds: env.ALLOYDB_REBALANCE_SETTLE_SECONDS,
       };
     case 'data-api-gateway':
       return {

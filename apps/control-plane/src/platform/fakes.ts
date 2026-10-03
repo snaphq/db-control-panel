@@ -147,6 +147,16 @@ export interface PlatformHarness {
   ): Promise<void>;
   /** Adds a timeline whose set is `skSet`, and returns its key parts. */
   addTimeline(skSet: number[]): { tenantId: string; timelineId: string };
+  /** Adds an Active pageserver to the controller (and its node row). */
+  addPageserver(id: number, options?: { availability?: string }): Promise<void>;
+  /** Attaches `count` new single-shard tenants to a pageserver. */
+  addShards(
+    nodeId: number,
+    count: number,
+    options?: Partial<
+      Pick<FakeShard, 'preferredAz' | 'reconciling' | 'schedulingPolicy'>
+    >,
+  ): FakeShard[];
 }
 
 const CONFIG: PlatformConfig = {
@@ -158,6 +168,7 @@ const CONFIG: PlatformConfig = {
   migrateConcurrency: 2,
   rebalanceMaxMoves: 8,
   rebalancePrewarm: true,
+  settleTimeoutMs: 120_000,
   waitTimeoutMs: 60_000,
   pollIntervalMs: 1_000,
 };
@@ -171,6 +182,7 @@ export function createPlatformHarness(
   const clock = createFakeClock();
   const logs: string[] = [];
   let timelineCounter = 0;
+  let shardCounter = 0;
 
   const controller: FakeController = {
     calls: [],
@@ -417,6 +429,34 @@ export function createPlatformHarness(
           allocatable: { storageBytes: (options.storageGb ?? 500) * GB },
         },
       });
+    },
+    async addPageserver(id, options = {}) {
+      await this.addNode(id);
+      controller.pageservers.push({
+        id,
+        az: `az-${id}`,
+        availability: options.availability ?? 'Active',
+        scheduling: 'Active',
+      });
+    },
+    addShards(nodeId, count, options = {}) {
+      const added: FakeShard[] = [];
+      for (let i = 0; i < count; i++) {
+        shardCounter += 1;
+        const id = shardCounter.toString(16).padStart(32, 'c');
+        const shard: FakeShard = {
+          shardId: id,
+          tenantId: id,
+          nodeAttached: nodeId,
+          preferredAz: `az-${nodeId}`,
+          reconciling: false,
+          schedulingPolicy: 'Active',
+          ...options,
+        };
+        controller.shards.push(shard);
+        added.push(shard);
+      }
+      return added;
     },
     addTimeline(skSet) {
       timelineCounter += 1;

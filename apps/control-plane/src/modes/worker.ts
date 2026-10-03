@@ -20,6 +20,7 @@ import {
 } from '../operations/queue.js';
 import { createStepRegistry } from '../operations/registry.js';
 import { createOperationStore } from '../operations/store.js';
+import { observePageservers } from '../platform/pageserver-observer.js';
 import { reconcileSafekeepers } from '../platform/safekeeper-manager.js';
 import { createPlatformDeps } from '../platform/services.js';
 import { createDrizzlePlatformStore } from '../platform/store-drizzle.js';
@@ -32,7 +33,8 @@ const SPREAD_FAILURE_COOLDOWN_MS = 30 * 60_000;
 /**
  * Applies migrations, then works the operations queue and runs the background
  * loops: idle suspend, the safekeeper manager (start, register, roll, spread),
- * pageserver discovery and the Kubernetes node sync. The
+ * pageserver discovery (and the rebalance a new pageserver triggers) and the
+ * Kubernetes node sync. The
  * worker is the only mode that migrates, so the API and glue pods never race on
  * schema changes.
  */
@@ -108,8 +110,15 @@ export async function startWorker(config: WorkerConfig): Promise<RunningMode> {
         }
         lastSafekeeperNote = result.note;
       }),
-      startLoop('pageserver discovery', config.registrationSeconds * 1000, () =>
-        discoverPageservers(neon.storcon, neon.store),
+      startLoop(
+        'pageserver discovery',
+        config.registrationSeconds * 1000,
+        async () => {
+          await discoverPageservers(neon.storcon, neon.store);
+          await observePageservers(platform, {
+            autoRebalance: config.autoRebalance,
+          });
+        },
       ),
       startLoop('node sync', config.registrationSeconds * 1000, () =>
         syncNodes(kube.core, neon.store),

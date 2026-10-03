@@ -96,6 +96,7 @@ describe('loadConfig', () => {
         autoRebalance: true,
         rebalanceMaxMoves: 8,
         rebalancePrewarm: true,
+        rebalanceSettleSeconds: 900,
         safekeeperMigrateConcurrency: 2,
       });
     });

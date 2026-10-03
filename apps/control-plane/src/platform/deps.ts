@@ -21,6 +21,8 @@ export interface PlatformConfig {
   rebalanceMaxMoves: number;
   /** Graceful (prewarmed) pageserver moves, or immediate cut-over. */
   rebalancePrewarm: boolean;
+  /** How long one tenant move may take to settle before it is cancelled. */
+  settleTimeoutMs: number;
   /** How long a step waits for something to settle before it fails and is retried. */
   waitTimeoutMs: number;
   pollIntervalMs: number;

@@ -1,5 +1,8 @@
 import { randomBytes } from 'node:crypto';
-import { OPERATION_ACTIONS } from '@repo/control-plane-contract';
+import {
+  OPERATION_ACTIONS,
+  PLATFORM_OPERATION_ACTIONS,
+} from '@repo/control-plane-contract';
 import { describe, expect, it } from 'vitest';
 import { newEndpointId, newId, newNeonId } from '../../crypto/ids.js';
 import { createSecretBox } from '../../crypto/secretbox.js';
@@ -111,7 +114,7 @@ describe('registry', () => {
     const t = await setup();
     for (const action of [
       ...OPERATION_ACTIONS,
-      'safekeepers.spread' as const,
+      ...PLATFORM_OPERATION_ACTIONS,
     ]) {
       expect(t.registry.planFor(action).length).toBeGreaterThan(0);
     }
