@@ -90,9 +90,18 @@ export function createSafekeeperKube(
           name: safekeeperName(input.id),
           namespace,
         });
+        const status = sts.status;
+        // After a replace the controller still reports the old pod as ready
+        // until it has seen the change and finished the rollout, so require both:
+        // the status is for the latest generation and the update revision is the
+        // current one.
+        const settled =
+          (status?.observedGeneration ?? 0) >=
+            (sts.metadata?.generation ?? 0) &&
+          status?.currentRevision === status?.updateRevision;
         return {
           exists: true,
-          ready: (sts.status?.readyReplicas ?? 0) >= 1,
+          ready: (status?.readyReplicas ?? 0) >= 1 && settled,
           current:
             sts.metadata?.annotations?.[SPEC_HASH_ANNOTATION] ===
             safekeeperSpecHash(input),
@@ -109,13 +118,15 @@ export function createSafekeeperKube(
       const name = safekeeperName(input.id);
       const live = await apps.readNamespacedStatefulSet({ name, namespace });
       const body = buildSafekeeperStatefulSet(input);
-      // The API wants the live resourceVersion on a replace. Everything immutable
-      // (selector, claim templates) is rebuilt identically, so only the pod
-      // template changes.
+      // The API wants the live resourceVersion on a replace, and the claim
+      // templates it already has (they cannot change). Only the pod template does.
       body.metadata = {
         ...body.metadata,
         resourceVersion: live.metadata?.resourceVersion,
       };
+      if (body.spec) {
+        body.spec.volumeClaimTemplates = live.spec?.volumeClaimTemplates;
+      }
       await apps.replaceNamespacedStatefulSet({ name, namespace, body });
     },
 

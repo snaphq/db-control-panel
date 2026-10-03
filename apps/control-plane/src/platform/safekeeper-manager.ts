@@ -47,16 +47,22 @@ const NOTHING: ManagerResult = {
  *    a rollout, owns the StatefulSets);
  * 4. starts a `safekeepers.spread` operation when the layout is off.
  *
- * Idempotent, and skipped while a platform operation runs so it never races a
- * spread's own state changes.
+ * Idempotent, and skipped while a spread runs so it never races the spread's
+ * own state changes.
  */
 export async function reconcileSafekeepers(
   deps: PlatformDeps,
   options: ManagerOptions,
 ): Promise<ManagerResult> {
   const { platform, kube, config } = deps;
-  if (await platform.hasActiveOperation()) {
-    return { ...NOTHING, note: 'a platform operation is running' };
+  // A spread changes the rows and objects this pass looks after; a rebalance
+  // does not, so a long one must not stop the safekeepers being looked after.
+  const spread = await platform.latestOperation('safekeepers.spread');
+  if (
+    spread &&
+    (spread.status === 'scheduling' || spread.status === 'running')
+  ) {
+    return { ...NOTHING, note: 'a safekeepers.spread operation is running' };
   }
 
   let rows = await platform.listSafekeepers();

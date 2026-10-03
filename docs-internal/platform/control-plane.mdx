@@ -226,8 +226,8 @@ limit instead of the queue's 15 minutes.
 ### Safekeepers
 
 The worker's **safekeeper manager** runs every `ALLOYDB_REGISTRATION_SECONDS`
-(after a node sync) and is idempotent. It does nothing while a platform
-operation runs. Each pass:
+(after a node sync) and is idempotent. It does nothing while a spread runs (a
+rebalance does not stop it). Each pass:
 
 1. asks the layout policy ([Platform architecture](/platform/architecture#safekeeper-layout))
    for missing safekeepers and starts them: a `safekeeper` row in `creating`,
@@ -238,8 +238,10 @@ operation runs. Each pass:
 2. recreates objects someone deleted (the volume survives, so the data returns);
 3. registers each Ready safekeeper with the controller and marks it `active`;
 4. rolls a changed `ALLOYDB_NEON_IMAGE` out, one safekeeper per pass and only
-   while all others are Ready (the StatefulSet carries a hash of what the
-   control plane would create, `alloydb.net/spec-hash`);
+   while all others are Ready, a pod counting as Ready only once its StatefulSet
+   has finished the rollout (the StatefulSet carries a hash of what the control
+   plane would create, `alloydb.net/spec-hash`; the volume size is not part of
+   it, because Kubernetes forbids changing it);
 5. starts `safekeepers.spread` when the layout is off (not when a safekeeper
    is not Ready, and not within 30 minutes of a failed spread).
 

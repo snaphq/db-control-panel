@@ -125,16 +125,26 @@ describe('keeping the fleet healthy', () => {
     ]);
   });
 
-  it('skips its pass while a platform operation runs', async () => {
+  it('skips its pass while a spread runs', async () => {
+    const { h, pass } = await setup();
+    await h.addNode(1);
+    await h.platform.createOperation({
+      action: 'safekeepers.spread',
+      params: {},
+    });
+    const result = await pass();
+    expect(result.note).toMatch(/safekeepers.spread operation is running/);
+    expect(await h.platform.listSafekeepers()).toEqual([]);
+  });
+
+  it('keeps looking after the safekeepers while a rebalance runs', async () => {
     const { h, pass } = await setup();
     await h.addNode(1);
     await h.platform.createOperation({
       action: 'pageservers.rebalance',
       params: {},
     });
-    const result = await pass();
-    expect(result.note).toMatch(/platform operation is running/);
-    expect(await h.platform.listSafekeepers()).toEqual([]);
+    expect((await pass()).created).toEqual([1, 2, 3]);
   });
 
   it('rolls a new image out one safekeeper per pass, and only while all are Ready', async () => {

@@ -67,7 +67,13 @@ describe('status', () => {
     const live = buildSafekeeperStatefulSet(workload);
     apps.readNamespacedStatefulSet.mockResolvedValue({
       ...live,
-      status: { readyReplicas: 1 },
+      metadata: { ...live.metadata, generation: 3 },
+      status: {
+        readyReplicas: 1,
+        observedGeneration: 3,
+        currentRevision: 'rev-1',
+        updateRevision: 'rev-1',
+      },
     } as never);
     expect(await kube.status(workload)).toEqual({
       exists: true,
@@ -77,6 +83,38 @@ describe('status', () => {
     expect(
       await kube.status({ ...workload, image: 'ghcr.io/snaphq/neon:two' }),
     ).toMatchObject({ exists: true, current: false });
+  });
+
+  it('is not ready while a rollout is still replacing the pod, though the old one is Ready', async () => {
+    const { apps, kube } = setup();
+    const live = buildSafekeeperStatefulSet(workload);
+    const mid = (status: object) =>
+      apps.readNamespacedStatefulSet.mockResolvedValue({
+        ...live,
+        metadata: { ...live.metadata, generation: 4 },
+        status: { readyReplicas: 1, ...status },
+      } as never);
+    // The controller has not seen the new generation yet.
+    mid({
+      observedGeneration: 3,
+      currentRevision: 'rev-1',
+      updateRevision: 'rev-1',
+    });
+    expect(await kube.status(workload)).toMatchObject({ ready: false });
+    // It has, and is replacing the pod.
+    mid({
+      observedGeneration: 4,
+      currentRevision: 'rev-1',
+      updateRevision: 'rev-2',
+    });
+    expect(await kube.status(workload)).toMatchObject({ ready: false });
+    // Done.
+    mid({
+      observedGeneration: 4,
+      currentRevision: 'rev-2',
+      updateRevision: 'rev-2',
+    });
+    expect(await kube.status(workload)).toMatchObject({ ready: true });
   });
 
   it('is not ready before the pod passes its probe', async () => {
@@ -116,6 +154,34 @@ describe('update', () => {
     expect(call.body.spec.template.spec.containers[0]?.image).toBe(
       'ghcr.io/snaphq/neon:two',
     );
+  });
+});
+
+describe('a different volume size', () => {
+  it('does not count as drift, and an update keeps the claim templates the set already has', async () => {
+    const { apps, kube } = setup();
+    const live = buildSafekeeperStatefulSet(workload);
+    apps.readNamespacedStatefulSet.mockResolvedValue({
+      ...live,
+      metadata: { ...live.metadata, resourceVersion: '5', generation: 1 },
+      status: { readyReplicas: 1, observedGeneration: 1 },
+    } as never);
+    const bigger = { ...workload, storage: '100Gi' };
+    expect(await kube.status(bigger)).toMatchObject({ current: true });
+    await kube.update({ ...bigger, image: 'ghcr.io/snaphq/neon:two' });
+    const call = apps.replaceNamespacedStatefulSet.mock
+      .calls[0]?.[0] as unknown as {
+      body: {
+        spec: {
+          volumeClaimTemplates: {
+            spec: { resources: { requests: { storage: string } } };
+          }[];
+        };
+      };
+    };
+    expect(
+      call.body.spec.volumeClaimTemplates[0]?.spec.resources.requests.storage,
+    ).toBe('50Gi');
   });
 });
 

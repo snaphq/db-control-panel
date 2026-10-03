@@ -218,10 +218,16 @@ function statefulSetBody(input: SafekeeperWorkload): V1StatefulSet {
   };
 }
 
-/** Fingerprint of everything the control plane decides about the StatefulSet. */
+/**
+ * Fingerprint of everything the control plane may change on a live StatefulSet.
+ * The volume claim templates are left out: Kubernetes forbids changing them, so
+ * a different `ALLOYDB_SAFEKEEPER_STORAGE` only applies to new safekeepers.
+ */
 export function safekeeperSpecHash(input: SafekeeperWorkload): string {
+  const body = statefulSetBody(input);
+  const { volumeClaimTemplates: _immutable, ...spec } = body.spec ?? {};
   return createHash('sha256')
-    .update(JSON.stringify(statefulSetBody(input)))
+    .update(JSON.stringify({ ...body, spec }))
     .digest('hex')
     .slice(0, 16);
 }
