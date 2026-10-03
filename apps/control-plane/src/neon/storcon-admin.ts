@@ -56,7 +56,7 @@ const timelineLocationSchema = z.object({
   /** Present while a membership change is in flight. */
   new_sk_set: z.array(z.number().int()).nullable().optional(),
 });
-export type TimelineLocation = z.infer<typeof timelineLocationSchema>;
+type TimelineLocation = z.infer<typeof timelineLocationSchema>;
 
 const preferredAzsResultSchema = z.object({
   updated: z.array(z.string()),
@@ -64,7 +64,7 @@ const preferredAzsResultSchema = z.object({
 
 // ---- client -------------------------------------------------------------------
 
-export interface MigrateShardInput {
+interface MigrateShardInput {
   shardId: string;
   /** Destination pageserver. */
   nodeId: number;

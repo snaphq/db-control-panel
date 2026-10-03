@@ -33,7 +33,7 @@ export class PlatformBusyError extends Error {
   }
 }
 
-export interface PlatformListQuery {
+interface PlatformListQuery {
   status?: 'active' | OperationRecord['status'];
   limit: number;
   cursor?: string;

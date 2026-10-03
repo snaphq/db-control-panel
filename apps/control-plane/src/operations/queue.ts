@@ -23,7 +23,7 @@ export interface OperationQueue {
   ): Promise<void>;
 }
 
-export interface EnqueueOptions {
+interface EnqueueOptions {
   /**
    * How long one attempt may run before the queue presumes the worker dead and
    * retries it. The queue default is 15 minutes; a platform operation that

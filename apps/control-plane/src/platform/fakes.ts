@@ -31,7 +31,7 @@ import { createMemoryPlatformStore } from './store-memory.js';
 
 const GB = 1024 ** 3;
 
-export interface FakeSafekeeperKube extends SafekeeperKube {
+interface FakeSafekeeperKube extends SafekeeperKube {
   calls: string[];
   objects: Map<
     number,
@@ -85,7 +85,7 @@ interface FakeTimeline {
   generation: number;
 }
 
-export interface FakeShard {
+interface FakeShard {
   shardId: string;
   tenantId: string;
   nodeAttached: number | null;
@@ -95,7 +95,7 @@ export interface FakeShard {
   schedulingPolicy: string;
 }
 
-export interface FakeController {
+interface FakeController {
   /** Every call, in order, as `<method> <args>`. */
   calls: string[];
   safekeepers: Map<number, StorconSafekeeper>;

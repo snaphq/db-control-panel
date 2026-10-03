@@ -50,7 +50,7 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 /** Statuses worth another try: the controller is starting, busy or behind a proxy. */
 const TRANSIENT_STATUSES: ReadonlySet<number> = new Set([429, 502, 503, 504]);
 
-export interface RequestSpec {
+interface RequestSpec {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   path: string;
   body?: unknown;
