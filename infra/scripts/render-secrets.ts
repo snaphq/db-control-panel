@@ -38,9 +38,12 @@
  *                   platform-wal-s3       WAL-G settings for platform-wal/: AWS_*,
  *                                         AWS_ENDPOINT, AWS_S3_FORCE_PATH_STYLE,
  *                                         WALG_S3_PREFIX (s3://<bucket>/platform-wal)
+ *   monitoring      alertmanager-config   alertmanager.yaml; routes to
+ *                                         ALLOYDB_ALERT_WEBHOOK_URL when set, else
+ *                                         alerts stay visible in the UI only
  *   flux-system     alloydb-settings      ConfigMap with ACME_EMAIL
  *
- * Optional keys: ALLOYDB_SQLD_S3_BUCKET and
+ * Optional keys: ALLOYDB_SQLD_S3_BUCKET, ALLOYDB_ALERT_WEBHOOK_URL, and
  * ALLOYDB_PLATFORM_POSTGRES_HOST (host the control plane and storage controller
  * connect to; set it to the restored instance during a recovery, see
  * docs-internal/operations/observability-and-recovery.mdx).
@@ -127,6 +130,39 @@ function checkDataKey(env: Env): void {
       "ALLOYDB_DATA_KEY must be base64 of exactly 32 bytes (openssl rand -base64 32)",
     );
   }
+}
+
+/** Alertmanager config: one webhook receiver when a URL is set, otherwise alerts only show in the UI. */
+function alertmanagerConfig(env: Env): string {
+  const url = env.ALLOYDB_ALERT_WEBHOOK_URL?.trim();
+  if (url && !/^https?:\/\/[^\s]+$/.test(url)) {
+    fail("ALLOYDB_ALERT_WEBHOOK_URL must be an http(s) URL without spaces");
+  }
+  const receivers = url
+    ? [
+        "  - name: webhook",
+        "    webhook_configs:",
+        `      - url: ${JSON.stringify(url)}`,
+        "        send_resolved: true",
+        '  - name: "null"',
+      ]
+    : ['  - name: "null"'];
+  return [
+    "route:",
+    `  receiver: ${url ? "webhook" : '"null"'}`,
+    "  group_by: [alertname, namespace]",
+    "  group_wait: 30s",
+    "  group_interval: 5m",
+    "  repeat_interval: 4h",
+    "  routes:",
+    // Watchdog fires forever by design and InfoInhibitor is informational.
+    '    - receiver: "null"',
+    "      matchers:",
+    '        - alertname =~ "Watchdog|InfoInhibitor"',
+    "receivers:",
+    ...receivers,
+    "",
+  ].join("\n");
 }
 
 /** Returns the private key, generating and announcing one when allowed. */
@@ -239,7 +275,9 @@ function render(env: Env, neonKey: KeyObject, libsqlKey: KeyObject): string[] {
   const libsqlAdmin = { LIBSQL_ADMIN_AUTH_KEY: env.ALLOYDB_LIBSQL_ADMIN_KEY };
 
   return [
-    ...["alloydb-system", "neon", "libsql", "cert-manager"].map(namespaceDoc),
+    ...["alloydb-system", "neon", "libsql", "cert-manager", "monitoring"].map(
+      namespaceDoc,
+    ),
     resource("ConfigMap", "alloydb-settings", "flux-system", {
       ACME_EMAIL: env.ALLOYDB_ACME_EMAIL,
     }),
@@ -268,6 +306,9 @@ function render(env: Env, neonKey: KeyObject, libsqlKey: KeyObject): string[] {
       AWS_ENDPOINT: env.ALLOYDB_S3_ENDPOINT,
       AWS_S3_FORCE_PATH_STYLE: "true",
       WALG_S3_PREFIX: `s3://${env.ALLOYDB_S3_BUCKET}/platform-wal`,
+    }),
+    secret("alertmanager-config", "monitoring", {
+      "alertmanager.yaml": alertmanagerConfig(env),
     }),
     secret("neon-jwt", "neon", neonPublic),
     secret("neon-jwt", "alloydb-system", {

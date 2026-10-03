@@ -1,6 +1,9 @@
 # Reconciliation order:
 #   platform-controllers -> platform -> neon ----\
 #                                  \-> libsql ---+-> control-plane
+#   platform-controllers -> monitoring-controllers -> monitoring
+# Monitoring is independent of the data plane: it only needs the operator CRDs,
+# and Secret `alertmanager-config` (monitoring) from render-secrets.ts.
 # ConfigMap `alloydb-settings` (flux-system) supplies ${ACME_EMAIL}; create it
 # with infra/scripts/render-secrets.ts before the first reconcile.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
@@ -109,3 +112,41 @@ spec:
     substituteFrom:
       - kind: ConfigMap
         name: alloydb-settings
+---
+# VictoriaMetrics operator, its CRDs and the metrics stack (Helm). `wait` holds
+# `monitoring` back until the CRDs exist and the release is Ready.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: monitoring-controllers
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 15m
+  dependsOn:
+    - name: platform-controllers
+  sourceRef:
+    kind: GitRepository
+    name: alloydb
+  path: ./infra/k8s/monitoring/controllers
+  prune: true
+  wait: true
+---
+# Scrape configs and alert rules (VMPodScrape, VMServiceScrape, VMRule).
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: monitoring
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 5m
+  dependsOn:
+    - name: monitoring-controllers
+  sourceRef:
+    kind: GitRepository
+    name: alloydb
+  path: ./infra/k8s/monitoring/config
+  prune: true
