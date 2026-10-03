@@ -26,6 +26,26 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    # The control plane's integration suites (queue, operation repository,
+    # Drizzle stores, API isolation) skip themselves without a database.
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: control_plane_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      CONTROL_PLANE_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/control_plane_test
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
