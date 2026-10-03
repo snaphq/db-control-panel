@@ -199,6 +199,16 @@
       ]
     },
     {
+      "id": "monitoring",
+      "page": "operations/monitoring.mdx",
+      "visibility": "internal",
+      "sources": [
+        "infra/k8s/monitoring",
+        "infra/k8s/clusters/alloydb/kustomizations.yaml",
+        "infra/scripts/render-secrets.ts"
+      ]
+    },
+    {
       "id": "observability-and-recovery",
       "page": "operations/observability-and-recovery.mdx",
       "visibility": "internal",

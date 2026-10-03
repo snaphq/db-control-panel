@@ -66,6 +66,7 @@
           "operations/configuration-and-secrets",
           "operations/deployments",
           "operations/migrations",
+          "operations/monitoring",
           "operations/observability-and-recovery"
         ]
       },

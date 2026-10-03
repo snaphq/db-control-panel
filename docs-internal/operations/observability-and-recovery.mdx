@@ -61,15 +61,15 @@ recovery.
 ### Why WAL-G
 
 WAL-G v3.0.9 (released 2026-08-20, Apache-2.0,
-<https://github.com/wal-g/wal-g/releases/tag/v3.0.9>) was chosen over
+[https://github.com/wal-g/wal-g/releases/tag/v3.0.9](https://github.com/wal-g/wal-g/releases/tag/v3.0.9)) was chosen over
 pgBackRest 2.59.2 (MIT) because it ships a prebuilt Linux binary, so the stock
 `postgres:17-bookworm` image is kept and nothing is built here. pgBackRest
 publishes only a source tarball and would need a custom image plus a TLS or SSH
 setup between pods. WAL-G's integration images cover PostgreSQL 14-18
-(<https://raw.githubusercontent.com/wal-g/wal-g/master/Makefile>); pgBackRest
+([https://raw.githubusercontent.com/wal-g/wal-g/master/Makefile](https://raw.githubusercontent.com/wal-g/wal-g/master/Makefile)); pgBackRest
 has supported 17 since 2.53.1. S3-compatible stores are configured with
 `AWS_ENDPOINT` plus `AWS_S3_FORCE_PATH_STYLE=true`
-(<https://raw.githubusercontent.com/wal-g/wal-g/master/docs/STORAGES.md>), which
+([https://raw.githubusercontent.com/wal-g/wal-g/master/docs/STORAGES.md](https://raw.githubusercontent.com/wal-g/wal-g/master/docs/STORAGES.md)), which
 `render-secrets.ts` sets in the `platform-wal-s3` Secret from the existing
 `ALLOYDB_S3_*` values; the prefix is `s3://<bucket>/platform-wal`.
 
@@ -101,7 +101,8 @@ kubectl -n alloydb-system get cronjob platform-postgres-basebackup platform-post
 ```
 
 `failed_count` rising or an old `last_archived_time` means archiving is broken;
-the `PlatformPostgresWalArchive*` alerts watch the same numbers. Archive failures make WAL pile
+the `PlatformPostgresWalArchive*` alerts watch the same numbers (see
+[Monitoring and alerts](/operations/monitoring)). Archive failures make WAL pile
 up in `pg_wal` on the node, so fix them before the disk fills. If the
 `platform-wal-s3` Secret was never applied, the pod still starts (the reference is
 optional) and archiving fails until `render-secrets.ts` is applied.

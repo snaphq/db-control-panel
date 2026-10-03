@@ -1,0 +1,159 @@
+---
+title: Monitoring and alerts
+description: The metrics stack, what it scrapes, the alert rules, how alerts are routed, and what is not covered.
+---
+
+# Monitoring and alerts
+
+The `monitoring` namespace runs a small VictoriaMetrics stack, installed by
+Flux from `infra/k8s/monitoring`:
+
+| Flux Kustomization | Path | Contents |
+| --- | --- | --- |
+| `monitoring-controllers` | `infra/k8s/monitoring/controllers` | HelmRelease `victoria-metrics-k8s-stack` **0.95.0** (app v1.153.0, published 2026-09-28) |
+| `monitoring` | `infra/k8s/monitoring/config` | `VMPodScrape` / `VMServiceScrape` objects and two `VMRule`s |
+
+The chart was picked over kube-prometheus-stack because VMSingle, VMAgent and
+VMAlert need far less memory on one node. The version is the newest entry in
+[https://victoriametrics.github.io/helm-charts/index.yaml](https://victoriametrics.github.io/helm-charts/index.yaml) on 2026-10-03; the
+values in the HelmRelease were checked against that version's `values.yaml`, and
+the chart renders with them (`helm template`). Grafana, the default dashboards
+and the chart's default rule sync are off: 0.95.0 fills its default Kubernetes
+rules with a Job that downloads them from upstream `main` branches, which is
+neither reproducible nor needed, so all alerts are the repository's own rules.
+Requests are small (VMSingle 100m CPU and 256Mi, 10Gi local-path, 15 days of
+retention; everything else 10-50m and 24-128Mi).
+
+## Looking at it
+
+Nothing is exposed publicly. Use port-forwards:
+
+```bash
+kubectl -n monitoring port-forward svc/vmsingle-vm 8428     # http://localhost:8428/vmui
+kubectl -n monitoring port-forward svc/vmalert-vm 8080      # firing alerts and rule state
+kubectl -n monitoring port-forward svc/vmalertmanager-vm 9093
+```
+
+## Alert routing
+
+Alertmanager takes its whole configuration from the Secret
+`alertmanager-config` (key `alertmanager.yaml`) in `monitoring`, rendered by
+`infra/scripts/render-secrets.ts`. Apply the rendered secrets **before** the
+`monitoring-controllers` Kustomization reconciles.
+
+- With `ALLOYDB_ALERT_WEBHOOK_URL` set in the root `.env.local`, every alert
+  except `Watchdog` goes to that URL as an Alertmanager webhook (JSON, with
+  resolved notifications), grouped by alert name and namespace, repeated every 4
+  hours. The value must be an `http(s)` URL.
+- With it unset the config only has a `null` receiver: alerts are visible in the
+  vmalert and Alertmanager UIs and nowhere else.
+
+Change the URL by editing `.env.local`, re-running `render-secrets.ts` and
+applying it; the operator reloads Alertmanager.
+
+## What is scraped
+
+Every scrape forces its own `job` label, which the rules use.
+
+| Target | Job | Endpoint | Metric source |
+| --- | --- | --- | --- |
+| Neon pageserver | `neon-pageserver` | pod port `http` 9898 `/metrics` (hostNetwork, node Tailscale IP) | `pageserver/src/http/routes.rs:4025` |
+| Safekeepers | `neon-safekeeper` | pod port `http` 7676 `/metrics` | `safekeeper/src/http/routes.rs:736` |
+| Storage controller | `neon-storage-controller` | pod port `http` 1234 `/metrics` | `storage_controller/src/http.rs:2208` |
+| Neon proxy | `neon-proxy` | pod port `http` 7001 `/metrics` | `proxy/src/http/health_server.rs:31` |
+| Computes (`compute_ctl`) | `neon-compute` | pod port `compute-ctl` 3080 `/metrics`, open in the pod NetworkPolicy | `compute_tools/src/http/server.rs:95` |
+| sqld | `libsql-sqld` | admin API 8081 `/metrics`, `Authorization: Basic <LIBSQL_ADMIN_AUTH_KEY>` | `libsql-server/src/http/admin/mod.rs:168` at `libsql-server-v0.24.33` |
+| Platform Postgres | `platform-postgres` | postgres-exporter sidecar `metrics` 9187 | postgres_exporter v0.20.1 `collector/pg_stat_archiver.go` |
+| cert-manager | `cert-manager` | Service port `http-metrics` 9402 | cert-manager v1.21.2 `internal/collectors/certificate_collector.go` |
+| Nodes, kube-state-metrics, kubelet, cAdvisor | from the chart | | node-exporter, kube-state-metrics |
+
+Neon paths are in the Neon source pinned by `infra/images/sources.env`
+(`fa504217c`). All of these routes are unauthenticated except sqld's, which is
+compared as plain text (not base64) by `auth_middleware`
+(`libsql-server/src/http/admin/mod.rs:209-236`) and therefore uses the
+`Basic` authorization type with the raw key rather than basic-auth credentials.
+The key comes from the existing Secret `libsql-admin` in `libsql`.
+
+Safekeepers and the other Neon targets are scraped per pod: each safekeeper has
+its own Service plus a shared headless one, and scraping Services would
+duplicate every target.
+
+### Metrics the rules use, and where they come from
+
+| Metric | Source |
+| --- | --- |
+| `pg_stat_archiver_archived_count`, `_failed_count`, `_last_archive_age`, `pg_scrape_collector_success` | postgres_exporter v0.20.1 `collector/pg_stat_archiver.go`. `last_archive_age` is omitted when nothing was ever archived (hence the `absent()` rule). The exporter has no `pg_up` since v0.19 |
+| `safekeeper_backup_errors_total` | `safekeeper/src/metrics.rs:201` |
+| `pageserver_broken_tenants_count` | `pageserver/src/metrics.rs:1083` (one series per broken tenant, removed on detach) |
+| `up` | the scrapes above |
+| `kube_cronjob_status_last_schedule_time`, `_last_successful_time`, `_status_active`, `kube_deployment_status_replicas_available`, `_unavailable` | kube-state-metrics (stable metrics) |
+| `node_filesystem_avail_bytes`, `node_filesystem_size_bytes` | node-exporter |
+| `kubelet_volume_stats_available_bytes`, `_capacity_bytes` | kubelet |
+| `certmanager_certificate_expiration_timestamp_seconds`, `certmanager_certificate_ready_status` | cert-manager `internal/collectors/certificate_collector.go` (v1.21.2) |
+
+The rule files were parsed with vmalert v1.153.0 in `-dryRun` mode, which checks
+every expression and template.
+
+## Alert rules
+
+Rules are in `rules-platform.yaml` and `rules-neon.yaml`.
+
+| Alert | Fires when |
+| --- | --- |
+| `PlatformPostgresWalArchiveFailing` (critical) | `archive_command` failed in 15 minutes and nothing was archived |
+| `PlatformPostgresWalArchiveLagging` | last successful archive older than 30 minutes (`archive_timeout` is 5 minutes) |
+| `PlatformPostgresWalArchiveMetricMissing` | no archiver metric, or its collector fails, for 30 minutes |
+| `PlatformPostgresBackupFailed` (critical) | the newest `platform-postgres-basebackup` or `platform-postgres-backup` run did not succeed |
+| `PlatformPostgresBackupStale` (critical) | no successful run for 36 hours |
+| `PlatformPostgresBackupNeverSucceeded` (critical) | kube-state-metrics has never seen a successful run, for 36 hours |
+| `NodeFilesystemLow` | under 15% free on any ext2-4, xfs, btrfs or zfs node filesystem. `/var/lib/alloydb`, the local-path PVCs and safekeeper volumes all sit on node filesystems |
+| `PersistentVolumeLow` | under 15% free by kubelet volume stats. Best effort: local-path volumes may not report them, and then nothing fires |
+| `NeonSafekeeperQuorumAtRisk` (critical) | fewer than 3 safekeepers answer scrapes (production runs 3; edit the rule if `ALLOYDB_SAFEKEEPER_COUNT` changes) |
+| `NeonSafekeeperDown` | one safekeeper is not scrapeable for 5 minutes |
+| `NeonSafekeeperWalBackupErrors` | safekeeper WAL offloading to S3 failing |
+| `NeonPageserverDown` (critical) | a pageserver is not scrapeable, or no pageserver target exists |
+| `NeonPageserverBrokenTenants` (critical) | any tenant is `Broken` |
+| `NeonStorageControllerDown` (critical) | the storage controller is not scrapeable |
+| `NeonProxyDown` (critical) / `NeonProxyDegraded` | no proxy / fewer than 2 proxies answer |
+| `ControlPlaneDeploymentUnavailable` / `ControlPlaneDeploymentDown` (critical) | a `control-plane-*` Deployment has unavailable replicas / none available |
+| `CertificateExpiringSoon` | a certificate expires in under 14 days |
+| `CertificateNotReady` | a Certificate has not been ready for 15 minutes |
+| `MetricsScrapeTargetDown` | the postgres, sqld or cert-manager scrape has failed for 15 minutes |
+| `Watchdog` | always; routed to the null receiver as the pipeline heartbeat |
+
+## Not covered
+
+- **Failed operations.** The control plane has no `/metrics` endpoint (no metrics
+  code in `apps/control-plane`), so no alert exists for operations that fail.
+  The data is in the `operation` table (`status = 'failed'`, `failures_count`,
+  `error`; `apps/control-plane/src/db/schema.ts`). Adding `/metrics` to the HTTP
+  modes is small (`createBaseApp` in `src/modes/http.ts`), but the worker has no
+  HTTP server and the manifests pin a built image, so this is left for a
+  control-plane change followed by an image rebuild. Until then check
+  `select status, count(*) from operation group by status` or the admin portal.
+- **Control-plane Deployments** are only covered by availability, not request
+  errors or latency.
+- **PostgREST admin `/metrics`** (`pgrst_*`, `src/library/PostgREST/Admin.hs`,
+  needs `admin-server-port`) cannot be scraped: the sidecar's admin server is
+  bound to `127.0.0.1` (`PGRST_ADMIN_SERVER_HOST` in
+  `apps/control-plane/src/neon/compute-pod.ts`). Scraping it needs that host
+  changed to the pod address and the admin ports (3100-3149) opened to the
+  `monitoring` namespace in `compute-networkpolicy.yaml`, plus a rebuilt
+  control-plane image.
+- **`compute_ctl` metrics** are scraped but have no alert: computes come and go
+  with suspend and wake-up.
+- **Storage broker** `/metrics` (port 50051) is not scraped.
+
+## Not verifiable without a cluster
+
+- That the monitoring pods can reach the pageserver and sqld addresses. Both are
+  hostNetwork pods bound to the node's Tailscale IP, so the scrape goes from the
+  pod network to the node address; confirm the targets are `up` in vmui
+  (`up{job=~"neon-pageserver|libsql-sqld"}`).
+- That the operator accepts the `Authorization: Basic <key>` configuration for
+  sqld (the sqld side was read from source).
+- Metric label values at runtime, for example the exact exposed names of
+  counters (`_total` suffixes added by the `measured` crate in the storage
+  controller were inferred from its tests and not used by any rule).
+- That the chart installs on k3s as configured, the Alertmanager Secret
+  handling, and the resource sizes under real load.
