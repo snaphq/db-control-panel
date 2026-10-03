@@ -22,6 +22,8 @@ describe('loadConfig', () => {
       libsqlHostSuffix: 'lite.alloydb.net',
       dataApiHostSuffix: 'apirest.alloydb.net',
       libsqlJwtSigningKeyPath: undefined,
+      safekeeperCount: 3,
+      safekeeperStorage: '50Gi',
     });
   });
 

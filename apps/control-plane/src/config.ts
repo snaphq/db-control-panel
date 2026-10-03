@@ -67,6 +67,14 @@ const computeShape = {
   ALLOYDB_IMAGE_PULL_SECRET: z.string().min(1).default('ghcr-pull'),
 };
 
+/** Safekeepers to run; must equal the storage controller's `--timeline-safekeeper-count`. */
+const safekeeperCount = z.coerce.number().int().min(1).max(9).default(3);
+/** Size of each safekeeper's volume. */
+const safekeeperStorage = z
+  .string()
+  .regex(/^\d+(Ki|Mi|Gi|Ti)$/, 'must be a quantity such as 50Gi')
+  .default('50Gi');
+
 const boolean = (fallback: 'true' | 'false') =>
   z
     .enum(['true', 'false'], { message: 'must be "true" or "false"' })
@@ -82,11 +90,7 @@ const platformShape = {
     .string()
     .min(1)
     .default('safekeeper-entrypoint'),
-  /** Size of each safekeeper's volume. */
-  ALLOYDB_SAFEKEEPER_STORAGE: z
-    .string()
-    .regex(/^\d+(Ki|Mi|Gi|Ti)$/, 'must be a quantity such as 50Gi')
-    .default('50Gi'),
+  ALLOYDB_SAFEKEEPER_STORAGE: safekeeperStorage,
   ALLOYDB_AUTO_SPREAD_SAFEKEEPERS: boolean('true'),
   ALLOYDB_SAFEKEEPER_MIGRATE_CONCURRENCY: z.coerce
     .number()
@@ -133,6 +137,9 @@ const envSchema = z.discriminatedUnion('ALLOYDB_MODE', [
     ALLOYDB_LIBSQL_HOST_SUFFIX: libsqlHostSuffix,
     ALLOYDB_DATA_API_HOST_SUFFIX: dataApiHostSuffix,
     LIBSQL_JWT_SIGNING_KEY_PATH: z.string().min(1).optional(),
+    // The admin view of the safekeeper layout (what a spread would do).
+    ALLOYDB_SAFEKEEPER_COUNT: safekeeperCount,
+    ALLOYDB_SAFEKEEPER_STORAGE: safekeeperStorage,
   }),
   z.object({
     ALLOYDB_MODE: z.literal('neon-glue'),
@@ -151,7 +158,7 @@ const envSchema = z.discriminatedUnion('ALLOYDB_MODE', [
     ),
     LIBSQL_ADMIN_AUTH_KEY: required('sqld admin API key'),
     ALLOYDB_LIBSQL_HOST_SUFFIX: libsqlHostSuffix,
-    ALLOYDB_SAFEKEEPER_COUNT: z.coerce.number().int().min(1).max(9).default(3),
+    ALLOYDB_SAFEKEEPER_COUNT: safekeeperCount,
     ...platformShape,
     ALLOYDB_IDLE_SWEEP_SECONDS: z.coerce.number().int().min(5).default(30),
     ALLOYDB_REGISTRATION_SECONDS: z.coerce.number().int().min(10).default(60),
@@ -194,6 +201,9 @@ export interface ApiConfig extends BaseConfig {
   /** Data API hosts are `<endpoint id>.<suffix>`. */
   dataApiHostSuffix: string;
   libsqlJwtSigningKeyPath?: string;
+  /** For the admin view of the safekeeper layout. */
+  safekeeperCount: number;
+  safekeeperStorage: string;
 }
 
 export interface NeonGlueConfig extends BaseConfig, NeonConfig {
@@ -251,6 +261,8 @@ function toConfig(env: RawEnv): Config {
         libsqlHostSuffix: env.ALLOYDB_LIBSQL_HOST_SUFFIX,
         dataApiHostSuffix: env.ALLOYDB_DATA_API_HOST_SUFFIX,
         libsqlJwtSigningKeyPath: env.LIBSQL_JWT_SIGNING_KEY_PATH,
+        safekeeperCount: env.ALLOYDB_SAFEKEEPER_COUNT,
+        safekeeperStorage: env.ALLOYDB_SAFEKEEPER_STORAGE,
       };
     case 'neon-glue':
       return {

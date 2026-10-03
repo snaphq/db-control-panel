@@ -11,7 +11,8 @@ import {
 import type { NeonStore, Scope } from '../neon/store.js';
 import { InvalidCursorError } from '../operations/repository.js';
 import type { OperationRecord } from '../operations/store.js';
-import { createApiRoutes } from './api.js';
+import { createMemoryPlatformStore } from '../platform/store-memory.js';
+import { type AdminDeps, mountApi } from './api.js';
 import { createBaseApp } from './http.js';
 
 const API_TOKEN = 'api-token';
@@ -25,19 +26,25 @@ export function buildApi(
   store = createMemoryNeonStore(),
   overrides: ApiOverrides = {},
 ) {
-  return assembleApi(
-    store,
-    createMemoryLibsqlStore(store),
-    memoryOperationReads(store),
-    overrides,
-  );
+  const libsql = createMemoryLibsqlStore(store);
+  const platform = createMemoryPlatformStore(store.operations);
+  return {
+    ...assembleApi(store, libsql, memoryOperationReads(store), overrides, {
+      store,
+      libsql,
+      platform,
+      safekeeperCount: 3,
+      safekeeperStorage: '50Gi',
+    }),
+    platform,
+  };
 }
 
 /** Deps a test may replace on the otherwise standard route tree. */
 type ApiOverrides = Partial<{ dataApiHostSuffix: string }>;
 
 type OperationReads = Pick<
-  Parameters<typeof createApiRoutes>[0],
+  Parameters<typeof mountApi>[1],
   'findOperation' | 'listOperations'
 >;
 
@@ -92,26 +99,31 @@ export function assembleApi<S extends NeonStore>(
   libsql: LibsqlStore,
   operations: OperationReads,
   overrides: ApiOverrides = {},
+  admin?: AdminDeps,
 ) {
   const app = createBaseApp(async () => {});
-  app.route(
-    '/v1',
-    createApiRoutes({
-      apiToken: API_TOKEN,
-      pgHostSuffix: 'pg.alloydb.net',
-      secrets: testSecrets,
+  mountApi(app, {
+    apiToken: API_TOKEN,
+    pgHostSuffix: 'pg.alloydb.net',
+    secrets: testSecrets,
+    store,
+    libsql,
+    libsqlHostSuffix: 'lite.alloydb.net',
+    dataApiHostSuffix: overrides.dataApiHostSuffix ?? 'apirest.alloydb.net',
+    libsqlSigner: testLibsqlSigner,
+    ...operations,
+    admin: admin ?? {
       store,
       libsql,
-      libsqlHostSuffix: 'lite.alloydb.net',
-      dataApiHostSuffix: overrides.dataApiHostSuffix ?? 'apirest.alloydb.net',
-      libsqlSigner: testLibsqlSigner,
-      ...operations,
-    }),
-  );
+      platform: createMemoryPlatformStore(),
+      safekeeperCount: 3,
+      safekeeperStorage: '50Gi',
+    },
+  });
   return { app, store };
 }
 
-export type Api = ReturnType<typeof buildApi>;
+export type Api = Pick<ReturnType<typeof buildApi>, 'app' | 'store'>;
 
 export interface Caller {
   org: string;

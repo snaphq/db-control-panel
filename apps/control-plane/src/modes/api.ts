@@ -12,6 +12,8 @@ import {
 } from '../operations/queue.js';
 import { findOperation, listOperations } from '../operations/repository.js';
 import type { OperationRecord } from '../operations/store.js';
+import { createDrizzlePlatformStore } from '../platform/store-drizzle.js';
+import { type AdminRouteDeps, createAdminRoutes } from './api-admin.js';
 import { registerDataApiRoutes } from './api-data-api.js';
 import { registerEndpointRoutes } from './api-endpoints.js';
 import { type LibsqlApiDeps, registerLibsqlRoutes } from './api-libsql.js';
@@ -52,7 +54,7 @@ interface ApiDeps extends NeonApiDeps, LibsqlApiDeps, OperationRouteDeps {
  * organization or console project is indistinguishable from one that does not
  * exist.
  */
-export function createApiRoutes(deps: ApiDeps): Hono<ApiEnv> {
+function createApiRoutes(deps: ApiDeps): Hono<ApiEnv> {
   const v1 = new Hono<ApiEnv>();
   v1.use('*', bearerAuth(deps.apiToken));
   v1.use('*', async (c, next) => {
@@ -79,35 +81,56 @@ export function createApiRoutes(deps: ApiDeps): Hono<ApiEnv> {
   return v1;
 }
 
+/** The admin routes' own dependencies; they share the bearer token with `/v1`. */
+export type AdminDeps = Omit<AdminRouteDeps, 'apiToken'>;
+
+/** Mounts `/v1/admin` (bearer token only) ahead of `/v1`, whose routes also need the org and project headers. */
+export function mountApi(
+  app: Hono,
+  deps: ApiDeps & { admin: AdminDeps },
+): void {
+  const { admin, ...console } = deps;
+  app.route(
+    '/v1/admin',
+    createAdminRoutes({ apiToken: deps.apiToken, ...admin }),
+  );
+  app.route('/v1', createApiRoutes(console));
+}
+
 export function startApi(config: ApiConfig): Promise<RunningMode> {
   return startHttpMode(config, async ({ app, handle }) => {
     const boss = createBoss(config.databaseUrl, 'producer');
     await startQueue(boss);
     const queue = createOperationQueue(boss);
     const store = createDrizzleNeonStore(handle.db, queue);
-    app.route(
-      '/v1',
-      createApiRoutes({
-        apiToken: config.apiToken,
-        pgHostSuffix: config.pgHostSuffix,
-        secrets: createSecretBox(config.dataKey),
+    const libsql = createDrizzleLibsqlStore(handle.db, queue);
+    mountApi(app, {
+      apiToken: config.apiToken,
+      pgHostSuffix: config.pgHostSuffix,
+      secrets: createSecretBox(config.dataKey),
+      store,
+      libsql,
+      libsqlHostSuffix: config.libsqlHostSuffix,
+      dataApiHostSuffix: config.dataApiHostSuffix,
+      libsqlSigner: config.libsqlJwtSigningKeyPath
+        ? loadSigner(config.libsqlJwtSigningKeyPath)
+        : null,
+      findOperation: (id, scope) =>
+        findOperation(handle.db, id, scope.consoleProjectId, scope.orgId),
+      listOperations: (scope, query) =>
+        listOperations(handle.db, {
+          consoleProjectId: scope.consoleProjectId,
+          consoleOrgId: scope.orgId,
+          ...query,
+        }),
+      admin: {
         store,
-        libsql: createDrizzleLibsqlStore(handle.db, queue),
-        libsqlHostSuffix: config.libsqlHostSuffix,
-        dataApiHostSuffix: config.dataApiHostSuffix,
-        libsqlSigner: config.libsqlJwtSigningKeyPath
-          ? loadSigner(config.libsqlJwtSigningKeyPath)
-          : null,
-        findOperation: (id, scope) =>
-          findOperation(handle.db, id, scope.consoleProjectId, scope.orgId),
-        listOperations: (scope, query) =>
-          listOperations(handle.db, {
-            consoleProjectId: scope.consoleProjectId,
-            consoleOrgId: scope.orgId,
-            ...query,
-          }),
-      }),
-    );
+        libsql,
+        platform: createDrizzlePlatformStore(handle.db, queue),
+        safekeeperCount: config.safekeeperCount,
+        safekeeperStorage: config.safekeeperStorage,
+      },
+    });
     return () => boss.stop({ graceful: true, timeout: 10_000 });
   });
 }
