@@ -81,19 +81,20 @@ function createApiRoutes(deps: ApiDeps): Hono<ApiEnv> {
   return v1;
 }
 
-/** The admin routes' own dependencies; they share the bearer token with `/v1`. */
-export type AdminDeps = Omit<AdminRouteDeps, 'apiToken'>;
+/** The admin routes' own dependencies; their bearer token is passed beside them. */
+export type AdminDeps = Omit<AdminRouteDeps, 'adminApiToken'>;
 
-/** Mounts `/v1/admin` (bearer token only) ahead of `/v1`, whose routes also need the org and project headers. */
+/**
+ * Mounts `/v1/admin` ahead of `/v1`. Each tree checks its own bearer token
+ * (admin portal vs. console), so neither token unlocks the other tree; `/v1`
+ * routes also need the org and project headers.
+ */
 export function mountApi(
   app: Hono,
-  deps: ApiDeps & { admin: AdminDeps },
+  deps: ApiDeps & { adminApiToken: string; admin: AdminDeps },
 ): void {
-  const { admin, ...console } = deps;
-  app.route(
-    '/v1/admin',
-    createAdminRoutes({ apiToken: deps.apiToken, ...admin }),
-  );
+  const { admin, adminApiToken, ...console } = deps;
+  app.route('/v1/admin', createAdminRoutes({ adminApiToken, ...admin }));
   app.route('/v1', createApiRoutes(console));
 }
 
@@ -106,6 +107,7 @@ export function startApi(config: ApiConfig): Promise<RunningMode> {
     const libsql = createDrizzleLibsqlStore(handle.db, queue);
     mountApi(app, {
       apiToken: config.apiToken,
+      adminApiToken: config.adminApiToken,
       pgHostSuffix: config.pgHostSuffix,
       secrets: createSecretBox(config.dataKey),
       store,

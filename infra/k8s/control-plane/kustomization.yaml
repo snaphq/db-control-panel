@@ -30,7 +30,11 @@
 #                            passwords and the Data API signing key. Every mode needs it.
 #
 #   control-plane-api        ALLOYDB_API_TOKEN  bearer token the console server presents to the
-#                            api mode. The console holds the same value.
+#                            api mode on the org-scoped /v1 routes. The console holds
+#                            the same value.
+#                            ALLOYDB_ADMIN_API_TOKEN  bearer token the platform admin
+#                            portal (apps/backend) presents on /v1/admin/*. Must differ
+#                            from ALLOYDB_API_TOKEN; each token unlocks only its own half.
 #
 #   neon-jwt                 Ed25519 key material for every Neon token
 #     private.pem              PKCS#8 PEM private key. Mounted as a file at

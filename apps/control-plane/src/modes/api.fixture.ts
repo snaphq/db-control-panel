@@ -16,6 +16,7 @@ import { type AdminDeps, mountApi } from './api.js';
 import { createBaseApp } from './http.js';
 
 const API_TOKEN = 'api-token';
+export const ADMIN_API_TOKEN = 'admin-api-token';
 export const testSecrets = createSecretBox(randomBytes(32));
 
 // biome-ignore lint/suspicious/noExplicitAny: the tests read arbitrary JSON bodies
@@ -104,6 +105,7 @@ export function assembleApi<S extends NeonStore>(
   const app = createBaseApp(async () => {});
   mountApi(app, {
     apiToken: API_TOKEN,
+    adminApiToken: ADMIN_API_TOKEN,
     pgHostSuffix: 'pg.alloydb.net',
     secrets: testSecrets,
     store,

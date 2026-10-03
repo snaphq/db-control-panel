@@ -70,6 +70,8 @@ const REQUIRED: Record<string, string> = {
     "proxy to control plane token, generate with: openssl rand -hex 32",
   ALLOYDB_API_TOKEN:
     "console to control-plane API token, generate with: openssl rand -hex 32",
+  ALLOYDB_ADMIN_API_TOKEN:
+    "admin portal to control-plane admin API token, different from ALLOYDB_API_TOKEN, generate with: openssl rand -hex 32",
   ALLOYDB_DATA_KEY:
     "AES-256 key sealing stored credentials, generate with: openssl rand -base64 32",
 };
@@ -95,6 +97,15 @@ function requireKeys(env: Env): void {
   if (missing.length === 0) return;
   const lines = missing.map(([key, hint]) => `  ${key}  (${hint})`);
   fail(`missing required keys in the env file:\n${lines.join("\n")}`);
+}
+
+/** The api mode refuses to start when the two tokens match, so catch it before it is applied. */
+function checkApiTokens(env: Env): void {
+  if (env.ALLOYDB_API_TOKEN.trim() === env.ALLOYDB_ADMIN_API_TOKEN.trim()) {
+    fail(
+      "ALLOYDB_ADMIN_API_TOKEN must differ from ALLOYDB_API_TOKEN (each token unlocks only its own half of the API)",
+    );
+  }
 }
 
 /** The control plane refuses to start on any other length, so catch it before it is applied. */
@@ -268,6 +279,7 @@ function render(env: Env, neonKey: KeyObject, libsqlKey: KeyObject): string[] {
     }),
     secret("control-plane-api", "alloydb-system", {
       ALLOYDB_API_TOKEN: env.ALLOYDB_API_TOKEN,
+      ALLOYDB_ADMIN_API_TOKEN: env.ALLOYDB_ADMIN_API_TOKEN,
     }),
   ];
 }
@@ -288,6 +300,7 @@ function main(): void {
   const env = loadEnv(envPath);
   requireKeys(env);
   checkDataKey(env);
+  checkApiTokens(env);
   const neonKey = loadSigningKey(
     env,
     "NEON",

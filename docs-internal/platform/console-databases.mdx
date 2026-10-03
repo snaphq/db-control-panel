@@ -33,7 +33,7 @@ browser (packages/react-ui/src/components/databases)
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `ALLOYDB_API_URL` | `https://api.alloydb.net` | Control-plane base URL; a trailing slash is ignored |
-| `ALLOYDB_API_TOKEN` | required | Bearer token; must equal the control plane's `ALLOYDB_API_TOKEN` |
+| `ALLOYDB_API_TOKEN` | required | Bearer token; must equal the control plane's `ALLOYDB_API_TOKEN`. The console never holds `ALLOYDB_ADMIN_API_TOKEN` |
 
 Without the token the page shows "Databases are not set up for this site yet"
 and the routes answer `503`.

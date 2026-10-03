@@ -27,7 +27,8 @@ import {
 import { bearerAuth } from './auth.js';
 
 export interface AdminRouteDeps {
-  apiToken: string;
+  /** The admin portal's bearer token; the console's token is not accepted here. */
+  adminApiToken: string;
   store: Pick<NeonStore, 'listNodes'>;
   libsql: Pick<LibsqlStore, 'countByNode'>;
   platform: PlatformStore;
@@ -159,13 +160,14 @@ const error = (status: 400 | 404 | 409, code: string, message: string) =>
   [{ error: { code, message } }, status] as const;
 
 /**
- * `/v1/admin/*`: platform-wide reads and the two platform operations. Same
- * bearer token as the rest of `/v1`, but no organization or project headers,
+ * `/v1/admin/*`: platform-wide reads and the two platform operations. Its own
+ * bearer token (`ALLOYDB_ADMIN_API_TOKEN`, held only by the admin portal; the
+ * console's token is refused with 401), no organization or project headers,
  * and its operations are not listed in (or locked by) any project.
  */
 export function createAdminRoutes(deps: AdminRouteDeps): Hono {
   const admin = new Hono();
-  admin.use('*', bearerAuth(deps.apiToken));
+  admin.use('*', bearerAuth(deps.adminApiToken));
 
   admin.get('/nodes', async (c) => {
     const [rows, safekeepers, libsqlCounts] = await Promise.all([

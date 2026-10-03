@@ -17,9 +17,10 @@ export type PlatformOperationAction = z.infer<
 >;
 
 /**
- * The platform admin API, `/v1/admin/*`. It takes the same bearer token as the
- * rest of `/v1` but no organization or project headers: nothing here belongs to
- * a customer. Only the platform admin portal calls it.
+ * The platform admin API, `/v1/admin/*`. It takes its own bearer token
+ * (`ALLOYDB_ADMIN_API_TOKEN`, not the console's) and no organization or project
+ * headers: nothing here belongs to a customer. Only the platform admin portal
+ * calls it.
  */
 
 /** A platform operation, with the plan and progress the admin portal shows. */

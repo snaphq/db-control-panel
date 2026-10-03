@@ -128,48 +128,66 @@ const neonShape = {
   ),
 };
 
-const envSchema = z.discriminatedUnion('ALLOYDB_MODE', [
-  z.object({
-    ALLOYDB_MODE: z.literal('api'),
-    ...baseShape,
-    ALLOYDB_API_TOKEN: required('bearer token held by the console server'),
-    ALLOYDB_PG_HOST_SUFFIX: z.string().min(1).default('pg.alloydb.net'),
-    ALLOYDB_LIBSQL_HOST_SUFFIX: libsqlHostSuffix,
-    ALLOYDB_DATA_API_HOST_SUFFIX: dataApiHostSuffix,
-    LIBSQL_JWT_SIGNING_KEY_PATH: z.string().min(1).optional(),
-    // The admin view of the safekeeper layout (what a spread would do).
-    ALLOYDB_SAFEKEEPER_COUNT: safekeeperCount,
-    ALLOYDB_SAFEKEEPER_STORAGE: safekeeperStorage,
-  }),
-  z.object({
-    ALLOYDB_MODE: z.literal('neon-glue'),
-    ...baseShape,
-    ...neonShape,
-    NEON_PROXY_TO_CONTROLPLANE_TOKEN: required(
-      'bearer token the Neon proxy presents on /proxy/*',
-    ),
-  }),
-  z.object({
-    ALLOYDB_MODE: z.literal('worker'),
-    ...baseShape,
-    ...neonShape,
-    LIBSQL_JWT_SIGNING_KEY_PATH: required(
-      'path of the Ed25519 PKCS#8 PEM that signs libSQL tokens',
-    ),
-    LIBSQL_ADMIN_AUTH_KEY: required('sqld admin API key'),
-    ALLOYDB_LIBSQL_HOST_SUFFIX: libsqlHostSuffix,
-    ALLOYDB_SAFEKEEPER_COUNT: safekeeperCount,
-    ...platformShape,
-    ALLOYDB_IDLE_SWEEP_SECONDS: z.coerce.number().int().min(5).default(30),
-    ALLOYDB_REGISTRATION_SECONDS: z.coerce.number().int().min(10).default(60),
-  }),
-  z.object({
-    ALLOYDB_MODE: z.literal('data-api-gateway'),
-    ...baseShape,
-    ...neonShape,
-    ALLOYDB_DATA_API_HOST_SUFFIX: dataApiHostSuffix,
-  }),
-]);
+const envSchema = z
+  .discriminatedUnion('ALLOYDB_MODE', [
+    z.object({
+      ALLOYDB_MODE: z.literal('api'),
+      ...baseShape,
+      ALLOYDB_API_TOKEN: required('bearer token held by the console server'),
+      ALLOYDB_ADMIN_API_TOKEN: required(
+        'bearer token held by the platform admin portal, different from ALLOYDB_API_TOKEN',
+      ),
+      ALLOYDB_PG_HOST_SUFFIX: z.string().min(1).default('pg.alloydb.net'),
+      ALLOYDB_LIBSQL_HOST_SUFFIX: libsqlHostSuffix,
+      ALLOYDB_DATA_API_HOST_SUFFIX: dataApiHostSuffix,
+      LIBSQL_JWT_SIGNING_KEY_PATH: z.string().min(1).optional(),
+      // The admin view of the safekeeper layout (what a spread would do).
+      ALLOYDB_SAFEKEEPER_COUNT: safekeeperCount,
+      ALLOYDB_SAFEKEEPER_STORAGE: safekeeperStorage,
+    }),
+    z.object({
+      ALLOYDB_MODE: z.literal('neon-glue'),
+      ...baseShape,
+      ...neonShape,
+      NEON_PROXY_TO_CONTROLPLANE_TOKEN: required(
+        'bearer token the Neon proxy presents on /proxy/*',
+      ),
+    }),
+    z.object({
+      ALLOYDB_MODE: z.literal('worker'),
+      ...baseShape,
+      ...neonShape,
+      LIBSQL_JWT_SIGNING_KEY_PATH: required(
+        'path of the Ed25519 PKCS#8 PEM that signs libSQL tokens',
+      ),
+      LIBSQL_ADMIN_AUTH_KEY: required('sqld admin API key'),
+      ALLOYDB_LIBSQL_HOST_SUFFIX: libsqlHostSuffix,
+      ALLOYDB_SAFEKEEPER_COUNT: safekeeperCount,
+      ...platformShape,
+      ALLOYDB_IDLE_SWEEP_SECONDS: z.coerce.number().int().min(5).default(30),
+      ALLOYDB_REGISTRATION_SECONDS: z.coerce.number().int().min(10).default(60),
+    }),
+    z.object({
+      ALLOYDB_MODE: z.literal('data-api-gateway'),
+      ...baseShape,
+      ...neonShape,
+      ALLOYDB_DATA_API_HOST_SUFFIX: dataApiHostSuffix,
+    }),
+  ])
+  .superRefine((env, ctx) => {
+    // One leaked token must not unlock both surfaces: /v1/admin takes only the
+    // admin token and the org-scoped /v1 routes take only the console token.
+    if (
+      env.ALLOYDB_MODE === 'api' &&
+      env.ALLOYDB_ADMIN_API_TOKEN === env.ALLOYDB_API_TOKEN
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ALLOYDB_ADMIN_API_TOKEN'],
+        message: 'must differ from ALLOYDB_API_TOKEN',
+      });
+    }
+  });
 
 interface BaseConfig {
   databaseUrl: string;
@@ -193,7 +211,10 @@ interface NeonConfig {
 
 export interface ApiConfig extends BaseConfig {
   mode: 'api';
+  /** Bearer token of the console server; unlocks the org-scoped `/v1` routes only. */
   apiToken: string;
+  /** Bearer token of the platform admin portal; unlocks `/v1/admin/*` only. */
+  adminApiToken: string;
   /** Domain endpoint hosts live under, e.g. `ep-calm-moon-1a2b3c4d.pg.alloydb.net`. */
   pgHostSuffix: string;
   /** libSQL hosts are `<namespace>.<suffix>`. */
@@ -257,6 +278,7 @@ function toConfig(env: RawEnv): Config {
         ...base,
         mode: 'api',
         apiToken: env.ALLOYDB_API_TOKEN,
+        adminApiToken: env.ALLOYDB_ADMIN_API_TOKEN,
         pgHostSuffix: env.ALLOYDB_PG_HOST_SUFFIX,
         libsqlHostSuffix: env.ALLOYDB_LIBSQL_HOST_SUFFIX,
         dataApiHostSuffix: env.ALLOYDB_DATA_API_HOST_SUFFIX,

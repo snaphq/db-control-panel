@@ -122,7 +122,8 @@ The console stores only its own `project.id` and receives these ids back.
 | --- | --- | --- | --- |
 | `DATABASE_URL` | all | required | `control_plane` database |
 | `ALLOYDB_DATA_KEY` | all | required | 32 random bytes, base64 (`openssl rand -base64 32`): the AES-256-GCM key that seals stored credentials. Secret `control-plane-data`. Rotating it makes every sealed value unreadable (reset role passwords and re-enable the Data API afterwards), so keep a copy |
-| `ALLOYDB_API_TOKEN` | api | required | bearer token of the console server |
+| `ALLOYDB_API_TOKEN` | api | required | bearer token of the console server; unlocks the org-scoped `/v1` routes only |
+| `ALLOYDB_ADMIN_API_TOKEN` | api | required | bearer token of the platform admin portal; unlocks `/v1/admin/*` only. Must differ from `ALLOYDB_API_TOKEN` (the api mode refuses to start otherwise). Same Secret, `control-plane-api` |
 | `ALLOYDB_PG_HOST_SUFFIX` | api | `pg.alloydb.net` | endpoint hosts are `<endpoint id>.<suffix>` |
 | `ALLOYDB_LIBSQL_HOST_SUFFIX` | api, worker | `lite.alloydb.net` | libSQL hosts are `<namespace>.<suffix>` |
 | `ALLOYDB_DATA_API_HOST_SUFFIX` | api, data-api-gateway | `apirest.alloydb.net` | Data API hosts are `<endpoint id>.<suffix>` |
@@ -719,8 +720,9 @@ reaches a database that is going away. The row is soft-deleted in the request.
 
 ## Public API (mode `api`)
 
-All routes require `Authorization: Bearer <ALLOYDB_API_TOKEN>` (held by the
-console's server code) plus `X-AlloyDB-Org` and `X-AlloyDB-Project` headers
+All routes except `/v1/admin/*` require `Authorization: Bearer
+<ALLOYDB_API_TOKEN>` (held by the console's server code; the admin portal's
+token is refused here) plus `X-AlloyDB-Org` and `X-AlloyDB-Project` headers
 that the console sets after its own membership checks. Request and response
 bodies are the zod schemas in `@repo/control-plane-contract`; errors are
 `{error: {code, message}}`. Shapes follow Neon's v2 API where one exists.
@@ -762,10 +764,24 @@ lock with the Neon resources.
 
 ### Admin API
 
-`/v1/admin/*` is for the platform admin portal. It takes the same
-`Authorization: Bearer <ALLOYDB_API_TOKEN>` and **no** `X-AlloyDB-Org` or
+`/v1/admin/*` is for the platform admin portal. It takes
+`Authorization: Bearer <ALLOYDB_ADMIN_API_TOKEN>` and **no** `X-AlloyDB-Org` or
 `X-AlloyDB-Project` header: nothing here belongs to a customer. A missing or wrong
-token is `401`; an unknown path under `/v1/admin` is `404`. Schemas are in
+token is `401`, and that includes the console's `ALLOYDB_API_TOKEN`; an unknown
+path under `/v1/admin` is `404`.
+
+**Why two tokens, and why neither crosses over.** The console token is held by
+every console deployment and rides in requests that carry customer-supplied
+org and project ids; the admin routes can start platform-wide operations and
+read every node. Sharing one token would let a console compromise reach the
+cluster-level controls, so they are separate secrets, compared in constant time
+by separate middleware, and the api mode refuses to start if they are equal.
+The admin token does **not** unlock the org-scoped routes either: the admin
+portal has no reason to act inside one customer's project (it has no
+`X-AlloyDB-Org` identity to scope by), and an admin token that worked there
+would be a platform-wide credential that bypasses the per-org scoping every
+console query relies on. Only `apps/backend` holds it (the `alloydb-admin`
+Vercel project; never the console's). Schemas are in
 `@repo/control-plane-contract` (`admin.ts`). It reads what the worker records, so
 it needs no Kubernetes or controller access of its own and keeps answering while
 they are down; figures can lag by one `ALLOYDB_REGISTRATION_SECONDS`.

@@ -11,6 +11,7 @@ describe('loadConfig', () => {
       DATABASE_URL,
       ALLOYDB_DATA_KEY: DATA_KEY,
       ALLOYDB_API_TOKEN: 'token',
+      ALLOYDB_ADMIN_API_TOKEN: 'admin-token',
     });
     expect(config).toEqual({
       mode: 'api',
@@ -18,6 +19,7 @@ describe('loadConfig', () => {
       port: 8080,
       dataKey: Buffer.alloc(32, 7),
       apiToken: 'token',
+      adminApiToken: 'admin-token',
       pgHostSuffix: 'pg.alloydb.net',
       libsqlHostSuffix: 'lite.alloydb.net',
       dataApiHostSuffix: 'apirest.alloydb.net',
@@ -33,6 +35,7 @@ describe('loadConfig', () => {
       DATABASE_URL,
       ALLOYDB_DATA_KEY: DATA_KEY,
       ALLOYDB_API_TOKEN: 'token',
+      ALLOYDB_ADMIN_API_TOKEN: 'admin-token',
       ALLOYDB_PG_HOST_SUFFIX: 'pg.example.test',
     });
     expect(config).toMatchObject({ pgHostSuffix: 'pg.example.test' });
@@ -187,6 +190,48 @@ describe('loadConfig', () => {
     ).toThrowError(/ALLOYDB_API_TOKEN is required/);
   });
 
+  it('requires the admin token in api mode', () => {
+    const env = {
+      ALLOYDB_MODE: 'api',
+      DATABASE_URL,
+      ALLOYDB_DATA_KEY: DATA_KEY,
+      ALLOYDB_API_TOKEN: 'token',
+    };
+    expect(() => loadConfig(env)).toThrowError(
+      /ALLOYDB_ADMIN_API_TOKEN is required/,
+    );
+    expect(() =>
+      loadConfig({ ...env, ALLOYDB_ADMIN_API_TOKEN: ' ' }),
+    ).toThrowError(/ALLOYDB_ADMIN_API_TOKEN is required/);
+  });
+
+  it('rejects an admin token equal to the console token', () => {
+    expect(() =>
+      loadConfig({
+        ALLOYDB_MODE: 'api',
+        DATABASE_URL,
+        ALLOYDB_DATA_KEY: DATA_KEY,
+        ALLOYDB_API_TOKEN: 'same',
+        ALLOYDB_ADMIN_API_TOKEN: 'same',
+      }),
+    ).toThrowError(
+      /ALLOYDB_ADMIN_API_TOKEN must differ from ALLOYDB_API_TOKEN/,
+    );
+  });
+
+  it('does not ask worker mode for the admin token', () => {
+    const config = loadConfig({
+      ALLOYDB_MODE: 'neon-glue',
+      DATABASE_URL,
+      ALLOYDB_DATA_KEY: DATA_KEY,
+      STORAGE_CONTROLLER_URL: 'http://storage-controller.neon:1234',
+      NEON_JWT_PRIVATE_KEY_PATH: '/etc/neon/private.pem',
+      CONTROL_PLANE_JWT_TOKEN: 'cp-token',
+      NEON_PROXY_TO_CONTROLPLANE_TOKEN: 'proxy',
+    });
+    expect(config.mode).toBe('neon-glue');
+  });
+
   it('rejects a missing or unknown mode', () => {
     expect(() => loadConfig({})).toThrowError(/ALLOYDB_MODE is required/);
     expect(() => loadConfig({ ALLOYDB_MODE: 'cron' })).toThrowError(
@@ -201,6 +246,7 @@ describe('loadConfig', () => {
         DATABASE_URL: 'mysql://localhost/db',
         ALLOYDB_DATA_KEY: DATA_KEY,
         ALLOYDB_API_TOKEN: 'token',
+        ALLOYDB_ADMIN_API_TOKEN: 'admin-token',
       }),
     ).toThrowError(/DATABASE_URL must start with postgres/);
   });
@@ -212,6 +258,7 @@ describe('loadConfig', () => {
         DATABASE_URL,
         ALLOYDB_DATA_KEY: DATA_KEY,
         ALLOYDB_API_TOKEN: 'token',
+        ALLOYDB_ADMIN_API_TOKEN: 'admin-token',
         PORT: '70000',
       }),
     ).toThrowError(/PORT/);
@@ -222,6 +269,7 @@ describe('loadConfig', () => {
       ALLOYDB_MODE: 'api',
       DATABASE_URL,
       ALLOYDB_API_TOKEN: 'token',
+      ALLOYDB_ADMIN_API_TOKEN: 'admin-token',
     };
     expect(() => loadConfig(env)).toThrowError(/ALLOYDB_DATA_KEY is required/);
     expect(() =>

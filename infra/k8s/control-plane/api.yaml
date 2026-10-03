@@ -69,6 +69,11 @@ spec:
                 secretKeyRef:
                   name: control-plane-api
                   key: ALLOYDB_API_TOKEN
+            - name: ALLOYDB_ADMIN_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: control-plane-api
+                  key: ALLOYDB_ADMIN_API_TOKEN
             - name: LIBSQL_JWT_SIGNING_KEY_PATH
               value: "/etc/alloydb/libsql-jwt/private.pem"
           ports:

@@ -7,6 +7,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { createMemoryNeonStore } from '../neon/store-memory.js';
 import {
+  ADMIN_API_TOKEN,
   type TestResponse,
   alice,
   bob,
@@ -29,7 +30,7 @@ function admin(
   const headers: Record<string, string> = {
     'content-type': 'application/json',
   };
-  const token = options.token === undefined ? 'api-token' : options.token;
+  const token = options.token === undefined ? ADMIN_API_TOKEN : options.token;
   if (token !== null) headers.authorization = `Bearer ${token}`;
   return api.app.request(`/v1/admin${path}`, {
     method,
@@ -109,10 +110,39 @@ describe('admin authentication', () => {
     );
   });
 
+  it.each(routes)('%s %s refuses the console token', async (method, path) => {
+    const api = buildApi();
+    const response = await admin(api, method, path, { token: 'api-token' });
+    expect(response.status).toBe(401);
+    expect((await response.json()).error.code).toBe('unauthorized');
+  });
+
+  it('does not let the console token start a platform operation', async () => {
+    const api = buildApi();
+    await admin(api, 'POST', '/pageservers/rebalance', {
+      token: 'api-token',
+    });
+    expect(api.platform.operations.size).toBe(0);
+  });
+
+  it('does not let the admin token reach an org-scoped route', async () => {
+    const api = buildApi();
+    for (const path of ['/projects', '/operations/nothing']) {
+      const response = (await api.app.request(`/v1${path}`, {
+        headers: {
+          authorization: `Bearer ${ADMIN_API_TOKEN}`,
+          'x-alloydb-org': alice.org,
+          'x-alloydb-project': alice.project,
+        },
+      })) as TestResponse;
+      expect(response.status).toBe(401);
+    }
+  });
+
   it('does not need the organization and project headers the console routes need', async () => {
     const api = buildApi();
     expect((await admin(api, 'GET', '/nodes')).status).toBe(200);
-    // The same token without headers is refused on a console route.
+    // The console token without headers is refused on a console route.
     const console = await api.app.request('/v1/projects', {
       headers: { authorization: 'Bearer api-token' },
     });
