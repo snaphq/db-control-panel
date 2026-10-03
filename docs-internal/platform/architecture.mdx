@@ -223,7 +223,10 @@ State lives in the `control_plane` database on the platform Postgres.
 
 A single-instance StatefulSet (`postgres:17-bookworm`) in `alloydb-system`
 holding the `storage_controller` and `control_plane` databases, pinned to one
-node with a local PV. A nightly CronJob dumps both to S3. The controller's
+node with a local PV. WAL-G archives its WAL continuously to `platform-wal/`
+and a daily CronJob pushes a base backup there (point-in-time recovery, see
+[Observability and recovery](/operations/observability-and-recovery)); a nightly
+CronJob also dumps both databases to `platform-backups/`. The controller's
 database holds pageserver generation numbers, so its loss is a recovery
 event; restore drills are part of operations.
 
@@ -235,7 +238,7 @@ Values come from the root `.env.local` (never committed).
 S3 settings are `ALLOYDB_S3_ENDPOINT`, `ALLOYDB_S3_REGION`,
 `ALLOYDB_S3_BUCKET`, `ALLOYDB_S3_ACCESS_KEY_ID`, and
 `ALLOYDB_S3_SECRET_ACCESS_KEY`, with fixed prefixes per component:
-`pageserver/`, `safekeeper/`, `sqld/`, `platform-backups/`.
+`pageserver/`, `safekeeper/`, `sqld/`, `platform-backups/`, `platform-wal/`.
 
 `ALLOYDB_DATA_KEY` (32 random bytes, base64) becomes the Secret
 `control-plane-data` in `alloydb-system`. The control plane seals the credentials

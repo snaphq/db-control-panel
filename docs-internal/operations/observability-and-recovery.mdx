@@ -41,3 +41,171 @@ append-only and grows in every environment; prune by age. See
   encryption keys through a planned migration.
 - Preserve evidence while redacting credentials, personal data, and full
   provider payloads from incident artifacts.
+
+## Platform Postgres: WAL archiving and point-in-time recovery
+
+The platform Postgres (`platform-postgres` in `alloydb-system`, databases
+`storage_controller` and `control_plane`) is a single instance on a local-path
+volume. Two independent copies of its data go to S3:
+
+| Safety net | What | Where | Window |
+| --- | --- | --- | --- |
+| Continuous WAL archive | `archive_command` pushes every WAL segment with WAL-G; `archive_timeout=300` forces a segment out every 5 minutes while there are writes | `s3://$ALLOYDB_S3_BUCKET/platform-wal/` | recovery point at most ~5 minutes behind (unmeasured, see below) |
+| Daily base backup | CronJob `platform-postgres-basebackup`, 02:30 UTC, `wal-g backup-push`, then `delete retain FULL 7` | same prefix | the newest 7 base backups and the WAL they need: 6-7 days of point-in-time targets |
+| Nightly logical dump | CronJob `platform-postgres-backup`, 03:30 UTC, `pg_dump` of both databases | `platform-backups/<timestamp>/` | independent second net, up to a day of loss; set a bucket lifecycle rule on this prefix |
+
+Do not put a bucket lifecycle rule on `platform-wal/`: WAL-G prunes it itself,
+and expiring segments independently of the backups that need them breaks
+recovery.
+
+### Why WAL-G
+
+WAL-G v3.0.9 (released 2026-08-20, Apache-2.0,
+<https://github.com/wal-g/wal-g/releases/tag/v3.0.9>) was chosen over
+pgBackRest 2.59.2 (MIT) because it ships a prebuilt Linux binary, so the stock
+`postgres:17-bookworm` image is kept and nothing is built here. pgBackRest
+publishes only a source tarball and would need a custom image plus a TLS or SSH
+setup between pods. WAL-G's integration images cover PostgreSQL 14-18
+(<https://raw.githubusercontent.com/wal-g/wal-g/master/Makefile>); pgBackRest
+has supported 17 since 2.53.1. S3-compatible stores are configured with
+`AWS_ENDPOINT` plus `AWS_S3_FORCE_PATH_STYLE=true`
+(<https://raw.githubusercontent.com/wal-g/wal-g/master/docs/STORAGES.md>), which
+`render-secrets.ts` sets in the `platform-wal-s3` Secret from the existing
+`ALLOYDB_S3_*` values; the prefix is `s3://<bucket>/platform-wal`.
+
+The `install-walg` init container stores the binary on the data volume
+(`/var/lib/postgresql/data/walg/wal-g`) and downloads it only when its sha256
+differs from the pinned value (the release's published `.sha256` files:
+`d6795c66...def9` for `wal-g-pg-22.04-amd64`, `072eb4a4...e652` for
+`aarch64`). A running or restarting pod therefore does not depend on GitHub;
+only a fresh volume (including a restore) does. Verified locally: the amd64
+binary matches that hash and needs only glibc 2.34, which Debian bookworm
+provides (2.36). To upgrade WAL-G, change the tag and both hashes in
+`platform-postgres.yaml` and `infra/k8s/platform/restore/`.
+
+Base backups use WAL-G's file mode, which reads the data directory. The Job
+therefore mounts the instance's PVC read-only (allowed for `ReadWriteOnce` on one
+node) and is pinned to the instance's node with `podAffinity`. The alternative,
+a remote streaming backup over the replication protocol, would need a
+`replication` rule in `pg_hba.conf`, which this image only has for localhost,
+and gives no delta backups.
+
+### Checking that it works
+
+```bash
+kubectl -n alloydb-system exec platform-postgres-0 -c postgres -- \
+  psql -U postgres -c "select archived_count, failed_count, last_archived_time, last_failed_time from pg_stat_archiver"
+kubectl -n alloydb-system exec platform-postgres-0 -c postgres -- \
+  /var/lib/postgresql/data/walg/wal-g backup-list   # exec sees the container env, i.e. Secret platform-wal-s3
+kubectl -n alloydb-system get cronjob platform-postgres-basebackup platform-postgres-backup
+```
+
+`failed_count` rising or an old `last_archived_time` means archiving is broken;
+the `PlatformPostgresWalArchive*` alerts watch the same numbers. Archive failures make WAL pile
+up in `pg_wal` on the node, so fix them before the disk fills. If the
+`platform-wal-s3` Secret was never applied, the pod still starts (the reference is
+optional) and archiving fails until `render-secrets.ts` is applied.
+
+### Restore to a point in time
+
+Run this on a recovery, and as a drill at least before the first production
+customer and after any WAL-G upgrade. It restores into a fresh StatefulSet
+`platform-postgres-restore` (template in `infra/k8s/platform/restore/`, not
+reconciled by Flux) and leaves the original untouched until you cut over.
+
+1. **Choose the target.** The latest state is the default. For a point in time use
+   a UTC timestamp just before the damage, for example `2026-10-03 14:05:00+00`.
+   The `storage_controller` database holds pageserver generation numbers, so
+   restoring it to a time older than the pageservers' remote state can leave
+   them ahead of the controller. Prefer the latest consistent point for that
+   database; use an earlier target only for data damage in `control_plane`, and
+   then expect to reconcile tenants afterwards.
+2. **Freeze writers** so nothing is written to the old instance or races the
+   cutover:
+
+   ```bash
+   flux suspend kustomization control-plane neon platform
+   kubectl -n alloydb-system scale deploy/control-plane-api deploy/control-plane-neon-glue \
+     deploy/control-plane-data-api-gateway deploy/control-plane-worker --replicas=0
+   kubectl -n neon scale deploy/storage-controller --replicas=0
+   ```
+
+   Running computes keep serving data; project creation, wake-ups and
+   operations stop until you resume.
+3. **Start the restore.** Edit `BACKUP_NAME` (default `LATEST`, or a name from
+   `wal-g backup-list`) and `RECOVERY_TARGET_TIME` (empty: replay all archived
+   WAL) in `infra/k8s/platform/restore/platform-postgres-restore.yaml`, then:
+
+   ```bash
+   kubectl apply -k infra/k8s/platform/restore
+   kubectl -n alloydb-system logs -f platform-postgres-restore-0 -c restore
+   kubectl -n alloydb-system logs -f platform-postgres-restore-0 -c postgres
+   ```
+
+   The init container fetches the base backup and writes `recovery.signal` and
+   `restore_command = wal-g wal-fetch`; the server then replays WAL, logs where
+   it stopped, promotes itself to a new timeline and accepts connections. Archiving
+   is off on this instance.
+4. **Verify before cutover.**
+
+   ```bash
+   kubectl -n alloydb-system exec platform-postgres-restore-0 -c postgres -- psql -U postgres -At \
+     -c "select pg_is_in_recovery()" \
+     -c "select datname from pg_database where datname in ('storage_controller','control_plane')"
+   kubectl -n alloydb-system exec platform-postgres-restore-0 -c postgres -- psql -U postgres -d control_plane \
+     -c "select status, count(*), max(updated_at) from operation group by status"
+   ```
+
+   `pg_is_in_recovery()` must be `f` and the newest rows must match the target.
+5. **Repoint the storage controller and the control plane.** Both read their
+   database URL from Secrets (`storage-controller-db` in `neon`,
+   `control-plane-db` in `alloydb-system`), rendered by `render-secrets.ts`. Put
+   `ALLOYDB_PLATFORM_POSTGRES_HOST=platform-postgres-restore.alloydb-system.svc`
+   in the root `.env.local`, then:
+
+   ```bash
+   bun infra/scripts/render-secrets.ts | kubectl apply -f -
+   kubectl -n neon scale deploy/storage-controller --replicas=1
+   kubectl -n alloydb-system scale deploy/control-plane-api deploy/control-plane-neon-glue \
+     deploy/control-plane-data-api-gateway --replicas=2
+   kubectl -n alloydb-system scale deploy/control-plane-worker --replicas=1
+   ```
+
+   Start the storage controller first and let it become Ready; the secrets are read
+   at process start, which scaling from zero guarantees. Then check
+   `/readyz` on the API, that pageservers re-register in the storage controller
+   log, and one authenticated console operation and a compute start.
+6. **Protect the new primary.** The restored instance archives nothing yet. Once
+   the original instance is stopped for good (leave `platform` suspended and its
+   StatefulSet at zero), enable archiving on the restored one (its new timeline
+   keeps the segment names distinct from the old timeline) and take a base backup:
+
+   ```bash
+   kubectl -n alloydb-system exec platform-postgres-restore-0 -c postgres -- psql -U postgres \
+     -c "alter system set archive_mode = on" -c "alter system set archive_timeout = 300" \
+     -c "alter system set archive_command = '/var/lib/postgresql/data/walg/wal-g wal-push %p'"
+   kubectl -n alloydb-system delete pod platform-postgres-restore-0   # archive_mode needs a restart
+   kubectl -n alloydb-system wait --for=condition=Ready pod/platform-postgres-restore-0 --timeout=10m
+   kubectl -n alloydb-system exec platform-postgres-restore-0 -c postgres -- \
+     env PGUSER=postgres /var/lib/postgresql/data/walg/wal-g backup-push /var/lib/postgresql/data/pgdata
+   ```
+7. **Bring Git back in line.** Until a follow-up change points the platform
+   manifests (`platform-postgres.yaml`, the two backup CronJobs, the alerts'
+   selectors, `ALLOYDB_PLATFORM_POSTGRES_HOST`) at the restored instance or
+   rebuilds `platform-postgres` from a dump of it, keep Flux's `platform`
+   Kustomization suspended; resuming it would otherwise reconcile the old
+   instance back to one replica. For a drill, skip steps 2 and 5-7, then
+   `kubectl delete -k infra/k8s/platform/restore` and delete the PVC
+   `data-platform-postgres-restore-0`.
+
+If the WAL archive is unusable, fall back to the newest logical dump:
+`aws s3 cp` it from `platform-backups/<timestamp>/`, `pg_restore --clean
+--if-exists` into a fresh instance, and accept up to a day of metadata loss.
+
+### Status of this procedure
+
+The manifests are validated with `kustomize build | kubeconform` and the
+secret rendering is exercised offline. Nothing in this section has run against a
+cluster: the archive push, the daily base backup (file mode against a
+read-only mount of a live PVC), `delete retain`, the restore init sequence and the
+measured RPO and RTO all still need one drill on the real cluster.

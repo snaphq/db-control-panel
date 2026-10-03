@@ -205,7 +205,11 @@
       "sources": [
         "packages/site-kit/src/app/status",
         "packages/analytics/src",
-        "scripts"
+        "scripts",
+        "infra/k8s/platform/config/platform-postgres.yaml",
+        "infra/k8s/platform/config/platform-postgres-basebackup.yaml",
+        "infra/k8s/platform/restore",
+        "infra/scripts/render-secrets.ts"
       ]
     },
     {
