@@ -1,0 +1,9 @@
+# NOT reconciled by Flux: no Flux Kustomization points here. It is the restore
+# drill / disaster-recovery template from
+# docs-internal/operations/observability-and-recovery.mdx. Edit
+# BACKUP_NAME / RECOVERY_TARGET_TIME in the StatefulSet, then
+# `kubectl apply -k infra/k8s/platform/restore`.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - platform-postgres-restore.yaml

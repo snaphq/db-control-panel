@@ -1,0 +1,175 @@
+# Point-in-time restore of the platform Postgres into a FRESH StatefulSet,
+# next to (never over) the original. Steps and the cutover are in
+# docs-internal/operations/observability-and-recovery.mdx.
+#
+# The init containers install the pinned WAL-G binary, fetch the chosen base
+# backup from s3://<bucket>/platform-wal/ into an empty data directory and
+# write recovery settings; the server then replays archived WAL up to
+# RECOVERY_TARGET_TIME (empty: the end of the archive) and promotes itself.
+# Archiving is OFF here on purpose: a restored instance must not write into
+# the original's prefix until the original is stopped for good (runbook).
+#
+# Both secrets must exist in alloydb-system: platform-postgres (password of
+# the restored cluster is the original's) and platform-wal-s3.
+apiVersion: v1
+kind: Service
+metadata:
+  name: platform-postgres-restore
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: platform-postgres-restore
+    app.kubernetes.io/part-of: alloydb
+spec:
+  selector:
+    app.kubernetes.io/name: platform-postgres-restore
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: platform-postgres-restore
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: platform-postgres-restore
+    app.kubernetes.io/part-of: alloydb
+spec:
+  replicas: 1
+  serviceName: platform-postgres-restore
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: platform-postgres-restore
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: platform-postgres-restore
+        app.kubernetes.io/part-of: alloydb
+    spec:
+      terminationGracePeriodSeconds: 60
+      initContainers:
+        - name: install-walg
+          image: curlimages/curl:8.22.0
+          securityContext:
+            runAsUser: 0
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              case "$(uname -m)" in
+                x86_64) asset=wal-g-pg-22.04-amd64; sum=d6795c663894d836ba20840bffe8970aed81bbe25d3151bd4951f6f9c362def9 ;;
+                aarch64) asset=wal-g-pg-22.04-aarch64; sum=072eb4a4a119f817e1fa888c64a776b01e3453b2e0d967a67d149adb18fde652 ;;
+                *) echo "unsupported architecture $(uname -m)"; exit 1 ;;
+              esac
+              dir=/var/lib/postgresql/data/walg
+              mkdir -p "$dir"
+              if [ -x "$dir/wal-g" ] && echo "$sum  $dir/wal-g" | sha256sum -c - >/dev/null 2>&1; then
+                exit 0
+              fi
+              curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+                -o "$dir/wal-g.tmp" \
+                "https://github.com/wal-g/wal-g/releases/download/v3.0.9/$asset"
+              echo "$sum  $dir/wal-g.tmp" | sha256sum -c -
+              chmod 755 "$dir/wal-g.tmp"
+              mv "$dir/wal-g.tmp" "$dir/wal-g"
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+        - name: restore
+          image: postgres:17-bookworm
+          securityContext:
+            runAsUser: 0
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              walg=/var/lib/postgresql/data/walg/wal-g
+              pgdata=/var/lib/postgresql/data/pgdata
+              marker=/var/lib/postgresql/data/.restore-complete
+              if [ -e "$marker" ]; then
+                echo "data directory already restored; leaving it alone"
+                exit 0
+              fi
+              # A previous attempt may have died half way: start from nothing.
+              rm -rf "$pgdata"
+              mkdir -p "$pgdata"
+              chmod 700 "$pgdata"
+              "$walg" backup-list
+              "$walg" backup-fetch "$pgdata" "$BACKUP_NAME"
+              touch "$pgdata/recovery.signal"
+              {
+                echo "restore_command = '$walg wal-fetch %f %p'"
+                echo "recovery_target_action = 'promote'"
+                echo "recovery_target_timeline = 'latest'"
+                if [ -n "$RECOVERY_TARGET_TIME" ]; then
+                  echo "recovery_target_time = '$RECOVERY_TARGET_TIME'"
+                fi
+              } >> "$pgdata/postgresql.auto.conf"
+              chown -R 999:999 "$pgdata"
+              touch "$marker"
+          env:
+            # LATEST or a name from `wal-g backup-list`.
+            - name: BACKUP_NAME
+              value: LATEST
+            # Empty: replay to the end of the archive. Otherwise a timestamp
+            # such as 2026-10-03 14:05:00+00 (UTC).
+            - name: RECOVERY_TARGET_TIME
+              value: ''
+            - name: WALG_COMPRESSION_METHOD
+              value: zstd
+          envFrom:
+            - secretRef:
+                name: platform-wal-s3
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      containers:
+        - name: postgres
+          image: postgres:17-bookworm
+          args:
+            - -c
+            - max_connections=200
+            - -c
+            - archive_mode=off
+          ports:
+            - name: postgres
+              containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: platform-wal-s3
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: platform-postgres
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: WALG_COMPRESSION_METHOD
+              value: zstd
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, postgres, -h, 127.0.0.1]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/name: platform-postgres-restore
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 20Gi

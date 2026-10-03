@@ -9,3 +9,4 @@ resources:
   - traefik.yaml
   - platform-postgres.yaml
   - platform-postgres-backup.yaml
+  - platform-postgres-basebackup.yaml

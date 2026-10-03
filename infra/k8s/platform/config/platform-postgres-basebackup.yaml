@@ -1,0 +1,98 @@
+# Daily WAL-G base backup of the platform Postgres to
+# s3://<bucket>/platform-wal/ (the same prefix archive_command writes WAL to),
+# plus retention: the newest 7 full backups and the WAL they need are kept,
+# i.e. a 6-7 day point-in-time recovery window. The nightly logical dump
+# (platform-postgres-backup.yaml) stays as an independent second safety net.
+#
+# File-mode `wal-g backup-push <pgdata>` reads the data directory, so the Job
+# mounts the instance's PVC read-only. The PVC is ReadWriteOnce on a local-path
+# volume, which several pods on the same node may mount; the required
+# podAffinity keeps the Job on the postgres pod's node. The binary is the one
+# the StatefulSet's install-walg init container stored on that volume. The
+# postgres image is used only as a glibc userland with uid 999, the owner of
+# PGDATA (mode 0700). The scripts avoid braces around shell variables and the
+# object carries substitute: disabled so Flux postBuild never rewrites them.
+#
+# Secrets: platform-postgres (POSTGRES_PASSWORD), platform-wal-s3 (S3 settings
+# and WALG_S3_PREFIX, from render-secrets.ts).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: platform-postgres-basebackup
+  namespace: alloydb-system
+  labels:
+    app.kubernetes.io/name: platform-postgres-basebackup
+    app.kubernetes.io/part-of: alloydb
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+spec:
+  schedule: '30 2 * * *'
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: platform-postgres-basebackup
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: platform-postgres
+          containers:
+            - name: basebackup
+              image: postgres:17-bookworm
+              command: [/bin/sh, -ec]
+              args:
+                - |
+                  walg=/var/lib/postgresql/data/walg/wal-g
+                  test -x "$walg"
+                  "$walg" backup-push /var/lib/postgresql/data/pgdata
+                  "$walg" delete retain FULL 7 --use-sentinel-time --confirm
+                  "$walg" backup-list
+              env:
+                - name: PGHOST
+                  value: platform-postgres
+                - name: PGUSER
+                  value: postgres
+                - name: PGDATABASE
+                  value: postgres
+                - name: PGSSLMODE
+                  value: disable
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: platform-postgres
+                      key: POSTGRES_PASSWORD
+                - name: WALG_COMPRESSION_METHOD
+                  value: zstd
+              envFrom:
+                - secretRef:
+                    name: platform-wal-s3
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  memory: 1Gi
+              volumeMounts:
+                - name: data
+                  mountPath: /var/lib/postgresql/data
+                  readOnly: true
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: data-platform-postgres-0
+                readOnly: true

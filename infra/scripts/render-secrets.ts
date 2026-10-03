@@ -35,7 +35,15 @@
  *                   control-plane-data    ALLOYDB_DATA_KEY (AES-256-GCM key that seals stored
  *                                         role passwords and the Data API signing key)
  *                   platform-backup-s3    AWS_*, S3_ENDPOINT, S3_BUCKET
+ *                   platform-wal-s3       WAL-G settings for platform-wal/: AWS_*,
+ *                                         AWS_ENDPOINT, AWS_S3_FORCE_PATH_STYLE,
+ *                                         WALG_S3_PREFIX (s3://<bucket>/platform-wal)
  *   flux-system     alloydb-settings      ConfigMap with ACME_EMAIL
+ *
+ * Optional keys: ALLOYDB_SQLD_S3_BUCKET and
+ * ALLOYDB_PLATFORM_POSTGRES_HOST (host the control plane and storage controller
+ * connect to; set it to the restored instance during a recovery, see
+ * docs-internal/operations/observability-and-recovery.mdx).
  */
 import {
   type KeyObject,
@@ -57,7 +65,7 @@ const REQUIRED: Record<string, string> = {
     "S3 API endpoint URL, e.g. https://s3.eu-central-1.example.com",
   ALLOYDB_S3_REGION: "S3 region name",
   ALLOYDB_S3_BUCKET:
-    "bucket holding pageserver/, safekeeper/, platform-backups/",
+    "bucket holding pageserver/, safekeeper/, platform-backups/, platform-wal/",
   ALLOYDB_S3_ACCESS_KEY_ID: "S3 access key id",
   ALLOYDB_S3_SECRET_ACCESS_KEY: "S3 secret access key",
   ALLOYDB_CLOUDFLARE_API_TOKEN:
@@ -204,8 +212,11 @@ function namespaceDoc(name: string): string {
 
 function render(env: Env, neonKey: KeyObject, libsqlKey: KeyObject): string[] {
   const pgPassword = encodeURIComponent(env.ALLOYDB_PLATFORM_POSTGRES_PASSWORD);
+  const pgHost =
+    env.ALLOYDB_PLATFORM_POSTGRES_HOST?.trim() ||
+    "platform-postgres.alloydb-system.svc";
   const dbUrl = (database: string): string =>
-    `postgresql://postgres:${pgPassword}@platform-postgres.alloydb-system.svc:5432/${database}`;
+    `postgresql://postgres:${pgPassword}@${pgHost}:5432/${database}`;
   const s3 = {
     AWS_ACCESS_KEY_ID: env.ALLOYDB_S3_ACCESS_KEY_ID,
     AWS_SECRET_ACCESS_KEY: env.ALLOYDB_S3_SECRET_ACCESS_KEY,
@@ -247,6 +258,16 @@ function render(env: Env, neonKey: KeyObject, libsqlKey: KeyObject): string[] {
     secret("platform-backup-s3", "alloydb-system", {
       ...s3,
       AWS_DEFAULT_REGION: env.ALLOYDB_S3_REGION,
+    }),
+    // WAL-G reads the standard AWS_* variables; path-style addressing keeps
+    // S3-compatible stores that lack virtual-hosted buckets working.
+    secret("platform-wal-s3", "alloydb-system", {
+      AWS_ACCESS_KEY_ID: s3.AWS_ACCESS_KEY_ID,
+      AWS_SECRET_ACCESS_KEY: s3.AWS_SECRET_ACCESS_KEY,
+      AWS_REGION: env.ALLOYDB_S3_REGION,
+      AWS_ENDPOINT: env.ALLOYDB_S3_ENDPOINT,
+      AWS_S3_FORCE_PATH_STYLE: "true",
+      WALG_S3_PREFIX: `s3://${env.ALLOYDB_S3_BUCKET}/platform-wal`,
     }),
     secret("neon-jwt", "neon", neonPublic),
     secret("neon-jwt", "alloydb-system", {

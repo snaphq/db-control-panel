@@ -2,6 +2,16 @@
 # `control_plane` databases (docs-internal/platform/architecture.mdx).
 # Secret `platform-postgres` (key POSTGRES_PASSWORD) comes from render-secrets.ts.
 # The PVC is local-path, so the pod stays on the node that first bound it.
+#
+# Point-in-time recovery: WAL-G (Apache-2.0, v3.0.9, release binary, no image
+# build) archives every WAL segment to s3://<bucket>/platform-wal/ through
+# archive_command, and platform-postgres-basebackup.yaml pushes a daily base
+# backup there. Secret `platform-wal-s3` (render-secrets.ts) holds the S3 and
+# WALG_* settings; it is optional here so the pod still starts before it is
+# applied, in which case archiving fails and the PlatformPostgresWalArchive*
+# alerts fire. The postgres-exporter sidecar exposes pg_stat_archiver on :9187.
+# The scripts avoid braces around shell variables and the StatefulSet carries
+# substitute: disabled so Flux postBuild never rewrites them.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -40,6 +50,8 @@ metadata:
   labels:
     app.kubernetes.io/name: platform-postgres
     app.kubernetes.io/part-of: alloydb
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
 spec:
   replicas: 1
   serviceName: platform-postgres
@@ -53,16 +65,74 @@ spec:
         app.kubernetes.io/part-of: alloydb
     spec:
       terminationGracePeriodSeconds: 60
+      initContainers:
+        # Puts the pinned WAL-G binary on the data volume (not an emptyDir) so
+        # archive_command keeps working during crash recovery and a restart
+        # does not depend on GitHub being reachable: it downloads only when the
+        # stored file does not match the pinned sha256.
+        # https://github.com/wal-g/wal-g/releases/tag/v3.0.9 (wal-g-pg-22.04-*,
+        # Apache-2.0; sha256 values are the release's published .sha256 files).
+        - name: install-walg
+          image: curlimages/curl:8.22.0
+          securityContext:
+            runAsUser: 0
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              case "$(uname -m)" in
+                x86_64) asset=wal-g-pg-22.04-amd64; sum=d6795c663894d836ba20840bffe8970aed81bbe25d3151bd4951f6f9c362def9 ;;
+                aarch64) asset=wal-g-pg-22.04-aarch64; sum=072eb4a4a119f817e1fa888c64a776b01e3453b2e0d967a67d149adb18fde652 ;;
+                *) echo "unsupported architecture $(uname -m)"; exit 1 ;;
+              esac
+              dir=/var/lib/postgresql/data/walg
+              mkdir -p "$dir"
+              if [ -x "$dir/wal-g" ] && echo "$sum  $dir/wal-g" | sha256sum -c - >/dev/null 2>&1; then
+                echo "wal-g already installed"
+                exit 0
+              fi
+              curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+                -o "$dir/wal-g.tmp" \
+                "https://github.com/wal-g/wal-g/releases/download/v3.0.9/$asset"
+              echo "$sum  $dir/wal-g.tmp" | sha256sum -c -
+              chmod 755 "$dir/wal-g.tmp"
+              mv "$dir/wal-g.tmp" "$dir/wal-g"
+              "$dir/wal-g" --version
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
       containers:
         - name: postgres
           image: postgres:17-bookworm
           args:
             - -c
             - max_connections=200
+            # Continuous WAL archiving for point-in-time recovery. A segment is
+            # also forced out every 5 minutes while there is write activity, so
+            # the recovery point is at most ~5 minutes behind.
+            - -c
+            - archive_mode=on
+            - -c
+            - archive_timeout=300
+            - -c
+            - archive_command=/var/lib/postgresql/data/walg/wal-g wal-push %p
           ports:
             - name: postgres
               containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: platform-wal-s3
+                optional: true
           env:
+            # Archive size matters more than CPU here; zstd compresses the
+            # zero-padded segments of a mostly idle instance very well.
+            - name: WALG_COMPRESSION_METHOD
+              value: zstd
             - name: POSTGRES_USER
               value: postgres
             - name: POSTGRES_PASSWORD
@@ -97,6 +167,32 @@ spec:
             - name: init
               mountPath: /docker-entrypoint-initdb.d
               readOnly: true
+        # pg_stat_archiver and WAL size for the archive alerts
+        # (infra/k8s/monitoring). postgres_exporter v0.20.1, Apache-2.0, upstream image.
+        - name: postgres-exporter
+          image: quay.io/prometheuscommunity/postgres-exporter:v0.20.1
+          args:
+            - --collector.stat_archiver
+            - --collector.wal
+          ports:
+            - name: metrics
+              containerPort: 9187
+          env:
+            - name: DATA_SOURCE_URI
+              value: localhost:5432/postgres?sslmode=disable
+            - name: DATA_SOURCE_USER
+              value: postgres
+            - name: DATA_SOURCE_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: platform-postgres
+                  key: POSTGRES_PASSWORD
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
       volumes:
         - name: init
           configMap:
