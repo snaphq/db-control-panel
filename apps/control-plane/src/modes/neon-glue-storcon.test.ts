@@ -151,9 +151,9 @@ describe('PUT /storcon/notify-safekeepers', () => {
     expect(t.store.branches.get(t.branchId)?.safekeepers).toEqual({
       generation: 2,
       safekeepers: [
-        { id: 2, hostname: 'safekeeper-1.safekeeper.neon.svc.cluster.local' },
-        { id: 3, hostname: 'safekeeper-2.safekeeper.neon.svc.cluster.local' },
-        { id: 4, hostname: 'safekeeper-3.safekeeper.neon.svc.cluster.local' },
+        { id: 2, hostname: 'safekeeper-2.neon.svc.cluster.local' },
+        { id: 3, hostname: 'safekeeper-3.neon.svc.cluster.local' },
+        { id: 4, hostname: 'safekeeper-4.neon.svc.cluster.local' },
       ],
     });
   });

@@ -194,9 +194,9 @@ export function createFakeStorcon(): FakeStorcon {
     timelineSafekeepers: {
       generation: 1,
       safekeepers: [
-        { id: 1, hostname: 'safekeeper-0.safekeeper.neon.svc.cluster.local' },
-        { id: 2, hostname: 'safekeeper-1.safekeeper.neon.svc.cluster.local' },
-        { id: 3, hostname: 'safekeeper-2.safekeeper.neon.svc.cluster.local' },
+        { id: 1, hostname: 'safekeeper-1.neon.svc.cluster.local' },
+        { id: 2, hostname: 'safekeeper-2.neon.svc.cluster.local' },
+        { id: 3, hostname: 'safekeeper-3.neon.svc.cluster.local' },
       ],
     },
     failNext: new Map(),
@@ -349,7 +349,7 @@ export async function seedProject(
                 generation: 1,
                 safekeepers: [1, 2, 3].map((id) => ({
                   id,
-                  hostname: `safekeeper-${id - 1}.safekeeper.neon.svc.cluster.local`,
+                  hostname: `safekeeper-${id}.neon.svc.cluster.local`,
                 })),
               },
         },

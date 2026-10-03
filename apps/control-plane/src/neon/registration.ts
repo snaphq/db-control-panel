@@ -10,20 +10,20 @@ import type { NeonStore } from './store.js';
 
 /**
  * Safekeepers do not register themselves (docs-internal/platform/architecture.mdx),
- * so the worker upserts each one by id with its headless-Service name, then moves
- * it from `Activating` to `Active`. Safekeepers an operator paused or
- * decommissioned keep that policy.
+ * so the worker upserts each one by id with its own Service name, then moves it
+ * from `Activating` to `Active`. Call it for safekeepers whose pod is Ready.
+ * Safekeepers an operator paused or decommissioned keep that policy.
  */
 export async function registerSafekeepers(
   storcon: StorconClient,
-  count: number,
+  ids: number[],
 ): Promise<{ upserted: number[]; activated: number[] }> {
   const existing = new Map(
     (await storcon.listSafekeepers()).map((sk) => [sk.id, sk]),
   );
   const upserted: number[] = [];
   const activated: number[] = [];
-  for (let id = 1; id <= count; id++) {
+  for (const id of ids) {
     const want = safekeeperRegistration(id);
     const have = existing.get(id);
     const current =

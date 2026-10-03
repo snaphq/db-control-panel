@@ -84,7 +84,11 @@ export async function startWorker(config: WorkerConfig): Promise<RunningMode> {
       startLoop(
         'safekeeper registration',
         config.registrationSeconds * 1000,
-        () => registerSafekeepers(neon.storcon, config.safekeeperCount),
+        () =>
+          registerSafekeepers(
+            neon.storcon,
+            Array.from({ length: config.safekeeperCount }, (_, i) => i + 1),
+          ),
       ),
       startLoop('pageserver discovery', config.registrationSeconds * 1000, () =>
         discoverPageservers(neon.storcon, neon.store),

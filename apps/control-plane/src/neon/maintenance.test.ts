@@ -188,7 +188,7 @@ const safekeeper = (
   overrides: Partial<StorconSafekeeper> = {},
 ): StorconSafekeeper => ({
   id,
-  host: `safekeeper-${id - 1}.safekeeper.neon.svc.cluster.local`,
+  host: `safekeeper-${id}.neon.svc.cluster.local`,
   port: 5454,
   http_port: 7676,
   availability_zone_id: `az-${id}`,
@@ -197,17 +197,17 @@ const safekeeper = (
 });
 
 describe('registerSafekeepers', () => {
-  it('registers and activates all three on an empty controller', async () => {
+  it('registers and activates the given safekeepers on an empty controller', async () => {
     const storcon = createFakeStorcon();
-    const result = await registerSafekeepers(storcon, 3);
+    const result = await registerSafekeepers(storcon, [1, 2, 3]);
     expect(result).toEqual({ upserted: [1, 2, 3], activated: [1, 2, 3] });
     expect(storcon.calls).toEqual([
       'listSafekeepers',
-      'upsertSafekeeper 1 safekeeper-0.safekeeper.neon.svc.cluster.local',
+      'upsertSafekeeper 1 safekeeper-1.neon.svc.cluster.local',
       'setPolicy 1 Active',
-      'upsertSafekeeper 2 safekeeper-1.safekeeper.neon.svc.cluster.local',
+      'upsertSafekeeper 2 safekeeper-2.neon.svc.cluster.local',
       'setPolicy 2 Active',
-      'upsertSafekeeper 3 safekeeper-2.safekeeper.neon.svc.cluster.local',
+      'upsertSafekeeper 3 safekeeper-3.neon.svc.cluster.local',
       'setPolicy 3 Active',
     ]);
   });
@@ -219,7 +219,7 @@ describe('registerSafekeepers', () => {
       safekeeper(2),
       safekeeper(3),
     ];
-    expect(await registerSafekeepers(storcon, 3)).toEqual({
+    expect(await registerSafekeepers(storcon, [1, 2, 3])).toEqual({
       upserted: [],
       activated: [],
     });
@@ -232,7 +232,7 @@ describe('registerSafekeepers', () => {
       safekeeper(2, { scheduling_policy: 'Activating' }),
       safekeeper(3),
     ];
-    expect(await registerSafekeepers(storcon, 3)).toEqual({
+    expect(await registerSafekeepers(storcon, [1, 2, 3])).toEqual({
       upserted: [1],
       activated: [2],
     });
@@ -245,7 +245,7 @@ describe('registerSafekeepers', () => {
       safekeeper(2, { scheduling_policy: 'Decomissioned' }),
       safekeeper(3),
     ];
-    expect(await registerSafekeepers(storcon, 3)).toEqual({
+    expect(await registerSafekeepers(storcon, [1, 2, 3])).toEqual({
       upserted: [],
       activated: [],
     });

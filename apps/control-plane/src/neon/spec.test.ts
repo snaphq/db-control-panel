@@ -57,9 +57,9 @@ const branch: BranchRow = {
   safekeepers: {
     generation: 3,
     safekeepers: [
-      { id: 1, hostname: 'safekeeper-0.safekeeper.neon.svc.cluster.local' },
-      { id: 2, hostname: 'safekeeper-1.safekeeper.neon.svc.cluster.local' },
-      { id: 3, hostname: 'safekeeper-2.safekeeper.neon.svc.cluster.local' },
+      { id: 1, hostname: 'safekeeper-1.neon.svc.cluster.local' },
+      { id: 2, hostname: 'safekeeper-2.neon.svc.cluster.local' },
+      { id: 3, hostname: 'safekeeper-3.neon.svc.cluster.local' },
     ],
   },
   authenticatorPasswordEnc: null,
@@ -342,9 +342,9 @@ describe('buildComputeConfig', () => {
 
   it('lists safekeepers with the generation from the branch row', () => {
     expect(config.spec.safekeeper_connstrings).toEqual([
-      `safekeeper-0.safekeeper.neon.svc.cluster.local:${SAFEKEEPER_PG_PORT}`,
-      `safekeeper-1.safekeeper.neon.svc.cluster.local:${SAFEKEEPER_PG_PORT}`,
-      `safekeeper-2.safekeeper.neon.svc.cluster.local:${SAFEKEEPER_PG_PORT}`,
+      `safekeeper-1.neon.svc.cluster.local:${SAFEKEEPER_PG_PORT}`,
+      `safekeeper-2.neon.svc.cluster.local:${SAFEKEEPER_PG_PORT}`,
+      `safekeeper-3.neon.svc.cluster.local:${SAFEKEEPER_PG_PORT}`,
     ]);
     expect(config.spec.safekeepers_generation).toBe(3);
   });
