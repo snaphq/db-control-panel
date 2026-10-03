@@ -1,16 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  DEFAULT_CONTROL_PLANE_URL,
-  createControlPlaneClient,
-  readControlPlaneConfig,
-} from "./client";
+import { createControlPlaneClient, readControlPlaneConfig } from "./client";
 import {
   ControlPlaneBusyError,
   ControlPlaneConfigError,
+  ControlPlaneConflictError,
   ControlPlaneNotFoundError,
   ControlPlaneRequestError,
   ControlPlaneUnavailableError,
 } from "./errors";
+import { DEFAULT_CONTROL_PLANE_URL } from "./transport";
 
 const scope = { organizationId: "org_1", projectId: "proj_1" };
 const operation = {
@@ -112,15 +110,27 @@ describe("control-plane client", () => {
 
   it("maps validation failures to a request error that keeps the message", async () => {
     const { client } = clientWith(() =>
-      json({ error: { code: "conflict", message: "Branch exists" } }, 409),
+      json({ error: { code: "invalid", message: "Name too long" } }, 400),
     );
     await expect(
       client.createBranch("proj_x", { name: "dev" }),
     ).rejects.toMatchObject({
       name: "ControlPlaneRequestError",
-      status: 409,
-      message: "Branch exists",
+      status: 400,
+      message: "Name too long",
     });
+  });
+
+  it("maps 409 to a conflict, still a request error for the Databases routes", async () => {
+    const { client } = clientWith(() =>
+      json({ error: { code: "conflict", message: "Branch exists" } }, 409),
+    );
+    const failure = await client
+      .createBranch("proj_x", { name: "dev" })
+      .catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(ControlPlaneConflictError);
+    expect(failure).toBeInstanceOf(ControlPlaneRequestError);
+    expect(failure).toMatchObject({ status: 409, code: "conflict" });
   });
 
   it("maps 5xx, rejected credentials and network failures to unavailable", async () => {

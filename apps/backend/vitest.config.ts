@@ -11,6 +11,10 @@ export default defineConfig({
         replacement: `${path.resolve(__dirname, "src")}/$1`,
       },
       {
+        find: /^@repo\/control-plane-contract$/,
+        replacement: `${packages}/control-plane-contract/src/index.ts`,
+      },
+      {
         find: /^@repo\/(core|react-ui)\/(.*)$/,
         replacement: `${packages}/$1/src/$2`,
       },

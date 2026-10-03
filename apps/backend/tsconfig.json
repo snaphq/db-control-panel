@@ -33,6 +33,9 @@
       "@repo/durable-exec/*": ["../../packages/durable-exec/src/*"],
       "@repo/search": ["../../packages/search/src"],
       "@repo/search/*": ["../../packages/search/src/*"],
+      "@repo/control-plane-contract": [
+        "../../packages/control-plane-contract/src"
+      ],
       "@repo/core/*": ["../../packages/core/src/*"],
       "@repo/react-ui/*": ["../../packages/react-ui/src/*"]
     }

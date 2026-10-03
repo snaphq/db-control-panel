@@ -13,7 +13,6 @@ import {
   deleteBranchResponseSchema,
   deleteProjectResponseSchema,
   endpointOperationResponseSchema,
-  errorResponseSchema,
   libsqlOperationResponseSchema,
   libsqlTokenResponseSchema,
   listBranchesResponseSchema,
@@ -26,25 +25,14 @@ import {
   operationResponseSchema,
   roleOperationResponseSchema,
 } from "@repo/control-plane-contract";
-import type { ZodType, ZodTypeDef } from "zod";
+import { ControlPlaneConfigError } from "./errors";
 import {
-  ControlPlaneBusyError,
-  ControlPlaneConfigError,
-  type ControlPlaneError,
-  ControlPlaneNotFoundError,
-  ControlPlaneRequestError,
-  ControlPlaneUnavailableError,
-} from "./errors";
-
-export const DEFAULT_CONTROL_PLANE_URL = "https://api.alloydb.net";
-const REQUEST_TIMEOUT_MS = 15_000;
-
-export interface ControlPlaneConfig {
-  baseUrl: string;
-  token: string;
-  /** Replaceable for tests. */
-  fetch?: typeof fetch;
-}
+  type TransportConfig,
+  createTransport,
+  pathSegment,
+  queryString,
+  readBaseUrl,
+} from "./transport";
 
 /**
  * The two ids the control plane scopes every query by. They must come from
@@ -58,119 +46,32 @@ export interface ControlPlaneScope {
 /** Reads `ALLOYDB_API_URL` (default https://api.alloydb.net) and `ALLOYDB_API_TOKEN`. */
 export function readControlPlaneConfig(
   env: Record<string, string | undefined> = process.env,
-): ControlPlaneConfig {
+): TransportConfig {
   const token = env.ALLOYDB_API_TOKEN?.trim();
   if (!token) {
     throw new ControlPlaneConfigError(
       "ALLOYDB_API_TOKEN is not set; the console cannot reach the AlloyDB control plane.",
     );
   }
-  const baseUrl = (
-    env.ALLOYDB_API_URL?.trim() || DEFAULT_CONTROL_PLANE_URL
-  ).replace(/\/+$/, "");
-  return { baseUrl, token };
-}
-
-type Method = "GET" | "POST" | "PUT" | "DELETE";
-type Schema<T> = ZodType<T, ZodTypeDef, unknown>;
-
-const SAFE_SEGMENT = /^[A-Za-z0-9_][A-Za-z0-9_.:-]{0,127}$/;
-
-/** Encodes one path segment; refuses anything that could climb out of it. */
-function segment(value: string): string {
-  if (!SAFE_SEGMENT.test(value)) {
-    throw new ControlPlaneRequestError(
-      "That identifier is not valid.",
-      400,
-      "invalid_id",
-    );
-  }
-  return encodeURIComponent(value);
-}
-
-/** `?status=active&limit=20`, or nothing; parameters left undefined are dropped. */
-function queryString(query: Record<string, string | number | undefined>) {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined) params.set(key, String(value));
-  }
-  const text = params.toString();
-  return text ? `?${text}` : "";
-}
-
-async function errorFrom(response: Response): Promise<ControlPlaneError> {
-  const parsed = errorResponseSchema.safeParse(
-    await response.json().catch(() => null),
-  );
-  const code = parsed.success ? parsed.data.error.code : "unknown";
-  const message = parsed.success
-    ? parsed.data.error.message
-    : `Control plane answered ${response.status}`;
-  const { status } = response;
-  if (status === 423) return new ControlPlaneBusyError(message);
-  if (status === 404) return new ControlPlaneNotFoundError(message, code);
-  if (status === 401 || status === 403) {
-    // The console's own token was refused: an operator problem, not the user's.
-    return new ControlPlaneUnavailableError(
-      "The AlloyDB control plane rejected the console's credentials.",
-      status,
-      code,
-    );
-  }
-  if (status >= 500) {
-    return new ControlPlaneUnavailableError(message, status, code);
-  }
-  return new ControlPlaneRequestError(message, status, code);
+  return { baseUrl: readBaseUrl(env), token };
 }
 
 export function createControlPlaneClient(
-  config: ControlPlaneConfig,
+  config: TransportConfig,
   scope: ControlPlaneScope,
 ) {
-  const doFetch = config.fetch ?? fetch;
+  const request = createTransport(config, {
+    headers: {
+      [ALLOYDB_ORG_HEADER]: scope.organizationId,
+      [ALLOYDB_PROJECT_HEADER]: scope.projectId,
+    },
+    rejectedMessage:
+      "The AlloyDB control plane rejected the console's credentials.",
+  });
 
-  async function request<T>(
-    schema: Schema<T>,
-    method: Method,
-    path: string,
-    body?: unknown,
-  ): Promise<T> {
-    let response: Response;
-    try {
-      response = await doFetch(`${config.baseUrl}/v1${path}`, {
-        method,
-        cache: "no-store",
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        headers: {
-          authorization: `Bearer ${config.token}`,
-          [ALLOYDB_ORG_HEADER]: scope.organizationId,
-          [ALLOYDB_PROJECT_HEADER]: scope.projectId,
-          ...(body === undefined ? {} : { "content-type": "application/json" }),
-        },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      });
-    } catch (cause) {
-      throw new ControlPlaneUnavailableError(
-        `The AlloyDB control plane is unreachable: ${cause instanceof Error ? cause.message : String(cause)}`,
-        0,
-        "unreachable",
-      );
-    }
-    if (!response.ok) throw await errorFrom(response);
-    const parsed = schema.safeParse(await response.json().catch(() => null));
-    if (!parsed.success) {
-      throw new ControlPlaneUnavailableError(
-        "The AlloyDB control plane sent a response the console does not understand.",
-        response.status,
-        "invalid_response",
-      );
-    }
-    return parsed.data;
-  }
-
-  const project = (id: string) => `/projects/${segment(id)}`;
+  const project = (id: string) => `/projects/${pathSegment(id)}`;
   const branch = (projectId: string, branchId: string) =>
-    `${project(projectId)}/branches/${segment(branchId)}`;
+    `${project(projectId)}/branches/${pathSegment(branchId)}`;
 
   return {
     // ---- Neon projects
@@ -213,13 +114,13 @@ export function createControlPlaneClient(
       request(
         endpointOperationResponseSchema,
         "POST",
-        `${project(projectId)}/endpoints/${segment(endpointId)}/start`,
+        `${project(projectId)}/endpoints/${pathSegment(endpointId)}/start`,
       ),
     suspendEndpoint: async (projectId: string, endpointId: string) =>
       request(
         endpointOperationResponseSchema,
         "POST",
-        `${project(projectId)}/endpoints/${segment(endpointId)}/suspend`,
+        `${project(projectId)}/endpoints/${pathSegment(endpointId)}/suspend`,
       ),
 
     // ---- roles and databases
@@ -237,7 +138,7 @@ export function createControlPlaneClient(
       request(
         roleOperationResponseSchema,
         "POST",
-        `${branch(projectId, branchId)}/roles/${segment(role)}/reset_password`,
+        `${branch(projectId, branchId)}/roles/${pathSegment(role)}/reset_password`,
       ),
     listDatabases: async (projectId: string, branchId: string) =>
       request(
@@ -254,7 +155,7 @@ export function createControlPlaneClient(
       request(
         dataApiToggleResponseSchema,
         enabled ? "PUT" : "DELETE",
-        `${branch(projectId, branchId)}/databases/${segment(database)}/data_api`,
+        `${branch(projectId, branchId)}/databases/${pathSegment(database)}/data_api`,
       ),
 
     // ---- operations
@@ -262,7 +163,7 @@ export function createControlPlaneClient(
       request(
         operationResponseSchema,
         "GET",
-        `/operations/${segment(operationId)}`,
+        `/operations/${pathSegment(operationId)}`,
       ),
     /**
      * Newest first. With `projectId` it is the Postgres project's list
@@ -288,7 +189,7 @@ export function createControlPlaneClient(
       request(
         libsqlOperationResponseSchema,
         "DELETE",
-        `/libsql/databases/${segment(databaseId)}`,
+        `/libsql/databases/${pathSegment(databaseId)}`,
       ),
     createLibsqlToken: async (
       databaseId: string,
@@ -297,7 +198,7 @@ export function createControlPlaneClient(
       request(
         libsqlTokenResponseSchema,
         "POST",
-        `/libsql/databases/${segment(databaseId)}/tokens`,
+        `/libsql/databases/${pathSegment(databaseId)}/tokens`,
         body,
       ),
   };

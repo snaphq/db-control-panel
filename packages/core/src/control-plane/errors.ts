@@ -34,6 +34,13 @@ export class ControlPlaneNotFoundError extends ControlPlaneError {
 /** Other 4xx: the request was understood and refused (validation, conflict). */
 export class ControlPlaneRequestError extends ControlPlaneError {}
 
+/** 409: the request conflicts with current state, for example `platform_busy` on a platform operation. */
+export class ControlPlaneConflictError extends ControlPlaneRequestError {
+  constructor(message: string, code = "conflict") {
+    super(message, 409, code);
+  }
+}
+
 /** 5xx, network failure, timeout, or a response that does not match the contract. */
 export class ControlPlaneUnavailableError extends ControlPlaneError {}
 
