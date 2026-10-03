@@ -30,7 +30,8 @@ apps/control-plane/src/
   crypto/               Ed25519 JWT signing and verifying, SCRAM-SHA-256 secrets,
                         AES-256-GCM sealing of stored credentials, ids
   k8s/                  kube clients and the pod API the compute runtime uses
-  neon/                 storage-controller client, compute spec builder and
+  neon/                 storage-controller clients (project flows, platform
+                        calls), compute spec builder and
                         service, compute pod manifest, compute_ctl client,
                         compute runtime (wake, reconfigure, suspend), idle
                         suspend, safekeeper and pageserver registration, the
@@ -42,6 +43,10 @@ apps/control-plane/src/
   data-api/             PostgREST bootstrap SQL and runner, sidecar provider,
                         platform JWT key, enable/disable steps, gateway
                         (routing, CORS, streaming proxy)
+  platform/             platform-wide operations: safekeeper layout policy,
+                        StatefulSet and Service builders, the worker's
+                        safekeeper manager, the spread steps, the pageserver
+                        rebalance planner and steps, the platform store
   modes/                api, neon-glue, worker, data-api-gateway servers; the
                         /v1 route files (api-*.ts)
   operations/           operation runner, queue, step registry
@@ -71,7 +76,8 @@ are 32-hex values as Neon requires.
 | `role` | id, branch_id, name, scram_secret, password_enc (the password sealed with `ALLOYDB_DATA_KEY`; never plaintext) |
 | `database` | id, branch_id, name, owner_role, data_api_enabled, data_api_index (sidecar position, 0-49, never reused within a branch) |
 | `libsql_database` | id, console_org_id, console_project_id, name, namespace (`<name>-<team>`), node_id, state (`creating`, `active`, `deleting`), size_limit_bytes, created_at, deleted_at |
-| `node` | id (`ALLOYDB_NODE_ID`), name, tailscale_ip, zone, roles, capacity (jsonb: `ready`, optional `libsqlMaxDatabases`), registered_pageserver, registered_safekeepers |
+| `node` | id (`ALLOYDB_NODE_ID`), name, tailscale_ip, zone, roles, capacity (jsonb: `ready`, `missing`, `hostname`, `allocatable` (`cpuMillis`, `memoryBytes`, `storageBytes`), `labels`, optional `libsqlMaxDatabases` and `pageserverWeight`, and `pageserver` (`availability`, `scheduling`, `attachedShards`, `observedAt`, `activeSeen`)), registered_pageserver, registered_safekeepers |
+| `safekeeper` | id (identity column: the storage-controller node id, never reused), node_id, node_name (Kubernetes node name), state (`creating`, `active`, `retiring`, `retired`), operation_id (the spread that created it), drain (jsonb progress while retiring), created_at, updated_at, retired_at |
 | `operation` | id, console_project_id, console_org_id, target_type, target_id, action, status (`scheduling`, `running`, `finished`, `failed`, `cancelled`), failures_count, error, params (jsonb), progress (jsonb: completed steps and their outputs), created_at, updated_at, finished_at |
 | `usage_event` | id, project_id, kind, value, idempotency_key (unique), recorded_at |
 
@@ -82,15 +88,22 @@ Constraints worth knowing:
   per project. A deleted project frees its console project for a new one.
 - `operation` has a partial unique index on `console_project_id` where status
   is `scheduling` or `running`: the database, not the application check,
-  guarantees one active operation per console project.
+  guarantees one active operation per console project. Platform operations
+  (`pageservers.rebalance`, `safekeepers.spread`) are filed under the reserved
+  console project and organization `__platform__`, so the same index lets only
+  one of them run at a time and never touches a real project's lock; console
+  callers cannot read them.
 - Soft deletes (`deleted_at`) keep rows for the worker's cleanup steps; the
   console API never returns them.
 - `operation.console_org_id` is null only for rows written before migration
   `0001`; reads require the caller's organization and project to match.
 - `node.registered_safekeepers` is not set: safekeepers are pods, not nodes,
-  and are registered by id (below). The `node` table is filled by two loops:
-  pageserver discovery (from the storage controller) and the node sync (from
-  Kubernetes Node labels, below), which owns `roles` and `capacity.ready`.
+  and live in the `safekeeper` table. The `node` table is filled by two loops:
+  pageserver discovery (from the storage controller; it also records each
+  pageserver's state and attached shard count in `capacity.pageserver`) and the
+  node sync (from Kubernetes Node labels, below), which owns `roles` and the
+  rest of `capacity`. A node that left the cluster keeps its row with
+  `capacity.missing = true` and `ready = false`, so nothing is placed on it.
 - A live libSQL namespace is unique across the platform (partial unique
   index); a deleted row frees it.
 - The database never holds a password in the clear. `role.password_enc`,
@@ -123,9 +136,18 @@ The console stores only its own `project.id` and receives these ids back.
 | `ALLOYDB_POSTGREST_IMAGE` | neon-glue, worker, data-api-gateway | `ghcr.io/snaphq/postgrest:latest` | image of Data API sidecars |
 | `ALLOYDB_IMAGE_PULL_SECRET` | neon-glue, worker, data-api-gateway | `ghcr-pull` | pull Secret named on compute pods; `none` omits it. A Secret that does not exist only produces a warning event, so the default is safe while the images are public |
 | `ALLOYDB_NEON_GLUE_URL` | neon-glue, worker, data-api-gateway | `http://neon-glue.alloydb-system:8080` | `--control-plane-uri` of compute_ctl |
-| `ALLOYDB_SAFEKEEPER_COUNT` | worker | `3` | safekeepers to register |
+| `ALLOYDB_SAFEKEEPER_COUNT` | api, worker | `3` | safekeepers to run; must equal the controller's `--timeline-safekeeper-count` (the api uses it for the layout shown by the admin API) |
+| `ALLOYDB_NEON_IMAGE` | worker | `ghcr.io/snaphq/neon:latest` | image of the safekeeper pods the worker creates; set from the `control-plane-images` ConfigMap, bump it with the `ghcr.io/snaphq/neon` tag in `infra/k8s/neon`. A change rolls the safekeepers one at a time |
+| `ALLOYDB_SAFEKEEPER_ENTRYPOINT_CONFIGMAP` | worker | `safekeeper-entrypoint` | ConfigMap holding `safekeeper-entrypoint.sh` (fixed name, `infra/k8s/neon`) |
+| `ALLOYDB_SAFEKEEPER_STORAGE` | api, worker | `50Gi` | size of each safekeeper's local-path volume |
+| `ALLOYDB_AUTO_SPREAD_SAFEKEEPERS` | worker | `true` | start `safekeepers.spread` by itself when the layout is off (not within 30 minutes of a failed one) |
+| `ALLOYDB_SAFEKEEPER_MIGRATE_CONCURRENCY` | worker | `2` | timelines moved at once while draining a safekeeper |
+| `ALLOYDB_AUTO_REBALANCE` | worker | `true` | start `pageservers.rebalance` when a pageserver first becomes Active |
+| `ALLOYDB_REBALANCE_MAX_MOVES` | worker | `8` | most tenant moves per rebalance run |
+| `ALLOYDB_REBALANCE_PREWARM` | worker | `true` | graceful moves (warm a secondary first, cut over in the background); `false` cuts over at once |
+| `ALLOYDB_REBALANCE_SETTLE_SECONDS` | worker | `900` | how long one tenant move may take to settle before it is cancelled |
 | `ALLOYDB_IDLE_SWEEP_SECONDS` | worker | `30` | idle-suspend interval |
-| `ALLOYDB_REGISTRATION_SECONDS` | worker | `60` | safekeeper registration, pageserver discovery and node sync interval |
+| `ALLOYDB_REGISTRATION_SECONDS` | worker | `60` | interval of the safekeeper manager, pageserver discovery and node sync |
 
 ## Operations
 
@@ -140,13 +162,15 @@ Actions:
 `endpoint.start`, `endpoint.suspend`, `endpoint.update`,
 `role.reset_password`, `database.create`, `database.delete`,
 `data_api.enable`, `data_api.disable`, `libsql.create`, `libsql.delete`,
-`libsql.fork`.
+`libsql.fork`. The two platform-wide actions, `pageservers.rebalance` and
+`safekeepers.spread`, are described under
+[Platform operations](#platform-operations).
 
 The plans, with the Data API and libSQL actions at the end:
 
 | Action | Steps | Written by the request, in the same transaction |
 | --- | --- | --- |
-| `project.create` | `tenant` (create tenant), `timeline` (root timeline, store safekeepers) | project, default branch `main`, endpoint, role `neondb_owner`, database `neondb` |
+| `project.create` | `safekeepers` (wait for the wanted number of Active safekeepers in distinct zones), `tenant` (create tenant), `timeline` (root timeline, store safekeepers) | project, default branch `main`, endpoint, role `neondb_owner`, database `neondb` |
 | `project.delete` | `computes` (suspend every endpoint), `tenant` (delete tenant) | `deleted_at` on the project, its branches and endpoints |
 | `branch.create` | `timeline` (with `parentTimestamp` in the params and no LSN yet: resolve the time to an LSN; then fork the parent at the LSN, store safekeepers and the fork LSN) | branch, copies of the parent's roles and databases, optional endpoint; `params` hold `branchId` and, for `parent_timestamp`, `parentTimestamp` (UTC ISO 8601) |
 | `branch.delete` | `computes`, `timeline` (delete timeline) | `deleted_at` on the branch and its endpoints |
@@ -179,9 +203,147 @@ branch has no `read_write` endpoint stays in the timeline until one exists.
 The Data API roles are the one exception: they are created with SQL (see
 [Data API](#data-api)).
 
+## Platform operations
+
+Two operations belong to the platform, not to a customer project. They are
+filed under the reserved project and organization `__platform__` (see
+[Data model](#data-model)): only one of them runs at a time, a project's `423`
+lock is never taken or waited on, and the console API cannot see them. They are
+started by the worker's loops or through the [admin API](#admin-api).
+
+| Action | Steps | Started by |
+| --- | --- | --- |
+| `safekeepers.spread` | `plan`, `create`, `ready`, `register`, `migrate`, `retire` | the safekeeper manager when the layout is off, or `POST /v1/admin/safekeepers/spread` |
+| `pageservers.rebalance` | `plan`, `execute` | the pageserver observer when a pageserver first becomes Active, or `POST /v1/admin/pageservers/rebalance` |
+
+Both are resumable. Besides the runner's "skip finished steps", a long step
+saves a **checkpoint** (`context.checkpoint`, stored under the step's name in
+`operation.progress.outputs` until the step finishes), and a retried step reads it
+back (`context.resume`). The admin API shows it, so a running step's progress is
+visible. A platform job may run for hours, so it is queued with a 6-hour attempt
+limit instead of the queue's 15 minutes.
+
+### Safekeepers
+
+The worker's **safekeeper manager** runs every `ALLOYDB_REGISTRATION_SECONDS`
+(after a node sync) and is idempotent. It does nothing while a platform
+operation runs. Each pass:
+
+1. asks the layout policy ([Platform architecture](/platform/architecture#safekeeper-layout))
+   for missing safekeepers and starts them: a `safekeeper` row in `creating`,
+   then the StatefulSet `safekeeper-<id>` (one replica, local-path volume,
+   `nodeSelector kubernetes.io/hostname`, env `SAFEKEEPER_ID`/`SAFEKEEPER_AZ`,
+   the former manifest's container, flags, secrets and probes) and a Service
+   `safekeeper-<id>`. On a fresh cluster that is safekeepers 1 to 3;
+2. recreates objects someone deleted (the volume survives, so the data returns);
+3. registers each Ready safekeeper with the controller and marks it `active`;
+4. rolls a changed `ALLOYDB_NEON_IMAGE` out, one safekeeper per pass and only
+   while all others are Ready (the StatefulSet carries a hash of what the
+   control plane would create, `alloydb.net/spec-hash`);
+5. starts `safekeepers.spread` when the layout is off (not when a safekeeper
+   is not Ready, and not within 30 minutes of a failed spread).
+
+`project.create` has a first step, `safekeepers`, that waits until the controller
+lists the wanted number of Active safekeepers in distinct zones; the queue
+retries it with backoff, so a project created while the first node boots simply
+takes longer.
+
+**`safekeepers.spread`** replaces one safekeeper:
+
+| Step | What it does |
+| --- | --- |
+| `plan` | Picks the move. An interrupted retirement (a safekeeper left `retiring`) is resumed first; then a surplus safekeeper (four live after a crash between registering and retiring) is removed; otherwise the layout policy's single move. Does nothing, and says why, when a safekeeper is not Ready or the layout is as wide as the nodes allow. Safekeepers an earlier operation never finished creating are removed here |
+| `create` | Inserts the new row (found again by operation id on a retry, so a crash never creates two) and applies its StatefulSet and Service on the target node |
+| `ready` | Waits up to 4 minutes for the pod; a pod that is still pulling its image fails the step and the queue retries it |
+| `register` | `POST /control/v1/safekeeper/:id`, then policy `Active` |
+| `migrate` | Marks the old safekeeper `retiring`. Lists the timelines it still holds from its own API and, for each one, asks the controller to move it to the current set without the old safekeeper and with the new one, two timelines at a time. Progress goes to `safekeeper.drain` and the checkpoint |
+| `retire` | Waits until the old safekeeper lists no timelines, sets its policy to `Decomissioned`, lists once more, then deletes its StatefulSet, Service and volume claim and marks the row `retired` |
+
+*Abort and rollback.* A timeline whose migration keeps failing (three tries,
+2 s and 4 s apart) gets `safekeeper_migrate_abort`, so it stays on the set it had
+and is never left half way; the step fails with the first failure and the
+operation is retried by the queue. If the operation still fails for good, the old
+safekeeper stays `retiring` and Active in the controller, every timeline is on a
+committed set, and the next spread (automatic or by hand) picks the retirement up
+where it stopped. A conflicting migration to another set (409) is aborted before
+the control plane asks for its own.
+
+### Pageservers
+
+**`pageservers.rebalance`.** `plan` reads the controller's nodes and tenants and
+lists at most `ALLOYDB_REBALANCE_MAX_MOVES` moves (`platform/rebalance-plan.ts`):
+only between pageservers whose `availability` and `scheduling` are both `Active`,
+only while the busiest holds at least two more shards than the emptiest (a
+difference of one is already balanced), never a shard the controller is
+reconciling, splitting or importing, one with a pending compute notification or a
+scheduling policy other than `Active`, nor one whose project has a control-plane
+operation running. A pageserver's relative capacity can be given as
+`node.capacity.pageserverWeight` (default 1).
+
+`execute` moves the tenants **one at a time**: set the shard's preferred zone to
+the destination's if it differs, ask the controller to migrate, then poll until the
+shard is attached on the new node and its compute notification has been delivered
+(the controller calls `PUT /storcon/notify-attach`, which repoints running
+computes). A move that does not settle within `ALLOYDB_REBALANCE_SETTLE_SECONDS`
+is cancelled (migrate to the node it is still on, which cancels a pending graceful
+migration) and its zone restored; the operation then fails without retrying, with
+the successful moves kept. A tenant the controller refuses (412) is skipped and
+counted, not failed.
+
+The **pageserver observer** records each pageserver's state and attached shard
+count in `node.capacity.pageserver` on every discovery pass. A pageserver seen
+`Active` for the first time starts a rebalance if the plan has moves (and
+`ALLOYDB_AUTO_REBALANCE` is on). It is remembered as seen only once a rebalance
+considered it, so a busy platform or an unavailable controller delays the
+rebalance rather than skipping it.
+
+### Storage controller calls
+
+All verified in the source pinned in `infra/images/sources.env` (paths under
+`storage_controller/src` unless noted). Every call uses the admin token
+(`check_permissions` accepts it for any scope, `http.rs:1811-1821`).
+
+| Call | Detail |
+| --- | --- |
+| `PUT /control/v1/tenant/:tenant_shard_id/migrate` | `http.rs:1337-1358`, route `:2446`. Body `TenantShardMigrateRequest {node_id, origin_node_id?, migration_config {override_scheduler, prewarm (default true), ...}}` (`libs/pageserver_api/src/controller_api.rs:205-216, :218-250`). Logic `service.rs:6733-6895`: unavailable destination or one scoring worse than the scheduler's best is `412` unless `override_scheduler`; `origin_node_id` that is not the current attachment is `412`; moving to the node it is on cancels a pending graceful migration (`:6818-6830`). `prewarm: true` sets a preferred node and returns at once, the background optimiser creates a secondary and cuts over when it is warm (`:6664-6678`); `prewarm: false` re-points the intent (the old attachment becomes a secondary when the policy keeps one) and waits up to 30 s (`RECONCILE_TIMEOUT`, `:116`), answering `408` if the reconcile is still running (`libs/http-utils/src/error.rs:85-88`). Not synchronous in either case, so the control plane polls |
+| Why the preferred zone is set first | The score the migrate check compares is `NodeAttachmentSchedulingScore` with `for_optimization`: availability-zone match, then the tenant's other shards on the node. Load and the node's shard count are dropped (`scheduler.rs:154-209`, `tenant_shard.rs:915-950`). So the controller never rebalances by count on its own, and a destination outside the shard's preferred zone is `412`, or is reverted by the optimiser (`tenant_shard.rs:983-989, :1130-1160`). `PUT /control/v1/preferred_azs` with `{<tenant_shard_id>: <az>}` (`controller_api.rs:94-98`, `http.rs:1432-1450`, route `:2497`) changes it |
+| `GET /control/v1/tenant` | `http.rs:920-938`, route `:2487`; admin scope. Every tenant with `shards[]`: `node_attached`, `node_secondary`, `is_reconciling`, `is_pending_compute_notification`, `is_splitting`, `is_importing`, `scheduling_policy`, `preferred_az_id` (`controller_api.rs:177-196`). `GET /control/v1/tenant/:tenant_id` describes one (`http.rs:877-893`) |
+| `GET /control/v1/node` | `http.rs:956-972`; `availability` (`Active`, `WarmingUp`, `Offline`) and `scheduling` (`Active`, `Filling`, `Pause`, `PauseForRestart`, `Draining`, `Deleting`) (`controller_api.rs:158-175, :396-403`) |
+| `POST /v1/tenant/:tenant_id/timeline/:timeline_id/safekeeper_migrate` | `http.rs:642-666`, route `:2622`. Body `TimelineSafekeeperMigrateRequest {new_sk_set: [id]}` (`controller_api.rs:602-606`). **Synchronous**: it answers `200` after the whole RFC-035 change (`service/safekeeper_service.rs:1127-1426`). It requires every id registered, no duplicates, at least `--timeline-safekeeper-count` members, and no `Decomissioned` newcomer (`:1127-1206`). It does not look at availability zones; the generation is bumped by the controller itself. Steps: persist the joint set, notify our compute hook (`notify-safekeepers`, before the change so computes learn the new member first), switch membership on the old set, `pull_timeline` from a majority to each new member, wait for them to catch up, commit the new set, exclude the dropped members and notify again (`:1215-1426`, `:1481-1536`). A failure leaves a persisted `new_sk_set`; repeating the call with the same set resumes (`:1215-1232`), another set is `409`. A step that cannot reach a quorum is `500` |
+| `POST .../safekeeper_migrate_abort` | `http.rs:669-684`, route `:2632`; `safekeeper_service.rs:1628-1737`. Before the new set is committed it bumps the generation back to the current set and excludes the newcomers; afterwards it only completes the finish step |
+| `GET /debug/v1/tenant/:tenant_id/timeline/:timeline_id/locate` | `http.rs:1535-1558`, route `:2302`. `{generation, sk_set, new_sk_set?}` (`libs/safekeeper_api/src/models.rs:323-327`); `404` when the controller does not manage the timeline |
+| `POST /control/v1/safekeeper/:id/scheduling_policy` | `http.rs:1749-1773`, route `:2438`; body `{scheduling_policy}`, one of `Active`, `Activating`, `Pause`, `Decomissioned` (sic; `controller_api.rs:436-442`). `Decomissioned` stops the safekeeper's reconciler (`safekeeper_service.rs:864-897`), excludes it from heartbeats (`heartbeater.rs:329`) and from new timelines (only `Active` ones are chosen, `:697-720`) |
+| Deleting a safekeeper | **There is none.** The routes are list, get, upsert and policy (`http.rs:2420-2445`). A decommissioned safekeeper's record stays; the control plane deletes the Kubernetes objects and marks its own row `retired` |
+| Is a safekeeper empty? | The controller has no per-safekeeper timeline listing. The safekeeper's own `GET /v1/tenant/timeline` on port 7676 lists the timelines it has not deleted or excluded (`safekeeper/src/http/routes.rs:149-159`, route `:762`), with a token of scope `safekeeperdata` (an `admin` token is refused, `safekeeper/src/auth.rs:18-30`), which the control plane mints with its signing key. Excluding a node deletes its local copy and leaves the S3 copy to the members (`safekeeper/src/timelines_global_map.rs:538-620`, `timeline.rs:621-642`) |
+
+### What is not automated
+
+- **Evacuating a pageserver** (removing its node): the planner only adds tenants
+  to new nodes. Drain with `PUT /control/v1/node/:id/drain` on the controller
+  (`http.rs:2377`) before removing the node, then relabel it.
+- **A lost safekeeper node** (the node is gone or unrecoverable): the
+  safekeepers on it are reported as `stranded` and left alone. Recovering means
+  marking its rows retired, decommissioning it in the controller and starting a
+  replacement; this needs a person because the old safekeeper cannot confirm it is
+  empty.
+- **Timelines on a safekeeper that the controller does not manage** (leftovers of
+  a deleted timeline): they keep the safekeeper from being decommissioned and the
+  `retire` step fails naming them. Delete them with `DELETE
+  /v1/tenant/:tenant/timeline/:timeline?only_local=true` on the safekeeper, or
+  wait for the controller's pending deletion.
+- **Adopting a cluster that ran the former three-ordinal StatefulSet**: the new
+  safekeepers use new volume names, so the old data is not picked up.
+- **Editing the entrypoint script** does not restart safekeepers (its ConfigMap
+  has a fixed name); ship it with an image bump.
+- **Free-disk awareness**: the layout ranks nodes by an estimate, not by metrics.
+- **Preferred zones** stay at the destination's zone after a successful move:
+  that is what keeps the controller's optimiser from moving the tenant back.
+
 ## Neon flows
 
-**Create project.** `POST /v1/tenant` on the storage controller with
+**Create project.** The first step waits until the controller lists the wanted
+number of `Active` safekeepers in distinct zones (see
+[Safekeepers](#safekeepers)). `POST /v1/tenant` on the storage controller with
 `{new_tenant_id, pitr_interval}`, then `POST /v1/tenant/:id/timeline` with
 `{new_timeline_id, pg_version: 17}`. The response's `safekeepers` field
 (present because of `--timelines-onto-safekeepers`) is stored on the branch;
@@ -332,17 +494,22 @@ the controller (locate) each time, so the hook only reloads running computes,
 pushing a spec built from the notification and the controller's node list.
 `notify-safekeepers` stores the placement on the branch row (a notification
 with an older generation than the stored one is ignored; hostnames, which the
-controller marks informational, fall back to `safekeeper-<id - 1>.safekeeper.neon.svc.cluster.local`)
+controller marks informational and fills with the registered host, fall back to `safekeeper-<id>.neon.svc.cluster.local`)
 and then reloads running computes. A reload is `POST /configure` on
 compute_ctl with the new spec, which waits until the compute is `running` again.
+A safekeeper move sends `notify-safekeepers` twice per timeline: before the
+change with the joint set (old and new members, so computes learn the newcomer
+before a quorum depends on it) and after it with the final set
+(`safekeeper_service.rs:1281-1284, :1428-1479, :1522-1525`).
 
-**Registration.** Every `ALLOYDB_REGISTRATION_SECONDS` the worker upserts
-safekeepers `1..ALLOYDB_SAFEKEEPER_COUNT` (`POST /control/v1/safekeeper/:id`:
-host `safekeeper-<id - 1>.safekeeper.neon.svc.cluster.local`, ports 5454 and
-7676, zone `az-<id>`) when they are missing or differ, moves any that are
-`Activating` to `Active` (`POST .../scheduling_policy`), and copies the
-pageservers from `GET /control/v1/node` into the `node` table. Safekeepers an
-operator paused or decommissioned keep that policy.
+**Registration.** Every `ALLOYDB_REGISTRATION_SECONDS` the safekeeper manager
+(see [Safekeepers](#safekeepers)) upserts each Ready safekeeper by id
+(`POST /control/v1/safekeeper/:id`: host `safekeeper-<id>.neon.svc.cluster.local`,
+ports 5454 and 7676, zone `az-<id>`) when it is missing or differs, and moves
+any that are `Activating` to `Active` (`POST .../scheduling_policy`). Safekeepers
+an operator paused or decommissioned keep that policy. Pageserver discovery
+copies the pageservers from `GET /control/v1/node` into the `node` table and
+records their state and attached shard count.
 
 ## Data API
 
@@ -590,3 +757,28 @@ means the project has an operation in flight; `400` names every invalid field.
 libSQL databases are scoped like Neon resources: by organization and console
 project, in every query. They share the console project's one-active-operation
 lock with the Neon resources.
+
+### Admin API
+
+`/v1/admin/*` is for the platform admin portal. It takes the same
+`Authorization: Bearer <ALLOYDB_API_TOKEN>` and **no** `X-AlloyDB-Org` or
+`X-AlloyDB-Project` header: nothing here belongs to a customer. A missing or wrong
+token is `401`; an unknown path under `/v1/admin` is `404`. Schemas are in
+`@repo/control-plane-contract` (`admin.ts`). It reads what the worker records, so
+it needs no Kubernetes or controller access of its own and keeps answering while
+they are down; figures can lag by one `ALLOYDB_REGISTRATION_SECONDS`.
+
+| Route | Result |
+| --- | --- |
+| `GET /v1/admin/nodes` | `{nodes: [...]}`, one per Kubernetes node that ever joined: `id`, `name`, `hostname`, `zone`, `tailscale_ip`, `roles`, `ready`, `missing`, `labels` (the `alloydb.net/*` labels and zone), `allocatable` (`cpu_millis`, `memory_bytes`, `storage_bytes`, each nullable), `pageserver` (null without the role: `registered`, `availability`, `scheduling`, `attached_shards`, `observed_at`), `safekeepers` (a list of `id` and `state`, retired ones left out), `libsql_databases`, `updated_at` |
+| `GET /v1/admin/safekeepers` | `{safekeepers: [...], layout}`. Each safekeeper: `id`, `node_id`, `node_name`, `availability_zone`, `hostname`, `state` (`creating`, `active`, `retiring`, `retired`), `operation_id`, `drain` (null, or `total`, `migrated`, `failed` as a list of `timeline` and `reason`, and `updated_at`), `created_at`, `updated_at`, `retired_at`. `layout` is what the policy would do now: `desired_count`, `target_per_node`, `create_on_nodes`, `next_move` (`remove_safekeeper`, `from_node_id`, `to_node_id`, or null), `stranded`, `blocked` |
+| `POST /v1/admin/pageservers/rebalance` | `202 {operation}`; plans and moves tenants as described under [Pageservers](#pageservers). `409 platform_busy` while any platform operation is active |
+| `POST /v1/admin/safekeepers/spread` | `202 {operation}`; moves one safekeeper if the layout calls for it (the operation's `plan` output says if not). `409 platform_busy` likewise. Call again for the next move |
+| `GET /v1/admin/operations?scope=platform` | `{operations, next_cursor}`, newest first; `?status=active` or one status, `?limit=` (1-100, default 50), `?cursor=`. `scope` must be `platform` (the only scope; `400` otherwise) |
+| `GET /v1/admin/operations/:id` | `{operation}`, to poll after a `202` |
+
+A platform operation has `id`, `action`, `status`, `failures_count`, `error`,
+`params` (`{reason: "manual"}`, or the automatic reason with the node ids),
+`progress` (`completed_steps`, and `outputs` keyed by step, where a running step
+shows its checkpoint) and the timestamps. `409` means a platform operation is already
+scheduled or running, not that a project is busy.

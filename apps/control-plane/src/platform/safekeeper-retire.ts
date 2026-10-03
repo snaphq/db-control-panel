@@ -9,7 +9,7 @@ import type { SafekeeperRow } from './store.js';
  * has no call that deletes a safekeeper record (the routes at http.rs:2420-2445
  * are list, get, upsert and policy), so the `Decomissioned` record stays; it is
  * not heart-beaten (heartbeater.rs:329) and cannot be a migration target
- * (safekeeper_service.rs:1192-1202).
+ * (safekeeper_service.rs:1195-1206).
  *
  * Every step is repeatable, so a retry after a crash finishes the job. Callers
  * make sure the safekeeper holds no timelines first.

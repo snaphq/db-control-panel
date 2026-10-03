@@ -228,7 +228,7 @@ export function createStorconAdminClient(
       // set, notify the compute hook, switch membership on the old set, pull
       // the timeline from the old set to each new member, wait for them to catch
       // up, commit the new set, exclude the dropped members and notify again.
-      // Re-sending the same `new_sk_set` after a failure resumes (:1202-1217); a
+      // Re-sending the same `new_sk_set` after a failure resumes (:1215-1232); a
       // different set while one is pending is 409.
       await call({
         method: 'POST',

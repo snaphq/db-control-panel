@@ -14,8 +14,12 @@ contracts were checked against the source pinned in
 
 - k3s on bare metal, nodes joined over Tailscale. Each node's k3s `node-ip`
   is its Tailscale address and `node-external-ip` its public address.
-- Stage A has two nodes (one k3s server with `--cluster-init`, one agent);
-  stage B makes three etcd servers; later nodes join as agents.
+- The platform is complete on **one node**: every component below runs there
+  (all three safekeepers included) and a project can be created. It then grows
+  by joining nodes, and the control plane spreads the storage plane over them
+  (see [Growing the cluster](#growing-the-cluster)). Stage A has two nodes (one
+  k3s server with `--cluster-init`, one agent); stage B makes three etcd
+  servers; later nodes join as agents.
 - Only TCP 5432 (Postgres) and 443/80 (HTTPS) are public. Everything else
   listens on the tailnet or inside the cluster.
 - Third-party platform software comes from upstream images and charts. Our
@@ -32,7 +36,7 @@ every host and applies matching Kubernetes labels:
 | `ALLOYDB_NODE_ID` | `alloydb.net/node-id` | Unique positive integer, never reused |
 | `ALLOYDB_AZ` | `topology.kubernetes.io/zone` | Availability zone id, `az-<n>` |
 | `ALLOYDB_TAILSCALE_IP` | — | The node's Tailscale IPv4 address |
-| `ALLOYDB_ROLES` | `alloydb.net/pageserver`, `alloydb.net/libsql`, `alloydb.net/compute` = `"true"` | Which data-plane roles the node takes |
+| `ALLOYDB_ROLES` | `alloydb.net/pageserver`, `alloydb.net/libsql`, `alloydb.net/compute` = `"true"` | Which data-plane roles the node takes. A `pageserver` node also hosts safekeepers: there is no separate safekeeper label |
 
 Host-network pods read `node.env` through a read-only `hostPath` mount; that
 is how a pageserver learns its stable id without Kubernetes API access.
@@ -70,16 +74,61 @@ certificate's subject common name (`proxy/src/tls/server_config.rs`), so its
 | storage-broker | Deployment ×1 | 50051 gRPC | Stateless, no auth: cluster-internal only |
 | storage-controller | Deployment ×1 (`Recreate`) | 1234 HTTP | Database `storage_controller` on the platform Postgres |
 | pageserver | DaemonSet, `hostNetwork`, nodes with `alloydb.net/pageserver=true` | Tailscale IP: 6400 pg, 9898 http | `id` = `ALLOYDB_NODE_ID`; data in `hostPath` `/var/lib/alloydb/pageserver` |
-| safekeeper | StatefulSet ×3, headless Service `safekeeper` | 5454 pg, 7676 http | `id` = ordinal + 1, AZ `az-<ordinal+1>`; local PV |
+| safekeeper | one StatefulSet `safekeeper-<id>` (1 replica) and Service `safekeeper-<id>` each, **created by the control-plane worker**; headless Service `safekeeper` and the PodDisruptionBudget stay in GitOps | 5454 pg, 7676 http | `id` from the control plane's `safekeeper` table (never reused), AZ `az-<id>`; local PV of 50Gi, pod pinned to one node |
 | proxy | Deployment ×2 | 5432 pg (public), 4444 wss, 7001 http | Stateless |
 
 Pageservers use host networking so that their registered address is the
 node's stable Tailscale IP: a pageserver registers itself with the
 controller on start from `metadata.json`
 (`pageserver/src/controller_upcall_client.rs`), and computes connect to that
-address directly. Safekeepers do not self-register; the control-plane worker
-registers each one (`POST /control/v1/safekeeper/:id`, then scheduling policy
-`Active`) with its headless-Service DNS name.
+address directly. Safekeepers do not self-register, and no manifest declares
+them: the control-plane worker creates each one's StatefulSet and Service, waits
+for the pod to be Ready, and registers it (`POST /control/v1/safekeeper/:id`,
+then scheduling policy `Active`) under the name of its own Service,
+`safekeeper-<id>.neon.svc.cluster.local`, which survives pod restarts.
+
+### Safekeeper layout
+
+A safekeeper's data is a local volume, so the safekeeper stays on the node that
+first ran it; the worker decides that node, and can move a safekeeper to
+another one later by replacing it. The policy (`platform/layout.ts`, a pure
+function with unit tests) for the wanted number of safekeepers, 3 in production
+(`ALLOYDB_SAFEKEEPER_COUNT`, equal to the controller's `--timeline-safekeeper-count`):
+
+| Eligible nodes (`alloydb.net/pageserver=true`, Ready) | Safekeepers per node |
+| --- | --- |
+| 1 | 3 |
+| 2 | 2 + 1 |
+| 3 or more | 1 each |
+
+- Nodes that already hold safekeepers keep them; new homes are the nodes with
+  the most free capacity, then the lowest node id. A node that joins with more
+  free space does not trigger a move by itself.
+- Free capacity is an estimate, the node's allocatable ephemeral storage less
+  50Gi per safekeeper already there, because Kubernetes reports no free-disk
+  figure. It only ranks candidates.
+- At most one safekeeper moves per run, and only while every other safekeeper is
+  Ready. The PodDisruptionBudget (`maxUnavailable: 1`) stays in
+  `infra/k8s/neon/safekeeper.yaml`: it selects every safekeeper pod by label and
+  the disruption controller adds up the owning StatefulSets. The worker applies
+  the same rule to the actions it takes itself.
+- Every safekeeper is its own availability zone (`az-<id>`), unrelated to the
+  node's `topology.kubernetes.io/zone`. The controller places a timeline's
+  safekeepers in distinct zones (`safekeepers_for_new_timeline`,
+  `storage_controller/src/service/safekeeper_service.rs:697-760`), so strict
+  placement succeeds with all three on one node.
+
+### Growing the cluster
+
+| Event | What happens, with no operator action |
+| --- | --- |
+| First node joins | The worker starts safekeepers 1-3 on it. `project.create` waits for three Active safekeepers, so the first project can be created once they are Ready |
+| A second or third node joins with the `pageserver` label | The worker starts `safekeepers.spread` (one safekeeper at a time) until the layout above holds. The pageserver on the new node registers itself and, once Active, the worker starts `pageservers.rebalance` to move tenants onto it |
+| A node loses the `pageserver` label | Its safekeepers are replaced on other nodes, one at a time. Tenants on its pageserver are **not** evacuated: drain it through the controller first (see [Control plane](/platform/control-plane#what-is-not-automated)) |
+
+Both are switchable: `ALLOYDB_AUTO_SPREAD_SAFEKEEPERS` and
+`ALLOYDB_AUTO_REBALANCE` (default `true`), and both can be started by hand
+through the admin API.
 
 ### Storage controller
 
@@ -161,9 +210,9 @@ One image (`ghcr.io/snaphq/alloydb-control-plane`, from
 
 | Mode | Service | Serves |
 | --- | --- | --- |
-| `api` | `api:8080`, public at `api.alloydb.net` | REST API for the console (service token) |
+| `api` | `api:8080`, public at `api.alloydb.net` | REST API for the console (service token) and the platform admin API under `/v1/admin` (same token) |
 | `neon-glue` | `neon-glue:8080`, internal | `/proxy/*`, `/compute/api/v2/computes/:id/spec`, `/storcon/notify-*` |
-| `worker` | none | Operations queue, idle suspend, node and safekeeper registration, rebalancing |
+| `worker` | none | Operations queue, idle suspend, node sync, the safekeepers (start, register, roll, spread), pageserver discovery and rebalancing |
 | `data-api-gateway` | `data-api:8080`, public at `*.apirest.alloydb.net` | Wakes the compute, forwards to its PostgREST sidecar |
 
 State lives in the `control_plane` database on the platform Postgres.

@@ -56,7 +56,7 @@ async function pool<T, R>(
  * first candidate that is not already a member. `safekeeper_migrate` is
  * synchronous and resumable (storage_controller/src/service/safekeeper_service.rs
  * :1127-1426): a call that fails midway is repeated with the same set and
- * carries on (:1202-1217). A different set while one is pending is 409, and the
+ * carries on (:1215-1232). A different set while one is pending is 409, and the
  * pending change is cancelled with `safekeeper_migrate_abort` (:1628-1737)
  * before asking for ours. When the attempts run out the pending change is
  * aborted too, so the timeline is left on a committed set, never half-way.
