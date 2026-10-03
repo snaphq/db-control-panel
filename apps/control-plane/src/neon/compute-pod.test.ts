@@ -49,13 +49,24 @@ describe('buildComputePod', () => {
       '--compute-id',
       'ep-calm-moon-abcd1234',
       '--pgdata',
-      '/var/db/postgres/compute',
+      '/var/db/postgres/data/pgdata',
       '--pgbin',
       '/usr/local/bin/postgres',
       '--connstr',
       'postgresql://cloud_admin@127.0.0.1:5432/postgres',
     ]);
     expect(compute?.ports?.map((p) => p.containerPort)).toEqual([5432, 3080]);
+  });
+
+  it('mounts the data volume above PGDATA so compute_ctl can recreate it', () => {
+    const compute = container(pod, 'compute');
+    const mounts = compute?.volumeMounts ?? [];
+    expect(mounts).toEqual([
+      { name: 'pgdata', mountPath: '/var/db/postgres/data' },
+    ]);
+    const pgdata = compute?.args?.[compute.args.indexOf('--pgdata') + 1];
+    expect(pgdata).toBe('/var/db/postgres/data/pgdata');
+    expect(mounts.some((m) => m.mountPath === pgdata)).toBe(false);
   });
 
   it('passes the spec token as NEON_CONTROL_PLANE_TOKEN', () => {

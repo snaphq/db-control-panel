@@ -171,9 +171,11 @@ One pod per running endpoint, named `compute-<endpoint-id>`, labeled
 
 - `compute` container: our compute image, entrypoint `compute_ctl
   --control-plane-uri http://neon-glue.alloydb-system:8080 --compute-id
-  <endpoint-id> --pgdata /var/db/postgres/compute --pgbin
+  <endpoint-id> --pgdata /var/db/postgres/data/pgdata --pgbin
   /usr/local/bin/postgres --connstr postgresql://cloud_admin@127.0.0.1:5432/postgres`.
-  Ports 5432 and 3080.
+  Ports 5432 and 3080. The emptyDir is mounted at `/var/db/postgres/data`, one
+  level above PGDATA, because compute_ctl deletes and recreates PGDATA on every
+  start and a mount point cannot be removed.
 - `pgbouncer` container: same image, runs `/usr/local/bin/pgbouncer
   /etc/pgbouncer.ini` on 6432 (Neon's VM image starts it, compute_ctl does not).
 - `postgrest-<db>` containers: one per database with the Data API enabled, at

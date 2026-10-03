@@ -13,7 +13,16 @@ const DEFAULT_PULL_SECRET = 'ghcr-pull';
 export const COMPUTE_CTL_PORT = 3080;
 const POSTGRES_PORT = 5432;
 const PGBOUNCER_PORT = 6432;
-const PGDATA = '/var/db/postgres/compute';
+/**
+ * compute_ctl deletes and recreates PGDATA on every start: `create_pgdata`
+ * ignores a failed `remove_dir_all`, then calls a fallible `create_dir`
+ * (neon compute_tools/src/compute.rs:1201-1215). A volume mounted exactly at
+ * PGDATA can be neither removed nor recreated, so the volume is mounted one
+ * level up and PGDATA is a child directory. An emptyDir's root is
+ * world-writable, so the image's `postgres` user can create it.
+ */
+const PGDATA_VOLUME = '/var/db/postgres/data';
+const PGDATA = `${PGDATA_VOLUME}/pgdata`;
 
 export const computePodName = (endpointId: string): string =>
   `compute-${endpointId}`;
@@ -191,7 +200,7 @@ export function buildComputePod(input: ComputePodInput): V1Pod {
             { name: 'compute-ctl', containerPort: COMPUTE_CTL_PORT },
           ],
           env: [{ name: 'NEON_CONTROL_PLANE_TOKEN', value: input.specToken }],
-          volumeMounts: [{ name: 'pgdata', mountPath: PGDATA }],
+          volumeMounts: [{ name: 'pgdata', mountPath: PGDATA_VOLUME }],
           resources: {
             requests: { cpu: resources.cpu, memory: resources.memory },
             limits: { cpu: resources.cpu, memory: resources.memory },
