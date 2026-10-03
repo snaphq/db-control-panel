@@ -1,0 +1,78 @@
+# Platform Postgres, libSQL (sqld) and cert-manager. Node metrics, kube-state-
+# metrics and kubelet/cadvisor come from the victoria-metrics-k8s-stack release.
+#
+# NOT scraped, and why (details in docs-internal/operations/monitoring.mdx):
+#   - control-plane api / neon-glue / data-api-gateway / worker: the app has no
+#     /metrics endpoint.
+#   - PostgREST admin /metrics: the sidecar's admin server listens on 127.0.0.1
+#     only (apps/control-plane/src/neon/compute-pod.ts), unreachable from here.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: platform-postgres
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [alloydb-system]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: platform-postgres
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      relabelConfigs:
+        - action: replace
+          target_label: job
+          replacement: platform-postgres
+---
+# sqld's admin API (--admin-listen-addr <tailscale ip>:8081) serves /metrics.
+# With --admin-auth-key set, libsql-server/src/http/admin/mod.rs:209-236 accepts
+# only `Authorization: Basic <key>` with the key compared as plain text (not
+# base64), which is what authorization type Basic sends. The DaemonSet declares
+# no container ports, hence portNumber. The Secret is read from this namespace
+# (created by render-secrets.ts).
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: libsql-sqld
+  namespace: libsql
+spec:
+  namespaceSelector:
+    matchNames: [libsql]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sqld
+  podMetricsEndpoints:
+    - portNumber: 8081
+      path: /metrics
+      authorization:
+        type: Basic
+        credentials:
+          name: libsql-admin
+          key: LIBSQL_ADMIN_AUTH_KEY
+      relabelConfigs:
+        - action: replace
+          target_label: job
+          replacement: libsql-sqld
+---
+# cert-manager controller Service (chart default prometheus.enabled), port
+# http-metrics 9402.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+spec:
+  namespaceSelector:
+    matchNames: [cert-manager]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cert-manager
+      app.kubernetes.io/component: controller
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      relabelConfigs:
+        - action: replace
+          target_label: job
+          replacement: cert-manager

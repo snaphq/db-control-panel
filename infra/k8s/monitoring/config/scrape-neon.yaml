@@ -1,0 +1,117 @@
+# Neon storage plane and computes. Every scrape forces its own `job` label so the
+# alert rules do not depend on how the operator names jobs. Ports are the named
+# container ports of the manifests in infra/k8s/neon and of the pods the
+# control plane creates (apps/control-plane/src/neon).
+#
+# Metric endpoints (source locations in docs-internal/operations/monitoring.mdx):
+#   pageserver          :9898/metrics, bound to the node's Tailscale IP (hostNetwork)
+#   safekeeper          :7676/metrics
+#   storage controller  :1234/metrics
+#   proxy               :7001/metrics
+#   compute_ctl         :3080/metrics
+# The storage broker also serves /metrics on 50051 but is not scraped.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: neon-pageserver
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [neon]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pageserver
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      relabelConfigs:
+        - action: replace
+          target_label: job
+          replacement: neon-pageserver
+---
+# Safekeepers are one StatefulSet each, created by the control-plane worker
+# (apps/control-plane/src/platform/safekeeper-manifests.ts). Each also has its
+# own Service plus a shared headless one, so a Service-based scrape would
+# collect every target twice; select the pods instead.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: neon-safekeeper
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [neon]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: safekeeper
+  podTargetLabels:
+    - alloydb.net/safekeeper-id
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      relabelConfigs:
+        - action: replace
+          target_label: job
+          replacement: neon-safekeeper
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: neon-storage-controller
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [neon]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: storage-controller
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      relabelConfigs:
+        - action: replace
+          target_label: job
+          replacement: neon-storage-controller
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: neon-proxy
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [neon]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: proxy
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      relabelConfigs:
+        - action: replace
+          target_label: job
+          replacement: neon-proxy
+---
+# One pod per running endpoint, created and deleted by the control plane; the
+# pod NetworkPolicy leaves 3080 open (infra/k8s/control-plane/compute-networkpolicy.yaml).
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: neon-compute
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [neon-compute]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: compute
+  podTargetLabels:
+    - alloydb.net/endpoint
+    - alloydb.net/project
+  podMetricsEndpoints:
+    - port: compute-ctl
+      path: /metrics
+      relabelConfigs:
+        - action: replace
+          target_label: job
+          replacement: neon-compute

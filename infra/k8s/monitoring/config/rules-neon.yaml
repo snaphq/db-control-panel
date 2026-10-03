@@ -1,0 +1,88 @@
+# Alert rules for the Neon storage plane. Metric sources (Neon at the commit
+# pinned in infra/images/sources.env):
+#   up                                         scrape result (VMPodScrape in scrape-neon.yaml)
+#   safekeeper_backup_errors_total             safekeeper/src/metrics.rs:201
+#   pageserver_broken_tenants_count            pageserver/src/metrics.rs:1083
+#   proxy_*                                    not used: liveness is the scrape result
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: alloydb-neon
+  namespace: monitoring
+spec:
+  groups:
+    - name: alloydb-neon
+      rules:
+        - alert: NeonSafekeeperQuorumAtRisk
+          # ALLOYDB_SAFEKEEPER_COUNT is 3 in production (docs-internal/platform/architecture.mdx);
+          # with fewer than 3 up, one more failure loses the write quorum.
+          expr: (count(up{job="neon-safekeeper"} == 1) or vector(0)) < 3
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: Fewer than 3 Neon safekeepers are up
+            description: >-
+              {{ $value }} safekeeper(s) answer scrapes. Below 2 writes stop; at 2 there is no
+              margin left. Check the safekeeper StatefulSets in namespace neon.
+        - alert: NeonSafekeeperDown
+          expr: up{job="neon-safekeeper"} == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Safekeeper {{ $labels.pod }} is not answering scrapes"
+            description: "Pod {{ $labels.pod }} on {{ $labels.instance }} cannot be scraped."
+        - alert: NeonSafekeeperWalBackupErrors
+          expr: increase(safekeeper_backup_errors_total[15m]) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Safekeeper {{ $labels.pod }} fails to back up WAL to S3"
+            description: Safekeeper WAL offloading has been failing for 15 minutes; its local disk fills up meanwhile.
+        - alert: NeonPageserverDown
+          expr: up{job="neon-pageserver"} == 0 or absent(up{job="neon-pageserver"})
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: A Neon pageserver is down or not scraped
+            description: >-
+              No successful scrape of a pageserver (port 9898 on the node's Tailscale IP).
+              Computes it serves cannot read pages. If the pods are healthy, check that the
+              monitoring pods can reach the node address.
+        - alert: NeonPageserverBrokenTenants
+          expr: count(pageserver_broken_tenants_count == 1) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $value }} tenant(s) are in the Broken state on a pageserver"
+            description: See the pageserver log and the storage controller for the broken tenant ids.
+        - alert: NeonStorageControllerDown
+          expr: up{job="neon-storage-controller"} == 0 or absent(up{job="neon-storage-controller"})
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: The Neon storage controller is down
+            description: >-
+              Attaches, timeline creation and pageserver generation changes stall. It depends on
+              the platform Postgres.
+        - alert: NeonProxyDown
+          expr: (count(up{job="neon-proxy"} == 1) or vector(0)) < 1
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: No Neon proxy is up
+            description: No client can reach any database through ep-*.pg.alloydb.net.
+        - alert: NeonProxyDegraded
+          expr: (count(up{job="neon-proxy"} == 1) or vector(0)) < 2
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Fewer than 2 Neon proxies are up
+            description: The proxy Deployment runs 2 replicas; only {{ $value }} answer scrapes.

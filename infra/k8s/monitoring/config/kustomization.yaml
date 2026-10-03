@@ -1,0 +1,9 @@
+# Flux Kustomization `monitoring`: what the metrics stack scrapes and alerts on.
+# Needs the VictoriaMetrics operator CRDs from ../controllers.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - scrape-neon.yaml
+  - scrape-platform.yaml
+  - rules-platform.yaml
+  - rules-neon.yaml

@@ -1,0 +1,188 @@
+# Alert rules for the platform Postgres backups, disks, control plane,
+# certificates and the monitoring pipeline itself. Neon rules: rules-neon.yaml.
+#
+# Metric sources:
+#   pg_stat_archiver_*                  postgres_exporter v0.20.1 collector/pg_stat_archiver.go
+#   kube_cronjob_*, kube_deployment_*   kube-state-metrics (stack chart)
+#   node_filesystem_*                   node-exporter (stack chart)
+#   kubelet_volume_stats_*              kubelet (stack chart)
+#   certmanager_certificate_*           cert-manager v1.21.2 internal/collectors/certificate_collector.go
+#
+# NOT alerted, no metric exists: failed control-plane operations. The control
+# plane exposes no /metrics endpoint; the `operation` table has the data
+# (status = 'failed', failures_count, error) but nothing exports it yet.
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: alloydb-platform
+  namespace: monitoring
+spec:
+  groups:
+    - name: alloydb-platform-postgres
+      rules:
+        - alert: PlatformPostgresWalArchiveFailing
+          expr: |
+            increase(pg_stat_archiver_failed_count{job="platform-postgres"}[15m]) > 0
+            and increase(pg_stat_archiver_archived_count{job="platform-postgres"}[15m]) == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Platform Postgres WAL archiving is failing
+            description: >-
+              archive_command failed in the last 15 minutes and no segment was archived.
+              WAL piles up in pg_wal on the node and point-in-time recovery has a gap.
+              Check Secret platform-wal-s3 and the S3 endpoint, and the postgres container log.
+        - alert: PlatformPostgresWalArchiveLagging
+          # archive_timeout is 300s, so a healthy, written-to instance archives
+          # at least every ~5 minutes.
+          expr: pg_stat_archiver_last_archive_age{job="platform-postgres"} > 1800
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Platform Postgres has not archived WAL for 30 minutes
+            description: >-
+              The last WAL segment was archived {{ $value | humanizeDuration }} ago. An idle
+              database with no writes can also trigger this; confirm with pg_stat_archiver.
+        - alert: PlatformPostgresWalArchiveMetricMissing
+          expr: |
+            absent(pg_stat_archiver_last_archive_age{job="platform-postgres"})
+            or pg_scrape_collector_success{job="platform-postgres",collector="stat_archiver"} == 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: No WAL archive metric from platform Postgres
+            description: >-
+              Either nothing has ever been archived, the postgres-exporter sidecar is down
+              or its stat_archiver collector fails. Archiving cannot be trusted until fixed.
+        - alert: PlatformPostgresBackupFailed
+          # The newest run is not the last successful one and no run is active.
+          expr: |
+            (
+              kube_cronjob_status_last_schedule_time{namespace="alloydb-system",cronjob=~"platform-postgres-(basebackup|backup)"}
+              - kube_cronjob_status_last_successful_time{namespace="alloydb-system",cronjob=~"platform-postgres-(basebackup|backup)"}
+              > 60
+            )
+            and on (namespace, cronjob)
+            (kube_cronjob_status_active{namespace="alloydb-system"} == 0)
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "CronJob {{ $labels.cronjob }} failed"
+            description: >-
+              The latest run of {{ $labels.cronjob }} did not succeed. See
+              kubectl -n alloydb-system get jobs and the failed pod's logs.
+        - alert: PlatformPostgresBackupStale
+          expr: |
+            time() - kube_cronjob_status_last_successful_time{namespace="alloydb-system",cronjob=~"platform-postgres-(basebackup|backup)"} > 36 * 3600
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "No successful {{ $labels.cronjob }} run for 36 hours"
+            description: Both backup CronJobs run daily; the newest successful run is older than 36 hours.
+        - alert: PlatformPostgresBackupNeverSucceeded
+          expr: |
+            absent(kube_cronjob_status_last_successful_time{namespace="alloydb-system",cronjob="platform-postgres-basebackup"})
+            or absent(kube_cronjob_status_last_successful_time{namespace="alloydb-system",cronjob="platform-postgres-backup"})
+          for: 36h
+          labels:
+            severity: critical
+          annotations:
+            summary: A platform Postgres backup CronJob has never succeeded
+            description: >-
+              kube-state-metrics reports no successful run for platform-postgres-basebackup or
+              platform-postgres-backup. A new install clears this after its first run.
+    - name: alloydb-capacity
+      rules:
+        - alert: NodeFilesystemLow
+          # Covers /var/lib/alloydb (pageserver and sqld data), the local-path PVCs
+          # and safekeeper volumes, which all live on node filesystems.
+          expr: |
+            (
+              node_filesystem_avail_bytes{fstype=~"ext[234]|xfs|btrfs|zfs"}
+              / node_filesystem_size_bytes{fstype=~"ext[234]|xfs|btrfs|zfs"}
+            ) < 0.15
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Less than 15% free on {{ $labels.instance }}:{{ $labels.mountpoint }}"
+            description: >-
+              {{ $value | humanizePercentage }} free on {{ $labels.mountpoint }}
+              ({{ $labels.device }}). Pageserver, sqld and local-path volumes share node disks.
+        - alert: PersistentVolumeLow
+          # Best effort: local-path volumes may not report kubelet volume stats.
+          expr: |
+            (
+              kubelet_volume_stats_available_bytes
+              / kubelet_volume_stats_capacity_bytes
+            ) < 0.15
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Less than 15% free on volume {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}"
+            description: "{{ $value | humanizePercentage }} free."
+    - name: alloydb-control-plane
+      rules:
+        - alert: ControlPlaneDeploymentUnavailable
+          expr: kube_deployment_status_replicas_unavailable{namespace="alloydb-system",deployment=~"control-plane-.+"} > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.deployment }} has unavailable replicas"
+            description: "{{ $value }} replica(s) of {{ $labels.deployment }} are unavailable."
+        - alert: ControlPlaneDeploymentDown
+          expr: kube_deployment_status_replicas_available{namespace="alloydb-system",deployment=~"control-plane-.+"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.deployment }} has no available replica"
+            description: >-
+              The control-plane mode behind {{ $labels.deployment }} is down; operations,
+              the API, compute start-up or the Data API stall until it is back.
+    - name: alloydb-certificates
+      rules:
+        - alert: CertificateExpiringSoon
+          expr: certmanager_certificate_expiration_timestamp_seconds - time() < 14 * 24 * 3600
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in under 14 days"
+            description: >-
+              cert-manager should have renewed it; check the Certificate, its Order and the
+              Cloudflare DNS-01 token. The Neon proxy reads its certificate at start only.
+        - alert: CertificateNotReady
+          expr: certmanager_certificate_ready_status{condition!="True"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} is not ready"
+            description: "Ready condition is {{ $labels.condition }}."
+    - name: alloydb-monitoring
+      rules:
+        # Always firing on purpose; Alertmanager routes it to the null receiver.
+        # If it ever stops showing in vmalert, the alerting pipeline is broken.
+        - alert: Watchdog
+          expr: vector(1)
+          labels:
+            severity: none
+          annotations:
+            summary: Alerting pipeline heartbeat
+        - alert: MetricsScrapeTargetDown
+          expr: up{job=~"platform-postgres|libsql-sqld|cert-manager"} == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Scrape target {{ $labels.job }} {{ $labels.instance }} is down"
+            description: >-
+              Metrics for {{ $labels.job }} are missing, so the alerts that depend on them are blind.
