@@ -44,9 +44,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# drizzle migrations (generated locally)
-packages/database/drizzle
-
 # stripe sync engine build artifacts
 /packages/stripe-sync-engine/node_modules
 /packages/stripe-sync-engine/dist
