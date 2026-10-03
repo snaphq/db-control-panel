@@ -17,6 +17,10 @@ on:
     paths:
       - 'infra/images/**'
       - 'apps/control-plane/**'
+      # Also baked into the control-plane image (Dockerfile build inputs).
+      - 'packages/control-plane-contract/**'
+      - 'package.json'
+      - 'bun.lock'
       - '.github/workflows/images.yml'
 
 concurrency:
@@ -58,7 +62,7 @@ jobs:
           # recipe, or lockfile) must not rebuild the multi-hour data-plane images.
           if [ "$EVENT" = push ] && [ -n "${BEFORE//0/}" ]; then
             git fetch --no-tags --depth=1 origin "$BEFORE"
-            if ! git diff --name-only "$BEFORE" HEAD | grep -qvE '^(apps/control-plane/|infra/images/control-plane/|bun\.lock$|package\.json$)'; then
+            if ! git diff --name-only "$BEFORE" HEAD | grep -qvE '^(apps/control-plane/|packages/control-plane-contract/|infra/images/control-plane/|bun\.lock$|package\.json$)'; then
               REQUESTED=control-plane
             fi
           fi
