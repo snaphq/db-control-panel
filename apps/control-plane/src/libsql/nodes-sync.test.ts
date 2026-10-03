@@ -1,7 +1,7 @@
 import type { V1Node } from '@kubernetes/client-node';
 import { describe, expect, it } from 'vitest';
 import { createMemoryNeonStore } from '../neon/store-memory.js';
-import { parseNode, syncNodes } from './nodes-sync.js';
+import { parseNode, parseQuantity, syncNodes } from './nodes-sync.js';
 
 function k8sNode(
   name: string,
@@ -12,6 +12,7 @@ function k8sNode(
     roles?: string[];
     zone?: string;
     ready?: boolean;
+    allocatable?: Record<string, string>;
   } = {},
 ): V1Node {
   const labels: Record<string, string> = {};
@@ -28,6 +29,7 @@ function k8sNode(
         : undefined,
     },
     status: {
+      allocatable: options.allocatable,
       addresses: options.ip
         ? [{ type: 'InternalIP', address: options.ip }]
         : [],
@@ -59,6 +61,36 @@ describe('parseNode', () => {
       zone: 'az-2',
       roles: ['libsql', 'compute'],
       ready: true,
+      hostname: 'n1',
+      allocatable: {},
+      labels: {
+        'alloydb.net/node-id': '3',
+        'alloydb.net/libsql': 'true',
+        'alloydb.net/compute': 'true',
+        'topology.kubernetes.io/zone': 'az-2',
+      },
+    });
+  });
+
+  it('reads allocatable resources and the hostname label', () => {
+    const node = k8sNode('n1', {
+      id: '3',
+      ip: '1.2.3.4',
+      allocatable: {
+        cpu: '8',
+        memory: '16384Mi',
+        'ephemeral-storage': '490934772Ki',
+      },
+    });
+    if (node.metadata?.labels)
+      node.metadata.labels['kubernetes.io/hostname'] = 'hel-3';
+    expect(parseNode(node)).toMatchObject({
+      hostname: 'hel-3',
+      allocatable: {
+        cpuMillis: 8000,
+        memoryBytes: 16384 * 1024 ** 2,
+        storageBytes: 490934772 * 1024,
+      },
     });
   });
 
@@ -83,6 +115,23 @@ describe('parseNode', () => {
     ['no address', k8sNode('n', { id: '1' })],
   ])('skips a node with %s', (_what, node) => {
     expect(typeof parseNode(node)).toBe('string');
+  });
+});
+
+describe('parseQuantity', () => {
+  it.each([
+    ['8', 8],
+    ['100Gi', 100 * 1024 ** 3],
+    ['490934772Ki', 490934772 * 1024],
+    ['7910m', 7.91],
+    ['2G', 2e9],
+    ['1.5Gi', 1.5 * 1024 ** 3],
+  ])('reads %s', (raw, value) => {
+    expect(parseQuantity(raw)).toBeCloseTo(value as number, 5);
+  });
+
+  it.each([[undefined], [''], ['lots'], ['-1']])('rejects %s', (raw) => {
+    expect(parseQuantity(raw)).toBeNull();
   });
 });
 
@@ -113,7 +162,11 @@ describe('syncNodes', () => {
       [1, ['pageserver', 'compute'], '100.64.0.1', 'az-1'],
       [2, ['libsql'], '100.64.0.2', 'az-2'],
     ]);
-    expect(nodes.every((n) => n.capacity.ready === true)).toBe(true);
+    expect(
+      nodes.every(
+        (n) => n.capacity.ready === true && n.capacity.missing === false,
+      ),
+    ).toBe(true);
   });
 
   it('follows label changes and readiness', async () => {
@@ -143,7 +196,7 @@ describe('syncNodes', () => {
     );
     const node = (await store.listNodes())[0];
     expect(node?.roles).toEqual(['compute']);
-    expect(node?.capacity).toEqual({ ready: false });
+    expect(node?.capacity).toMatchObject({ ready: false, missing: false });
   });
 
   it('keeps what other jobs recorded about the node', async () => {
@@ -185,5 +238,44 @@ describe('syncNodes', () => {
     expect(result.skipped).toHaveLength(2);
     expect(warnings[0]).toMatch(/already used by a/);
     expect((await store.listNodes())[0]?.name).toBe('a');
+  });
+
+  it('marks a node that left the cluster as missing and not Ready, keeping its row', async () => {
+    const store = createMemoryNeonStore();
+    await syncNodes(
+      source([
+        k8sNode('a', { id: '1', ip: '100.64.0.1', roles: ['pageserver'] }),
+        k8sNode('b', { id: '2', ip: '100.64.0.2', roles: ['pageserver'] }),
+      ]),
+      store,
+      quiet,
+    );
+    await syncNodes(
+      source([
+        k8sNode('a', { id: '1', ip: '100.64.0.1', roles: ['pageserver'] }),
+      ]),
+      store,
+      quiet,
+    );
+    const nodes = await store.listNodes();
+    expect(
+      nodes.map((n) => [n.id, n.capacity.ready, n.capacity.missing]),
+    ).toEqual([
+      [1, true, false],
+      [2, false, true],
+    ]);
+    // Coming back clears the mark.
+    await syncNodes(
+      source([
+        k8sNode('a', { id: '1', ip: '100.64.0.1', roles: ['pageserver'] }),
+        k8sNode('b', { id: '2', ip: '100.64.0.2', roles: ['pageserver'] }),
+      ]),
+      store,
+      quiet,
+    );
+    expect((await store.listNodes())[1]?.capacity).toMatchObject({
+      ready: true,
+      missing: false,
+    });
   });
 });

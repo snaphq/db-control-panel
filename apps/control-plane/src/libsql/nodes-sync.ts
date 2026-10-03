@@ -27,6 +27,40 @@ interface ParsedNode {
   zone: string;
   roles: string[];
   ready: boolean;
+  /** `kubernetes.io/hostname`, what a pod's nodeSelector matches; the node name when unlabeled. */
+  hostname: string;
+  /** `status.allocatable`, in bytes and millicores; absent when the node does not report it. */
+  allocatable: {
+    cpuMillis?: number;
+    memoryBytes?: number;
+    storageBytes?: number;
+  };
+  /** The `alloydb.net/*` labels and the zone, for the admin view. */
+  labels: Record<string, string>;
+}
+
+const BINARY = {
+  Ki: 1024,
+  Mi: 1024 ** 2,
+  Gi: 1024 ** 3,
+  Ti: 1024 ** 4,
+} as const;
+const DECIMAL = { k: 1e3, M: 1e6, G: 1e9, T: 1e12 } as const;
+
+/** Kubernetes quantity ("100Gi", "490934772Ki", "8", "7910m") as a number; null when unreadable. */
+export function parseQuantity(raw: string | undefined): number | null {
+  const match = /^(\d+(?:\.\d+)?)(Ki|Mi|Gi|Ti|k|M|G|T|m)?$/.exec(raw ?? '');
+  if (!match?.[1]) return null;
+  const value = Number(match[1]);
+  const unit = match[2];
+  if (unit === undefined) return value;
+  if (unit === 'm') return value / 1000;
+  return (
+    value *
+    (unit in BINARY
+      ? BINARY[unit as keyof typeof BINARY]
+      : DECIMAL[unit as keyof typeof DECIMAL])
+  );
 }
 
 /** The node as the platform sees it, or the reason it is skipped. */
@@ -46,6 +80,10 @@ export function parseNode(node: V1Node): ParsedNode | string {
     return `${name}: no Tailscale address (InternalIP or ${ANNOTATION_TAILSCALE_IP})`;
   }
   const labels = node.metadata?.labels ?? {};
+  const allocatable = node.status?.allocatable ?? {};
+  const cpu = parseQuantity(allocatable.cpu);
+  const memory = parseQuantity(allocatable.memory);
+  const storage = parseQuantity(allocatable['ephemeral-storage']);
   return {
     id,
     name,
@@ -55,6 +93,19 @@ export function parseNode(node: V1Node): ParsedNode | string {
     ready:
       node.status?.conditions?.find((c) => c.type === 'Ready')?.status ===
       'True',
+    hostname: labels['kubernetes.io/hostname'] ?? name,
+    allocatable: {
+      ...(cpu === null ? {} : { cpuMillis: Math.round(cpu * 1000) }),
+      ...(memory === null ? {} : { memoryBytes: Math.round(memory) }),
+      ...(storage === null ? {} : { storageBytes: Math.round(storage) }),
+    },
+    labels: Object.fromEntries(
+      Object.entries(labels).filter(
+        ([key]) =>
+          key.startsWith('alloydb.net/') ||
+          key === 'topology.kubernetes.io/zone',
+      ),
+    ),
   };
 }
 
@@ -90,9 +141,28 @@ export async function syncNodes(
       zone: parsed.zone,
       addRoles: [],
       roles: parsed.roles,
-      capacity: { ready: parsed.ready },
+      capacity: {
+        ready: parsed.ready,
+        missing: false,
+        hostname: parsed.hostname,
+        allocatable: parsed.allocatable,
+        labels: parsed.labels,
+      },
     });
     synced.push(parsed.id);
+  }
+  // A node that left the cluster keeps its row (databases and safekeepers may
+  // still refer to it) but must not receive new work.
+  for (const row of await store.listNodes()) {
+    if (synced.includes(row.id) || row.capacity.missing === true) continue;
+    await store.upsertNode({
+      id: row.id,
+      name: row.name,
+      tailscaleIp: row.tailscaleIp,
+      zone: row.zone,
+      addRoles: [],
+      capacity: { ready: false, missing: true },
+    });
   }
   return { synced, skipped };
 }
