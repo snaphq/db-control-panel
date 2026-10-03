@@ -1,6 +1,6 @@
 ---
 title: Backend admin portal
-description: apps/backend sign-in, authorization, tenant scope, admin MCP, and platform ingress.
+description: apps/backend sign-in, authorization, tenant scope, the cluster (platform) view, admin MCP, and platform ingress.
 ---
 
 # Backend admin portal
@@ -59,3 +59,63 @@ tools read only that tenant's rows.
 The per-tenant `site-admin` role still exists on tenant `user` rows. It is a
 tenant-level support role (see `packages/core/src/auth/require-membership.ts`)
 and grants nothing in the backend.
+
+## Cluster view
+
+The **Cluster** sidebar section shows the Kubernetes cluster that the control
+plane manages ([Control plane](/platform/control-plane#admin-api)). It is
+read through the control plane's admin API, never through Kubernetes or the
+storage controller, so the pages keep working when those are down and only
+need two settings:
+
+| Variable | Meaning |
+| --- | --- |
+| `ALLOYDB_API_URL` | Control-plane base URL (default `https://api.alloydb.net`) |
+| `ALLOYDB_ADMIN_API_TOKEN` | Bearer token for `/v1/admin/*`. Set it in the `alloydb-admin` Vercel project only: it is a different secret from the console's `ALLOYDB_API_TOKEN`, and each token is refused on the other's routes |
+
+| Page | Shows |
+| --- | --- |
+| `/platform/nodes` | Counts first, then one row per node: zone, roles, Ready or Missing, allocatable CPU, memory and storage, the pageserver (availability, scheduling policy, attached shards), the safekeepers on it with their state, and its libSQL database count. "Rebalance pageservers" lives here |
+| `/platform/safekeepers` | Counts, the layout in plain words (how many are wanted, the target per node, the next move a spread would make, stranded safekeepers, why nothing can be planned), then every safekeeper with its state and, while retiring, drain progress and failures. "Spread safekeepers" lives here |
+| `/platform/operations` | Platform operations, newest first (all or only active), with both buttons |
+| `/platform/operations/[id]` | One operation: status, trigger, error, and each step with the output it recorded; a running step shows its checkpoint |
+
+State is shown as pills (green healthy, blue in progress, amber needs
+attention, red failed or missing, grey inactive); the pill text always names
+the state. Active operations re-render the page every 3 seconds
+(`router.refresh()`, `components/admin/platform/auto-refresh.tsx`); nothing polls
+once they settle.
+
+Code layout: `lib/platform/` holds the pure formatting, layout wording and step
+logic plus `load.ts` (a page's read, which never throws) and `actions.ts` (the
+route logic); `components/admin/platform/` holds the views; the HTTP client is
+`createPlatformAdminClient` in `packages/core/src/control-plane/admin-client.ts`
+on the same `transport.ts` as the console's client, validating every response
+with the contract's admin schemas.
+
+### Starting operations
+
+`POST /api/admin/platform/pageservers/rebalance` and
+`POST /api/admin/platform/safekeepers/spread` start the platform operations.
+Each one:
+
+1. calls `getAdminSession()` and answers `401` without an admin session,
+2. calls the control plane with the admin token,
+3. writes an `admin_audit_log` entry (`admin_pageservers_rebalance_started` or
+   `admin_safekeepers_spread_started`, with the operation id) and answers `202`
+   with `{operation}`; a failed audit write is logged but does not turn the
+   response into an error, because the operation is already running,
+4. answers `409` `{code: "platform_busy", active_operation_id}` while another
+   platform operation is active (the id is looked up best effort, `null` if
+   that fails), `503` when `ALLOYDB_ADMIN_API_TOKEN` is not set, and `502` when
+   the control plane is unreachable or rejects the token.
+
+The button asks for confirmation, then opens the returned operation; on `409`
+it says another operation is running and links to it.
+
+### Not deployed yet
+
+Without `ALLOYDB_ADMIN_API_TOKEN`, or when the control plane cannot be reached,
+every page shows an explanation instead of failing (the cluster is probably
+not deployed yet; a rejected token is called out separately). Nothing else in
+the portal depends on it.

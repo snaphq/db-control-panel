@@ -22,7 +22,9 @@ browser (packages/react-ui/src/components/databases)
 | File | Role |
 | --- | --- |
 | `packages/core/src/control-plane/client.ts` | `createControlPlaneClient(config, scope)`, `controlPlaneFor(scope)`, `readControlPlaneConfig()` |
-| `.../errors.ts` | `ControlPlaneBusyError` (423), `ControlPlaneNotFoundError` (404), `ControlPlaneRequestError` (other 4xx), `ControlPlaneUnavailableError` (5xx, network, bad shape), `ControlPlaneConfigError` |
+| `.../transport.ts` | The HTTP layer both clients share: bearer token, 15 s timeout, contract validation, error mapping |
+| `.../errors.ts` | `ControlPlaneBusyError` (423), `ControlPlaneNotFoundError` (404), `ControlPlaneConflictError` (409, a `ControlPlaneRequestError`), `ControlPlaneRequestError` (other 4xx), `ControlPlaneUnavailableError` (5xx, network, bad shape), `ControlPlaneConfigError` |
+| `.../admin-client.ts` | The admin portal's client for `/v1/admin/*` (`ALLOYDB_ADMIN_API_TOKEN`, no org or project headers); used by `apps/backend` only, see [Backend admin portal](/architecture/backend-admin#cluster-view) |
 | `.../access.ts` | `requireProjectAccess(projectId, {write})` |
 | `.../route.ts` | `withProjectControlPlane` and the error to HTTP mapping |
 | `.../body.ts` | `parseJsonBody`, validating with the contract's request schemas |
@@ -48,7 +50,7 @@ the contract first (`build` depends on `^build`, and `core`, `react-ui` and
 `site-kit` declare it as a dependency); running `bun run --filter
 net.alloydb.console build` directly needs `dist/` to exist already
 (`bun run --filter @repo/control-plane-contract build`). Vitest aliases the
-source instead.
+source instead. `apps/backend` follows the same rule (no tsconfig alias).
 
 ## The client
 

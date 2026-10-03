@@ -38,6 +38,11 @@
         "apps/backend/src/lib/admin-login.ts",
         "apps/backend/src/proxy.ts",
         "apps/backend/src/app/mcp/route.ts",
+        "apps/backend/src/lib/platform",
+        "apps/backend/src/app/(admin)/platform",
+        "apps/backend/src/app/api/admin/platform",
+        "apps/backend/src/components/admin/platform",
+        "packages/core/src/control-plane/admin-client.ts",
         "packages/database/src/schema-admin.ts"
       ]
     },
