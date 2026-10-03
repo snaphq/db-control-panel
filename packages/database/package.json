@@ -12,6 +12,7 @@
   },
   "scripts": {
     "db:generate": "drizzle-kit generate",
+    "db:baseline": "bun scripts/baseline.ts",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:query": "bun src/query.ts",
@@ -22,6 +23,7 @@
     "@neondatabase/serverless": "1.0.2",
     "@repo/search": "workspace:*",
     "drizzle-orm": "^0.44.7",
+    "postgres": "catalog:",
     "undici": "catalog:"
   },
   "devDependencies": {

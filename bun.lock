@@ -194,6 +194,7 @@
         "@neondatabase/serverless": "1.0.2",
         "@repo/search": "workspace:*",
         "drizzle-orm": "^0.44.7",
+        "postgres": "catalog:",
         "undici": "catalog:",
       },
       "devDependencies": {
