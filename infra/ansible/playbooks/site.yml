@@ -44,7 +44,8 @@
 #     remove-node.yml (uninstall_k3s=true), move the host to k3s_servers, and
 #     run join-node.yml again (wipe and rejoin).
 #   * Moving data off a pageserver/sqld node before removal is a control-plane
-#     operation, not done here; remove-node.yml only drains pods.
+#     operation, not done here; remove-node.yml only drains pods. Safekeepers
+#     (they run on `pageserver` nodes) leave a node when its role is removed.
 #   * Role labels are reconciled (added or removed) on every run; the node-id
 #     and zone labels are only applied when a node first registers.
 #

@@ -1,5 +1,6 @@
 # Mode `worker`: runs database migrations at start, then the pg-boss
-# operations queue, idle suspend, and node/safekeeper registration. It serves no
+# operations queue, idle suspend, node sync, and the safekeepers (it creates,
+# registers and spreads them) and pageserver rebalancing. It serves no
 # HTTP and has no Service. One replica with Recreate: migrations are guarded by
 # an advisory lock, but periodic jobs should never run twice during a rollout.
 apiVersion: apps/v1
@@ -40,7 +41,7 @@ spec:
       containers:
         - name: worker
           image: ghcr.io/snaphq/alloydb-control-plane # tag injected by kustomize `images:`
-          # ALLOYDB_COMPUTE_IMAGE and ALLOYDB_POSTGREST_IMAGE, from the ConfigMap generator.
+          # ALLOYDB_COMPUTE_IMAGE, ALLOYDB_POSTGREST_IMAGE and ALLOYDB_NEON_IMAGE, from the ConfigMap generator.
           envFrom:
             - configMapRef:
                 name: control-plane-images

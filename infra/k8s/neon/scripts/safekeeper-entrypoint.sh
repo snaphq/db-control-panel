@@ -1,16 +1,18 @@
 #!/bin/sh
-# Safekeeper entrypoint. Derives the node identity from the StatefulSet pod
-# name and execs the safekeeper.
+# Safekeeper entrypoint. Takes the node identity from the environment the
+# control-plane worker puts on the pod and execs the safekeeper.
 #
-#   pod safekeeper-<n>  ->  --id <n+1>, --availability-zone az-<n+1>
+#   SAFEKEEPER_ID=<n>  ->  --id <n>, --availability-zone $SAFEKEEPER_AZ (az-<n>)
 #
 # The id is persisted by the safekeeper in its data directory on first start
 # and checked on every later start (set_id in safekeeper/src/bin/safekeeper.rs),
-# so ids must never move between pods. A StatefulSet ordinal is stable, and the
-# +1 keeps ids positive (the storage controller rejects id <= 0).
+# so a volume must always be started with the same id. The worker gives each
+# safekeeper its own StatefulSet `safekeeper-<id>` and never reuses an id, and
+# ids are positive (the storage controller rejects id <= 0).
 #
 # Inputs (env, from the pod spec)
-#   POD_NAME                      downward API, metadata.name
+#   SAFEKEEPER_ID                 positive integer, the storage controller node id
+#   SAFEKEEPER_AZ                 logical availability zone, az-<id>
 #   POD_NAMESPACE                 downward API, metadata.namespace
 #   BROKER_ENDPOINT               e.g. http://storage-broker.neon.svc.cluster.local:50051
 #   S3_BUCKET S3_REGION S3_ENDPOINT   from Secret neon-s3 (S3_ENDPOINT may be empty)
@@ -22,24 +24,23 @@ set -eu
 
 die() { printf 'safekeeper-entrypoint: ERROR: %s\n' "$*" >&2; exit 1; }
 
-for _name in POD_NAME POD_NAMESPACE BROKER_ENDPOINT S3_BUCKET S3_REGION JWT_DIR; do
+for _name in SAFEKEEPER_ID SAFEKEEPER_AZ POD_NAMESPACE BROKER_ENDPOINT S3_BUCKET S3_REGION JWT_DIR; do
     eval "_val=\${$_name:-}"
     [ -n "$_val" ] || die "required environment variable $_name is empty or unset"
 done
 S3_ENDPOINT="${S3_ENDPOINT:-}"
 
-ORDINAL="${POD_NAME##*-}"
-case "$ORDINAL" in
-    ''|*[!0-9]*) die "cannot derive an ordinal from POD_NAME='$POD_NAME'" ;;
+case "$SAFEKEEPER_ID" in
+    ''|*[!0-9]*|0|0[0-9]*) die "SAFEKEEPER_ID='$SAFEKEEPER_ID' is not a positive integer" ;;
 esac
-SK_ID=$((ORDINAL + 1))
-AZ="az-$SK_ID"
+SK_ID="$SAFEKEEPER_ID"
+AZ="$SAFEKEEPER_AZ"
 
-# The address other nodes use to reach this safekeeper's WAL service. It is
-# the per-pod DNS name of the headless Service `safekeeper`, which stays the
-# same across pod restarts (unlike the pod IP). The control-plane worker
-# registers the same name with the storage controller.
-ADVERTISE_PG="$POD_NAME.safekeeper.$POD_NAMESPACE.svc.cluster.local:5454"
+# The address other nodes use to reach this safekeeper's WAL service: the name
+# of its own Service, which stays the same across pod restarts and rescheduling
+# (unlike the pod IP). The control-plane worker registers the same name with the
+# storage controller.
+ADVERTISE_PG="safekeeper-$SK_ID.$POD_NAMESPACE.svc.cluster.local:5454"
 
 # --remote-storage takes an inline TOML table of S3Config keys
 # (libs/remote_storage/src/config.rs). Safekeeper offloads WAL segments to

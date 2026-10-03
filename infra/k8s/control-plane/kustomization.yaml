@@ -14,7 +14,7 @@
 # Compute images: the control plane creates compute pods itself, so their images
 #          are settings, not container images kustomize could rewrite. They come
 #          from the `control-plane-images` ConfigMap below (ALLOYDB_COMPUTE_IMAGE,
-#          ALLOYDB_POSTGREST_IMAGE) that worker, neon-glue and data-api-gateway
+#          ALLOYDB_POSTGREST_IMAGE, ALLOYDB_NEON_IMAGE) that worker, neon-glue and data-api-gateway
 #          load with envFrom. Replace the placeholder tags with the commit the
 #          images workflow built (neon-compute-v17:<sha>, postgrest:<sha>).
 #
@@ -80,6 +80,10 @@ configMapGenerator:
     literals:
       - ALLOYDB_COMPUTE_IMAGE=ghcr.io/snaphq/neon-compute-v17:d6351a43335885c377f7cb0d8dd5635a1f68eb38
       - ALLOYDB_POSTGREST_IMAGE=ghcr.io/snaphq/postgrest:d6351a43335885c377f7cb0d8dd5635a1f68eb38
+      # The safekeeper pods the worker creates. Keep in step with the
+      # ghcr.io/snaphq/neon tag in infra/k8s/neon/kustomization.yaml; changing it
+      # makes the worker roll the safekeepers, one at a time.
+      - ALLOYDB_NEON_IMAGE=ghcr.io/snaphq/neon:d6351a43335885c377f7cb0d8dd5635a1f68eb38
 
 images:
   - name: ghcr.io/snaphq/alloydb-control-plane

@@ -1,6 +1,10 @@
 # What the control plane may do in the cluster, scoped as tightly as the
 # design allows (docs-internal/platform/control-plane.mdx):
 #   neon-compute  create and delete compute pods, watch their state
+#   neon          run the safekeepers: one StatefulSet, Service and volume
+#                 claim each (platform/safekeeper-kube.ts). Pods are created by
+#                 the StatefulSet controller, so the worker never needs pod access
+#                 there; Secrets and ConfigMaps are only named in the pod spec.
 #   libsql        manage the per-node Services and EndpointSlices that point
 #                 at sqld on the host network, and per-database IngressRoutes
 #   alloydb-system  manage IngressRoutes (data-api routes)
@@ -38,6 +42,33 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: control-plane-computes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: control-plane-safekeepers
+  namespace: neon
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["create", "get", "list", "watch", "update", "delete"]
+  - apiGroups: [""]
+    resources: ["services", "persistentvolumeclaims"]
+    verbs: ["create", "get", "list", "watch", "update", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: control-plane-safekeepers
+  namespace: neon
+subjects:
+  - kind: ServiceAccount
+    name: control-plane
+    namespace: alloydb-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: control-plane-safekeepers
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

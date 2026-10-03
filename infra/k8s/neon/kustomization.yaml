@@ -48,7 +48,14 @@ resources:
 
 # Scripts live as real files so they can be linted (`sh -n`). The generator
 # appends a content hash to each ConfigMap name and rewrites the references in
-# pageserver.yaml / safekeeper.yaml, so editing a script rolls the pods.
+# pageserver.yaml, so editing a script rolls the pods.
+#
+# The safekeeper entrypoint keeps a fixed name instead: the pods that mount it
+# are created by the control-plane worker (ALLOYDB_SAFEKEEPER_ENTRYPOINT_CONFIGMAP,
+# default `safekeeper-entrypoint`), not by a manifest kustomize can rewrite.
+# Editing the script therefore does not restart safekeepers by itself; ship the
+# change together with an image bump (the worker rolls safekeepers one at a time
+# when ALLOYDB_NEON_IMAGE changes) or restart them one by one.
 configMapGenerator:
   - name: pageserver-render-config
     namespace: neon
@@ -56,11 +63,15 @@ configMapGenerator:
       - render-config.sh=scripts/pageserver-render-config.sh
   - name: safekeeper-entrypoint
     namespace: neon
+    options:
+      disableNameSuffixHash: true
     files:
       - safekeeper-entrypoint.sh=scripts/safekeeper-entrypoint.sh
 
 # One image carries storage_broker, storage_controller, pageserver, safekeeper
-# and proxy; every workload runs a different binary from it.
+# and proxy; every workload runs a different binary from it. The safekeepers the
+# worker creates use the same image through ALLOYDB_NEON_IMAGE in
+# infra/k8s/control-plane/kustomization.yaml: bump the two tags together.
 images:
   - name: ghcr.io/snaphq/neon
     newTag: d6351a43335885c377f7cb0d8dd5635a1f68eb38

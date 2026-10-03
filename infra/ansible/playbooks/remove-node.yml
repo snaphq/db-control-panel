@@ -13,7 +13,10 @@
 #
 # Removing a server shrinks the etcd cluster: only do it when the remaining
 # servers still form a quorum, and keep the total odd. Deleting a Node does not
-# move pageserver/sqld data; migrate it through the control plane first.
+# move pageserver/sqld data; migrate it through the control plane first. A node
+# that hosts safekeepers is emptied by removing its `pageserver` role (relabel
+# it, re-run join-node.yml): the control plane then spreads the safekeepers to
+# other nodes, one at a time. Drain only after `GET /v1/admin/nodes` shows none.
 
 - name: Check the removal request
   hosts: "{{ control_host | default('k3s_servers[0]') }}"

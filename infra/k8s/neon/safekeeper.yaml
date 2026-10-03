@@ -1,19 +1,28 @@
-# Safekeepers: the durable WAL quorum. Three replicas, one per node where
-# possible, each on a local PersistentVolume.
+# Safekeepers: the durable WAL quorum. Unlike the other storage-plane workloads
+# they are NOT declared here: the control-plane worker creates one StatefulSet
+# `safekeeper-<id>` (one replica, one local-path PersistentVolume, pinned to a
+# node) and one Service `safekeeper-<id>` per safekeeper, so it can spread them
+# over nodes as the cluster grows and move one to another node later
+# (docs-internal/platform/control-plane.mdx, "Safekeeper layout").
 #
-# Identity: pod safekeeper-<n> runs with --id <n+1> and --availability-zone
-# az-<n+1> (scripts/safekeeper-entrypoint.sh). The "AZ" is a logical label that
-# lets the controller spread a timeline's three replicas over three safekeepers;
-# it is not tied to the node's topology.kubernetes.io/zone.
+# What stays here is what every safekeeper shares:
+#   * the headless Service `safekeeper` (pod DNS for the StatefulSets);
+#   * the PodDisruptionBudget (below);
+#   * the entrypoint script, as ConfigMap `safekeeper-entrypoint`
+#     (kustomization.yaml; scripts/safekeeper-entrypoint.sh).
 #
-# Safekeepers do not register themselves. The control-plane worker registers
-# each one with the storage controller (POST /control/v1/safekeeper/<id>, then
-# scheduling policy Active) using the per-pod DNS name
-#   safekeeper-<n>.safekeeper.neon.svc.cluster.local, WAL port 5454, HTTP port 7676.
+# Identity comes from env the worker sets: SAFEKEEPER_ID (--id) and
+# SAFEKEEPER_AZ (--availability-zone, `az-<id>`: one logical zone per
+# safekeeper, so the controller's distinct-zone rule holds on any node count).
+# The registered address is the safekeeper's own Service,
+#   safekeeper-<id>.neon.svc.cluster.local, WAL port 5454, HTTP port 7676,
+# which survives pod restarts. The worker registers each safekeeper with the
+# storage controller (POST /control/v1/safekeeper/<id>, then scheduling policy
+# Active) once its pod is Ready.
 #
 # Local PVs pin a pod to the node that first ran it. If that node is lost the
 # replica's WAL is lost with it; the other two safekeepers keep the quorum and
-# the replica has to be re-created through the storage controller.
+# the replica has to be replaced (runbook in control-plane.mdx).
 apiVersion: v1
 kind: Service
 metadata:
@@ -23,9 +32,7 @@ metadata:
     app.kubernetes.io/name: safekeeper
     app.kubernetes.io/component: safekeeper
 spec:
-  clusterIP: None # headless: gives every pod a stable DNS name
-  # Peers, pageservers and the registering worker must be able to resolve a pod
-  # name as soon as the pod exists, not only once it is Ready.
+  clusterIP: None # headless: gives every pod a DNS name
   publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: safekeeper
@@ -37,168 +44,12 @@ spec:
       port: 7676
       targetPort: http
 ---
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: safekeeper
-  namespace: neon
-  labels:
-    app.kubernetes.io/name: safekeeper
-    app.kubernetes.io/component: safekeeper
-spec:
-  serviceName: safekeeper
-  replicas: 3
-  # Start and replace pods in parallel: ordinals are independent, and a stuck
-  # pod must not block the others from coming up.
-  podManagementPolicy: Parallel
-  updateStrategy:
-    type: RollingUpdate
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: safekeeper
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: safekeeper
-        app.kubernetes.io/component: safekeeper
-    spec:
-      # Optional: only needed while the ghcr.io/snaphq packages are private. A
-      # missing Secret only produces a warning event.
-      imagePullSecrets:
-        - name: ghcr-pull
-      terminationGracePeriodSeconds: 60
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                topologyKey: kubernetes.io/hostname
-                labelSelector:
-                  matchLabels:
-                    app.kubernetes.io/name: safekeeper
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000 # numeric uid of image user `neon`, UNVERIFIED (see storage-broker.yaml)
-        runAsGroup: 1000
-        fsGroup: 1000 # makes the PVC writable for that uid
-        seccompProfile:
-          type: RuntimeDefault
-      containers:
-        - name: safekeeper
-          image: ghcr.io/snaphq/neon # tag injected by kustomize `images:`
-          command: ["/bin/sh", "/scripts/safekeeper-entrypoint.sh"]
-          env:
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: BROKER_ENDPOINT
-              value: http://storage-broker.neon.svc.cluster.local:50051
-            - name: JWT_DIR
-              value: /etc/neon/jwt
-            - name: S3_BUCKET
-              valueFrom:
-                secretKeyRef:
-                  name: neon-s3
-                  key: S3_BUCKET
-            - name: S3_REGION
-              valueFrom:
-                secretKeyRef:
-                  name: neon-s3
-                  key: AWS_REGION
-            - name: S3_ENDPOINT
-              valueFrom:
-                secretKeyRef:
-                  name: neon-s3
-                  key: S3_ENDPOINT
-                  optional: true # absent or empty means AWS S3 proper
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: neon-s3
-                  key: AWS_ACCESS_KEY_ID
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: neon-s3
-                  key: AWS_SECRET_ACCESS_KEY
-          ports:
-            - name: pg
-              containerPort: 5454
-            - name: http
-              containerPort: 7676
-          # /v1/status is on the unauthenticated allowlist (http/routes.rs).
-          startupProbe:
-            httpGet:
-              path: /v1/status
-              port: http
-            periodSeconds: 5
-            failureThreshold: 60 # up to 5 minutes: syncfs and timeline load on a big disk
-          readinessProbe:
-            httpGet:
-              path: /v1/status
-              port: http
-            periodSeconds: 5
-            timeoutSeconds: 3
-          livenessProbe:
-            httpGet:
-              path: /v1/status
-              port: http
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 6
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-          resources:
-            requests:
-              cpu: 250m
-              memory: 512Mi
-            limits:
-              memory: 2Gi
-          volumeMounts:
-            - name: data
-              mountPath: /data
-            - name: scripts
-              mountPath: /scripts
-              readOnly: true
-            - name: jwt
-              mountPath: /etc/neon/jwt
-              readOnly: true
-      volumes:
-        - name: scripts
-          configMap:
-            name: safekeeper-entrypoint # generated by kustomize (configMapGenerator)
-            defaultMode: 0555
-        - name: jwt
-          secret:
-            secretName: neon-jwt
-            defaultMode: 0440
-            items:
-              - key: public.pem
-                path: public.pem
-              - key: SAFEKEEPER_JWT_TOKEN
-                path: safekeeper-token
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-        labels:
-          app.kubernetes.io/name: safekeeper
-          app.kubernetes.io/component: safekeeper
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        storageClassName: local-path
-        resources:
-          requests:
-            storage: 50Gi
----
 # At most one safekeeper may be voluntarily disrupted at a time: with three
-# replicas that keeps the 2-of-3 write quorum alive during node drains.
+# replicas that keeps the 2-of-3 write quorum alive during node drains. It
+# selects every safekeeper pod by label, whichever StatefulSet owns it; the
+# disruption controller adds up the scale of all owning StatefulSets. The worker
+# applies the same rule to its own actions: it rolls an image or moves a
+# safekeeper only while every other one is Ready.
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
