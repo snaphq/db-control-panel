@@ -2,6 +2,7 @@ import {
   OPERATION_ACTIONS as CONTRACT_ACTIONS,
   ENDPOINT_STATES as CONTRACT_ENDPOINT_STATES,
   ENDPOINT_TYPES as CONTRACT_ENDPOINT_TYPES,
+  PLATFORM_OPERATION_ACTIONS as CONTRACT_PLATFORM_ACTIONS,
   OPERATION_STATUSES as CONTRACT_STATUSES,
 } from '@repo/control-plane-contract';
 import { describe, expect, it } from 'vitest';
@@ -14,7 +15,10 @@ import {
 
 describe('schema enums match the public contract', () => {
   it('operation actions and statuses', () => {
-    expect([...OPERATION_ACTIONS]).toEqual([...CONTRACT_ACTIONS]);
+    expect([...OPERATION_ACTIONS]).toEqual([
+      ...CONTRACT_ACTIONS,
+      ...CONTRACT_PLATFORM_ACTIONS,
+    ]);
     expect([...OPERATION_STATUSES]).toEqual([...CONTRACT_STATUSES]);
   });
 

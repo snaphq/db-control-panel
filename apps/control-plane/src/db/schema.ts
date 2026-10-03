@@ -30,7 +30,7 @@ export const ENDPOINT_STATES = [
 ] as const;
 export type EndpointState = (typeof ENDPOINT_STATES)[number];
 
-export const OPERATION_ACTIONS = [
+const CONSOLE_OPERATION_ACTIONS = [
   'project.create',
   'project.delete',
   'branch.create',
@@ -46,6 +46,19 @@ export const OPERATION_ACTIONS = [
   'libsql.create',
   'libsql.delete',
   'libsql.fork',
+] as const;
+
+/** Platform-wide operations (platform/store.ts): not tied to a console project. */
+export const PLATFORM_OPERATION_ACTIONS = [
+  'pageservers.rebalance',
+  'safekeepers.spread',
+] as const;
+export type PlatformOperationAction =
+  (typeof PLATFORM_OPERATION_ACTIONS)[number];
+
+export const OPERATION_ACTIONS = [
+  ...CONSOLE_OPERATION_ACTIONS,
+  ...PLATFORM_OPERATION_ACTIONS,
 ] as const;
 export type OperationAction = (typeof OPERATION_ACTIONS)[number];
 
@@ -266,6 +279,61 @@ export const node = pgTable('node', {
   createdAt: timestamptz('created_at').notNull().defaultNow(),
   updatedAt: timestamptz('updated_at').notNull().defaultNow(),
 });
+
+/**
+ * `creating`: Kubernetes objects requested, not yet registered with the storage
+ * controller. `active`: registered and `Active`; holds timelines. `retiring`: a
+ * spread operation is moving its timelines away. `retired`: decommissioned in
+ * the storage controller and its Kubernetes objects deleted.
+ */
+export const SAFEKEEPER_STATES = [
+  'creating',
+  'active',
+  'retiring',
+  'retired',
+] as const;
+export type SafekeeperState = (typeof SAFEKEEPER_STATES)[number];
+
+/** Progress of moving a retiring safekeeper's timelines elsewhere. */
+export interface SafekeeperDrainProgress {
+  /** Timelines found on the safekeeper when the drain last listed them. */
+  total: number;
+  migrated: number;
+  /** `<tenant>/<timeline>` of timelines whose migration failed, with the reason. */
+  failed: { timeline: string; reason: string }[];
+  updatedAt: string;
+}
+
+/**
+ * One safekeeper the control plane runs as its own StatefulSet
+ * (`safekeeper-<id>`). `id` is the storage-controller node id and comes from an
+ * identity column, so it is never reused after a safekeeper is retired. The
+ * availability zone is always `az-<id>` (neon/safekeepers.ts).
+ */
+export const safekeeper = pgTable(
+  'safekeeper',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    /** `ALLOYDB_NODE_ID` of the node holding the data (the node table row). */
+    nodeId: integer('node_id').notNull(),
+    /** Kubernetes node name, matched by the pod's `kubernetes.io/hostname` selector. */
+    nodeName: text('node_name').notNull(),
+    state: text('state').$type<SafekeeperState>().notNull().default('creating'),
+    /** The spread operation that created it; null for bootstrap safekeepers. */
+    operationId: text('operation_id'),
+    drain: jsonb('drain').$type<SafekeeperDrainProgress>(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+    updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+    retiredAt: timestamptz('retired_at'),
+  },
+  (table) => [
+    index('safekeeper_state_idx').on(table.state),
+    check(
+      'safekeeper_state_check',
+      sql.raw(`state in (${inList(SAFEKEEPER_STATES)})`),
+    ),
+  ],
+);
 
 export const LIBSQL_STATES = ['creating', 'active', 'deleting'] as const;
 export type LibsqlState = (typeof LIBSQL_STATES)[number];

@@ -4,10 +4,12 @@ import type {
   Database,
   Endpoint,
   Operation,
+  OperationAction,
   Project,
   Role,
   RoleWithPassword,
 } from '@repo/control-plane-contract';
+import { OPERATION_ACTIONS } from '@repo/control-plane-contract';
 import type { Context } from 'hono';
 import type { z } from 'zod';
 import type { SecretBox } from '../crypto/secretbox.js';
@@ -119,12 +121,26 @@ export async function parseOptionalBody<T>(
   return validate(c, schema, raw);
 }
 
+/**
+ * Platform operations live under a reserved console project no caller can read
+ * (platform/store.ts), so one reaching the console API is a bug.
+ */
+function consoleAction(record: OperationRecord): OperationAction {
+  const action: string = record.action;
+  if (!(OPERATION_ACTIONS as readonly string[]).includes(action)) {
+    throw new Error(
+      `Operation ${record.id} (${action}) is not a console operation`,
+    );
+  }
+  return action as OperationAction;
+}
+
 export function toOperationResponse(record: OperationRecord): Operation {
   return {
     id: record.id,
     target_type: record.targetType,
     target_id: record.targetId,
-    action: record.action,
+    action: consoleAction(record),
     status: record.status,
     failures_count: record.failuresCount,
     error: record.error,
