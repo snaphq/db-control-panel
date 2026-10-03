@@ -93,9 +93,6 @@ metadata:
   name: control-plane
   namespace: flux-system
 spec:
-  # Suspended until infra/k8s/control-plane exists in the repository; then run
-  # `flux resume kustomization control-plane` (or remove this line).
-  suspend: true
   interval: 10m
   retryInterval: 1m
   timeout: 10m
